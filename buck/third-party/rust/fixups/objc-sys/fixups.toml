@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The buildscript picks the Objective-C runtime (Apple's, on Apple targets),
+# emits cfgs for Mac Catalyst and simulator targets, and links libobjc. It
+# only compiles C with the unstable-exception feature, which nothing here
+# enables; safe to run. It names its own directory as it compiles
+# (env!("CARGO_MANIFEST_DIR"), for ObjFW's headers).
+cargo_env = true
+buildscript.run = true

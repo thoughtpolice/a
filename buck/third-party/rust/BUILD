@@ -157,6 +157,38 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "accesskit_macos-0.27.2.crate",
+    sha256 = "123828ceeec755b05255e3976cb0852993202de98a0626c97dd8d34246991f84",
+    strip_prefix = "accesskit_macos-0.27.2",
+    urls = ["https://static.crates.io/crates/accesskit_macos/0.27.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "accesskit_macos-0.27",
+    srcs = [":accesskit_macos-0.27.2.crate"],
+    crate = "accesskit_macos",
+    crate_root = "accesskit_macos-0.27.2.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "accesskit_macos",
+            "version": "0.27.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":accesskit-0.25",
+        ":accesskit_consumer-0.39",
+        ":hashbrown-0.17",
+        ":objc2-0.5",
+        ":objc2-app-kit-0.2",
+        ":objc2-foundation-0.2",
+    ],
+)
+
+shims.http_archive(
     name = "accesskit_unix-0.24.1.crate",
     sha256 = "30d5192871228c54f1b0fb4a85cef000e11a3804f25d2165f14afa0daa67f3f6",
     strip_prefix = "accesskit_unix-0.24.1",
@@ -230,11 +262,7 @@ third_party_rust.rust_library(
     crate = "accesskit_winit",
     crate_root = "accesskit_winit-0.34.2.crate/src/lib.rs",
     edition = "2024",
-    features = [
-        "accesskit_unix",
-        "async-io",
-        "rwh_06",
-    ],
+    features = ["rwh_06"],
     metadata = {
         "third-party.metadata": {
             "name": "accesskit_winit",
@@ -245,10 +273,31 @@ third_party_rust.rust_library(
     named_deps = {
         "rwh_06": ":raw-window-handle-0.6",
     },
+    platform = {
+        "linux-arm64": dict(
+            features = [
+                "accesskit_unix",
+                "async-io",
+            ],
+            deps = [":accesskit_unix-0.24"],
+        ),
+        "linux-x86_64": dict(
+            features = [
+                "accesskit_unix",
+                "async-io",
+            ],
+            deps = [":accesskit_unix-0.24"],
+        ),
+        "macos-arm64": dict(
+            deps = [":accesskit_macos-0.27"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":accesskit_macos-0.27"],
+        ),
+    },
     visibility = [],
     deps = [
         ":accesskit-0.25",
-        ":accesskit_unix-0.24",
         ":winit-0.30",
     ],
 )
@@ -3100,6 +3149,36 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "block2-0.5.1.crate",
+    sha256 = "2c132eebf10f5cad5289222520a4a058514204aed6d791f1cf4fe8088b82d15f",
+    strip_prefix = "block2-0.5.1",
+    urls = ["https://static.crates.io/crates/block2/0.5.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "block2-0.5",
+    srcs = [":block2-0.5.1.crate"],
+    crate = "block2",
+    crate_root = "block2-0.5.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "block2",
+            "version": "0.5.1",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [":objc2-0.5"],
+)
+
+shims.http_archive(
     name = "block2-0.6.2.crate",
     sha256 = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5",
     strip_prefix = "block2-0.6.2",
@@ -5505,6 +5584,71 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
+)
+
+shims.http_archive(
+    name = "core-graphics-0.23.2.crate",
+    sha256 = "c07782be35f9e1140080c6b96f0d44b739e2278479f64e02fdab4e32dfd8b081",
+    strip_prefix = "core-graphics-0.23.2",
+    urls = ["https://static.crates.io/crates/core-graphics/0.23.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "core-graphics-0.23",
+    srcs = [":core-graphics-0.23.2.crate"],
+    crate = "core_graphics",
+    crate_root = "core-graphics-0.23.2.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "default",
+        "link",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "core-graphics",
+            "version": "0.23.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-1",
+        ":core-foundation-0.9",
+        ":core-graphics-types-0.1",
+        ":foreign-types-0.5",
+        ":libc-0.2",
+    ],
+)
+
+shims.http_archive(
+    name = "core-graphics-types-0.1.3.crate",
+    sha256 = "45390e6114f68f718cc7a830514a96f903cccd70d02a8f6d9f643ac4ba45afaf",
+    strip_prefix = "core-graphics-types-0.1.3",
+    urls = ["https://static.crates.io/crates/core-graphics-types/0.1.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "core-graphics-types-0.1",
+    srcs = [":core-graphics-types-0.1.3.crate"],
+    crate = "core_graphics_types",
+    crate_root = "core-graphics-types-0.1.3.crate/src/lib.rs",
+    edition = "2018",
+    features = ["link"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "core-graphics-types",
+            "version": "0.1.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-1",
+        ":core-foundation-0.9",
+        ":libc-0.2",
+    ],
 )
 
 shims.http_archive(
@@ -8071,6 +8215,30 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":winapi-0.3"],
         ),
+    },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "dispatch-0.2.0.crate",
+    sha256 = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b",
+    strip_prefix = "dispatch-0.2.0",
+    urls = ["https://static.crates.io/crates/dispatch/0.2.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dispatch-0.2",
+    srcs = [":dispatch-0.2.0.crate"],
+    crate = "dispatch",
+    crate_root = "dispatch-0.2.0.crate/src/lib.rs",
+    edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dispatch",
+            "version": "0.2.0",
+            "licenses": ["MIT"],
+        },
     },
     visibility = [],
 )
@@ -10838,7 +11006,6 @@ third_party_rust.rust_library(
     edition = "2024",
     features = [
         "default",
-        "fontconfig-dlopen",
         "std",
         "system",
     ],
@@ -10849,6 +11016,32 @@ third_party_rust.rust_library(
             "licenses": ["Apache-2.0 OR MIT"],
         },
     },
+    platform = {
+        "linux-arm64": dict(
+            features = ["fontconfig-dlopen"],
+            deps = [":yeslogic-fontconfig-sys-6"],
+        ),
+        "linux-x86_64": dict(
+            features = ["fontconfig-dlopen"],
+            deps = [":yeslogic-fontconfig-sys-6"],
+        ),
+        "macos-arm64": dict(
+            deps = [
+                ":objc2-0.6",
+                ":objc2-core-foundation-0.3",
+                ":objc2-core-text-0.3",
+                ":objc2-foundation-0.3",
+            ],
+        ),
+        "macos-x86_64": dict(
+            deps = [
+                ":objc2-0.6",
+                ":objc2-core-foundation-0.3",
+                ":objc2-core-text-0.3",
+                ":objc2-foundation-0.3",
+            ],
+        ),
+    },
     visibility = [],
     deps = [
         ":hashbrown-0.17",
@@ -10857,7 +11050,6 @@ third_party_rust.rust_library(
         ":parlance-0.1",
         ":read-fonts-0.41",
         ":smallvec-1",
-        ":yeslogic-fontconfig-sys-6",
     ],
 )
 
@@ -10887,6 +11079,69 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "foreign-types-0.5.0.crate",
+    sha256 = "d737d9aa519fb7b749cbc3b962edcf310a8dd1f4b67c91c4f83975dbdd17d965",
+    strip_prefix = "foreign-types-0.5.0",
+    urls = ["https://static.crates.io/crates/foreign-types/0.5.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "foreign-types-0.5",
+    srcs = [":foreign-types-0.5.0.crate"],
+    crate = "foreign_types",
+    crate_root = "foreign-types-0.5.0.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foreign-types",
+            "version": "0.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":foreign-types-macros-0.2",
+        ":foreign-types-shared-0.3",
+    ],
+)
+
+shims.http_archive(
+    name = "foreign-types-macros-0.2.4.crate",
+    sha256 = "ea5190182e6915eb873ddbc16e23b711b6eb1f9c00a0d0a3a91b5f6228475225",
+    strip_prefix = "foreign-types-macros-0.2.4",
+    urls = ["https://static.crates.io/crates/foreign-types-macros/0.2.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "foreign-types-macros-0.2",
+    srcs = [":foreign-types-macros-0.2.4.crate"],
+    crate = "foreign_types_macros",
+    crate_root = "foreign-types-macros-0.2.4.crate/src/lib.rs",
+    edition = "2018",
+    features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foreign-types-macros",
+            "version": "0.2.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-3",
+    ],
+)
+
+shims.http_archive(
     name = "foreign-types-shared-0.1.1.crate",
     sha256 = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b",
     strip_prefix = "foreign-types-shared-0.1.1",
@@ -10904,6 +11159,30 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "foreign-types-shared",
             "version": "0.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "foreign-types-shared-0.3.1.crate",
+    sha256 = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b",
+    strip_prefix = "foreign-types-shared-0.3.1",
+    urls = ["https://static.crates.io/crates/foreign-types-shared/0.3.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "foreign-types-shared-0.3",
+    srcs = [":foreign-types-shared-0.3.1.crate"],
+    crate = "foreign_types_shared",
+    crate_root = "foreign-types-shared-0.3.1.crate/src/lib.rs",
+    edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "foreign-types-shared",
+            "version": "0.3.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -23601,6 +23880,171 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "objc-sys-0.3.5.crate",
+    sha256 = "cdb91bdd390c7ce1a8607f35f3ca7151b65afc0ff5ff3b34fa350f7d7c7e4310",
+    strip_prefix = "objc-sys-0.3.5",
+    urls = ["https://static.crates.io/crates/objc-sys/0.3.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc-sys-0.3",
+    srcs = [":objc-sys-0.3.5.crate"],
+    crate = "objc_sys",
+    crate_root = "objc-sys-0.3.5.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_BIN_NAME": "objc_sys",
+        "CARGO_CRATE_NAME": "objc_sys",
+        "CARGO_MANIFEST_DIR": "objc-sys-0.3.5.crate",
+        "CARGO_PKG_AUTHORS": "Mads Marquart <mads@marquart.dk>",
+        "CARGO_PKG_DESCRIPTION": "Raw bindings to the Objective-C runtime and ABI",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "objc-sys",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/madsmtm/objc2",
+        "CARGO_PKG_RUST_VERSION": "1.60",
+        "CARGO_PKG_VERSION": "0.3.5",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "3",
+        "CARGO_PKG_VERSION_PATCH": "5",
+        "CARGO_PKG_VERSION_PRE": "",
+        "OUT_DIR": "$(location :objc-sys-0.3-build-script-run[out_dir])",
+    },
+    features = [
+        "alloc",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc-sys",
+            "version": "0.3.5",
+            "licenses": ["MIT"],
+        },
+    },
+    rustc_flags = ["@$(location :objc-sys-0.3-build-script-run[rustc_flags])"],
+    visibility = [],
+)
+
+third_party_rust.rust_binary(
+    name = "objc-sys-0.3-build-script-build",
+    srcs = [":objc-sys-0.3.5.crate"],
+    crate = "build_script_build",
+    crate_root = "objc-sys-0.3.5.crate/build.rs",
+    edition = "2021",
+    env = {
+        "CARGO_BIN_NAME": "build-script-build",
+        "CARGO_CRATE_NAME": "build_script_build",
+        "CARGO_MANIFEST_DIR": "objc-sys-0.3.5.crate",
+        "CARGO_PKG_AUTHORS": "Mads Marquart <mads@marquart.dk>",
+        "CARGO_PKG_DESCRIPTION": "Raw bindings to the Objective-C runtime and ABI",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "objc-sys",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/madsmtm/objc2",
+        "CARGO_PKG_RUST_VERSION": "1.60",
+        "CARGO_PKG_VERSION": "0.3.5",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "3",
+        "CARGO_PKG_VERSION_PATCH": "5",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "alloc",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc-sys",
+            "version": "0.3.5",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+)
+
+third_party_rust.buildscript_run(
+    name = "objc-sys-0.3-build-script-run",
+    package_name = "objc-sys",
+    buildscript_rule = ":objc-sys-0.3-build-script-build",
+    env = {
+        "CARGO_MANIFEST_LINKS": "objc_0_3",
+        "CARGO_PKG_AUTHORS": "Mads Marquart <mads@marquart.dk>",
+        "CARGO_PKG_DESCRIPTION": "Raw bindings to the Objective-C runtime and ABI",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/madsmtm/objc2",
+        "CARGO_PKG_RUST_VERSION": "1.60",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "3",
+        "CARGO_PKG_VERSION_PATCH": "5",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "alloc",
+        "std",
+    ],
+    version = "0.3.5",
+)
+
+shims.http_archive(
+    name = "objc2-0.5.3.crate",
+    sha256 = "19d5490aaf8f1d7cf7688dfa9b0ce07900e168852c45cd2c03f534dfd27cfd0b",
+    strip_prefix = "objc2-0.5.3",
+    urls = ["https://static.crates.io/crates/objc2/0.5.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-0.5",
+    srcs = [":objc2-0.5.3.crate"],
+    crate = "objc2",
+    crate_root = "objc2-0.5.3.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_BIN_NAME": "objc2",
+        "CARGO_CRATE_NAME": "objc2",
+        "CARGO_MANIFEST_DIR": "objc2-0.5.3.crate",
+        "CARGO_PKG_AUTHORS": "Steven Sheldon:Mads Marquart <mads@marquart.dk>",
+        "CARGO_PKG_DESCRIPTION": "Objective-C interface and runtime bindings",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "objc2",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/madsmtm/objc2",
+        "CARGO_PKG_RUST_VERSION": "1.60",
+        "CARGO_PKG_VERSION": "0.5.3",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "5",
+        "CARGO_PKG_VERSION_PATCH": "3",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "alloc",
+        "default",
+        "relax-sign-encoding",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2",
+            "version": "0.5.3",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":objc-sys-0.3",
+        ":objc2-encode-4",
+    ],
+)
+
+shims.alias(
+    name = "objc2",
+    actual = ":objc2-0.6",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
     name = "objc2-0.6.5.crate",
     sha256 = "08849bbd4767dfae9457696856ae1c84fe4e0281bbe4a7abff2d0e06fb7981f8",
     strip_prefix = "objc2-0.6.5",
@@ -23633,6 +24077,8 @@ third_party_rust.rust_library(
     },
     features = [
         "alloc",
+        "default",
+        "relax-sign-encoding",
         "std",
     ],
     metadata = {
@@ -23644,6 +24090,128 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":objc2-encode-4"],
+)
+
+shims.http_archive(
+    name = "objc2-app-kit-0.2.2.crate",
+    sha256 = "e4e89ad9e3d7d297152b17d39ed92cd50ca8063a89a9fa569046d41568891eff",
+    strip_prefix = "objc2-app-kit-0.2.2",
+    urls = ["https://static.crates.io/crates/objc2-app-kit/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-app-kit-0.2",
+    srcs = [":objc2-app-kit-0.2.2.crate"],
+    crate = "objc2_app_kit",
+    crate_root = "objc2-app-kit-0.2.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "NSAccessibility",
+        "NSAccessibilityConstants",
+        "NSAccessibilityElement",
+        "NSAccessibilityProtocols",
+        "NSAppearance",
+        "NSApplication",
+        "NSBitmapImageRep",
+        "NSButton",
+        "NSColor",
+        "NSControl",
+        "NSCursor",
+        "NSDragging",
+        "NSEvent",
+        "NSGraphics",
+        "NSGraphicsContext",
+        "NSImage",
+        "NSImageRep",
+        "NSMenu",
+        "NSMenuItem",
+        "NSOpenGLView",
+        "NSPasteboard",
+        "NSResponder",
+        "NSRunningApplication",
+        "NSScreen",
+        "NSText",
+        "NSTextInputClient",
+        "NSTextInputContext",
+        "NSView",
+        "NSWindow",
+        "NSWindowScripting",
+        "NSWindowTabGroup",
+        "alloc",
+        "bitflags",
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-app-kit",
+            "version": "0.2.2",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":objc2-0.5",
+        ":objc2-foundation-0.2",
+    ],
+)
+
+shims.alias(
+    name = "objc2-app-kit",
+    actual = ":objc2-app-kit-0.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "objc2-app-kit-0.3.2.crate",
+    sha256 = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c",
+    strip_prefix = "objc2-app-kit-0.3.2",
+    urls = ["https://static.crates.io/crates/objc2-app-kit/0.3.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-app-kit-0.3",
+    srcs = [":objc2-app-kit-0.3.2.crate"],
+    crate = "objc2_app_kit",
+    crate_root = "objc2-app-kit-0.3.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "NSApplication",
+        "NSEvent",
+        "NSMenu",
+        "NSMenuItem",
+        "NSPasteboard",
+        "NSResponder",
+        "NSRunningApplication",
+        "NSView",
+        "alloc",
+        "bitflags",
+        "objc2-quartz-core",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-app-kit",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":objc2-0.6",
+        ":objc2-foundation-0.3",
+        ":objc2-quartz-core-0.3",
+    ],
+)
+
+shims.alias(
+    name = "objc2-core-foundation",
+    actual = ":objc2-core-foundation-0.3",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -23733,6 +24301,50 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "objc2-core-graphics",
+    actual = ":objc2-core-graphics-0.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "objc2-core-graphics-0.3.2.crate",
+    sha256 = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807",
+    strip_prefix = "objc2-core-graphics-0.3.2",
+    urls = ["https://static.crates.io/crates/objc2-core-graphics/0.3.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-core-graphics-0.3",
+    srcs = [":objc2-core-graphics-0.3.2.crate"],
+    crate = "objc2_core_graphics",
+    crate_root = "objc2-core-graphics-0.3.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "CGColor",
+        "CGColorSpace",
+        "CGContext",
+        "CGPath",
+        "CGSession",
+        "alloc",
+        "objc2",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-core-graphics",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
+    ],
+)
+
 shims.http_archive(
     name = "objc2-core-services-0.3.2.crate",
     sha256 = "583300ad934cba24ff5292aee751ecc070f7ca6b39a574cc21b7b5e588e06a0b",
@@ -23768,6 +24380,40 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "objc2-core-text-0.3.2.crate",
+    sha256 = "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d",
+    strip_prefix = "objc2-core-text-0.3.2",
+    urls = ["https://static.crates.io/crates/objc2-core-text/0.3.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-core-text-0.3",
+    srcs = [":objc2-core-text-0.3.2.crate"],
+    crate = "objc2_core_text",
+    crate_root = "objc2-core-text-0.3.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "CTFont",
+        "CTFontCollection",
+        "CTFontDescriptor",
+        "bitflags",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-core-text",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":objc2-core-foundation-0.3",
+    ],
+)
+
+shims.http_archive(
     name = "objc2-encode-4.1.0.crate",
     sha256 = "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33",
     strip_prefix = "objc2-encode-4.1.0",
@@ -23793,6 +24439,145 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
+)
+
+shims.http_archive(
+    name = "objc2-foundation-0.2.2.crate",
+    sha256 = "0ee638a5da3799329310ad4cfa62fbf045d5f56e3ef5ba4149e7452dcf89d5a8",
+    strip_prefix = "objc2-foundation-0.2.2",
+    urls = ["https://static.crates.io/crates/objc2-foundation/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-foundation-0.2",
+    srcs = [":objc2-foundation-0.2.2.crate"],
+    crate = "objc2_foundation",
+    crate_root = "objc2-foundation-0.2.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "NSArray",
+        "NSAttributedString",
+        "NSBundle",
+        "NSCoder",
+        "NSData",
+        "NSDate",
+        "NSDictionary",
+        "NSDistributedNotificationCenter",
+        "NSEnumerator",
+        "NSError",
+        "NSException",
+        "NSFileWrapper",
+        "NSFormatter",
+        "NSGeometry",
+        "NSItemProvider",
+        "NSKeyValueObserving",
+        "NSLocale",
+        "NSNotification",
+        "NSNull",
+        "NSObjCRuntime",
+        "NSObject",
+        "NSPathUtilities",
+        "NSProcessInfo",
+        "NSRange",
+        "NSRunLoop",
+        "NSScriptCommand",
+        "NSScriptStandardSuiteCommands",
+        "NSSet",
+        "NSString",
+        "NSThread",
+        "NSURL",
+        "NSUndoManager",
+        "NSUserActivity",
+        "NSValue",
+        "NSZone",
+        "alloc",
+        "bitflags",
+        "block2",
+        "default",
+        "dispatch",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-foundation",
+            "version": "0.2.2",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":block2-0.5",
+        ":dispatch-0.2",
+        ":objc2-0.5",
+    ],
+)
+
+shims.alias(
+    name = "objc2-foundation",
+    actual = ":objc2-foundation-0.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "objc2-foundation-0.3.2.crate",
+    sha256 = "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272",
+    strip_prefix = "objc2-foundation-0.3.2",
+    urls = ["https://static.crates.io/crates/objc2-foundation/0.3.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-foundation-0.3",
+    srcs = [":objc2-foundation-0.3.2.crate"],
+    crate = "objc2_foundation",
+    crate_root = "objc2-foundation-0.3.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "NSArray",
+        "NSAttributedString",
+        "NSBundle",
+        "NSCoder",
+        "NSData",
+        "NSDate",
+        "NSDictionary",
+        "NSEnumerator",
+        "NSError",
+        "NSException",
+        "NSFileWrapper",
+        "NSGeometry",
+        "NSNotification",
+        "NSNull",
+        "NSObjCRuntime",
+        "NSObject",
+        "NSPathUtilities",
+        "NSRange",
+        "NSRunLoop",
+        "NSSet",
+        "NSString",
+        "NSURL",
+        "NSUndoManager",
+        "NSUserActivity",
+        "NSZone",
+        "alloc",
+        "bitflags",
+        "objc2-core-foundation",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-foundation",
+            "version": "0.3.2",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
+    ],
 )
 
 shims.http_archive(
@@ -23826,6 +24611,131 @@ third_party_rust.rust_library(
     deps = [
         ":libc-0.2",
         ":objc2-core-foundation-0.3",
+    ],
+)
+
+shims.alias(
+    name = "objc2-metal",
+    actual = ":objc2-metal-0.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "objc2-metal-0.3.2.crate",
+    sha256 = "a0125f776a10d00af4152d74616409f0d4a2053a6f57fa5b7d6aa2854ac04794",
+    strip_prefix = "objc2-metal-0.3.2",
+    urls = ["https://static.crates.io/crates/objc2-metal/0.3.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-metal-0.3",
+    srcs = [":objc2-metal-0.3.2.crate"],
+    crate = "objc2_metal",
+    crate_root = "objc2-metal-0.3.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "MTL4ArgumentTable",
+        "MTL4CommandAllocator",
+        "MTL4CommandBuffer",
+        "MTL4CommandEncoder",
+        "MTL4CommandQueue",
+        "MTL4CommitFeedback",
+        "MTL4Compiler",
+        "MTL4CompilerTask",
+        "MTL4ComputeCommandEncoder",
+        "MTL4FunctionDescriptor",
+        "MTL4LibraryDescriptor",
+        "MTL4LibraryFunctionDescriptor",
+        "MTL4PipelineState",
+        "MTL4RenderCommandEncoder",
+        "MTL4RenderPass",
+        "MTL4RenderPipeline",
+        "MTLAllocation",
+        "MTLBuffer",
+        "MTLCommandEncoder",
+        "MTLDevice",
+        "MTLDrawable",
+        "MTLEvent",
+        "MTLGPUAddress",
+        "MTLLibrary",
+        "MTLPipeline",
+        "MTLPixelFormat",
+        "MTLRenderCommandEncoder",
+        "MTLRenderPass",
+        "MTLRenderPipeline",
+        "MTLResidencySet",
+        "MTLResource",
+        "MTLTexture",
+        "MTLTypes",
+        "alloc",
+        "bitflags",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-metal",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":objc2-0.6",
+        ":objc2-foundation-0.3",
+    ],
+)
+
+shims.alias(
+    name = "objc2-quartz-core",
+    actual = ":objc2-quartz-core-0.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "objc2-quartz-core-0.3.2.crate",
+    sha256 = "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f",
+    strip_prefix = "objc2-quartz-core-0.3.2",
+    urls = ["https://static.crates.io/crates/objc2-quartz-core/0.3.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "objc2-quartz-core-0.3",
+    srcs = [":objc2-quartz-core-0.3.2.crate"],
+    crate = "objc2_quartz_core",
+    crate_root = "objc2-quartz-core-0.3.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "CADisplayLink",
+        "CALayer",
+        "CAMediaTiming",
+        "CAMediaTimingFunction",
+        "CAMetalLayer",
+        "CAOpenGLLayer",
+        "alloc",
+        "bitflags",
+        "objc2-core-foundation",
+        "objc2-core-graphics",
+        "objc2-metal",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-quartz-core",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
+        ":objc2-core-graphics-0.3",
+        ":objc2-foundation-0.3",
+        ":objc2-metal-0.3",
     ],
 )
 
@@ -39845,23 +40755,7 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :winit-0.30-build-script-run[out_dir])",
     },
-    features = [
-        "ahash",
-        "bytemuck",
-        "memmap2",
-        "percent-encoding",
-        "rwh_06",
-        "sctk",
-        "wayland",
-        "wayland-backend",
-        "wayland-client",
-        "wayland-dlopen",
-        "wayland-protocols",
-        "wayland-protocols-plasma",
-        "x11",
-        "x11-dl",
-        "x11rb",
-    ],
+    features = ["rwh_06"],
     metadata = {
         "third-party.metadata": {
             "name": "winit",
@@ -39871,30 +40765,111 @@ third_party_rust.rust_library(
     },
     named_deps = {
         "rwh_06": ":raw-window-handle-0.6",
-        "sctk": ":smithay-client-toolkit-0.19",
+    },
+    platform = {
+        "linux-arm64": dict(
+            features = [
+                "ahash",
+                "bytemuck",
+                "memmap2",
+                "percent-encoding",
+                "sctk",
+                "wayland",
+                "wayland-backend",
+                "wayland-client",
+                "wayland-dlopen",
+                "wayland-protocols",
+                "wayland-protocols-plasma",
+                "x11",
+                "x11-dl",
+                "x11rb",
+            ],
+            named_deps = {
+                "sctk": ":smithay-client-toolkit-0.19",
+            },
+            deps = [
+                ":ahash-0.8",
+                ":bytemuck-1",
+                ":calloop-0.13",
+                ":libc-0.2",
+                ":memmap2-0.9",
+                ":percent-encoding-2",
+                ":rustix-0.38",
+                ":wayland-backend-0.3",
+                ":wayland-client-0.31",
+                ":wayland-protocols-0.32",
+                ":wayland-protocols-plasma-0.3",
+                ":x11-dl-2",
+                ":x11rb-0.13",
+                ":xkbcommon-dl-0.4",
+            ],
+        ),
+        "linux-x86_64": dict(
+            features = [
+                "ahash",
+                "bytemuck",
+                "memmap2",
+                "percent-encoding",
+                "sctk",
+                "wayland",
+                "wayland-backend",
+                "wayland-client",
+                "wayland-dlopen",
+                "wayland-protocols",
+                "wayland-protocols-plasma",
+                "x11",
+                "x11-dl",
+                "x11rb",
+            ],
+            named_deps = {
+                "sctk": ":smithay-client-toolkit-0.19",
+            },
+            deps = [
+                ":ahash-0.8",
+                ":bytemuck-1",
+                ":calloop-0.13",
+                ":libc-0.2",
+                ":memmap2-0.9",
+                ":percent-encoding-2",
+                ":rustix-0.38",
+                ":wayland-backend-0.3",
+                ":wayland-client-0.31",
+                ":wayland-protocols-0.32",
+                ":wayland-protocols-plasma-0.3",
+                ":x11-dl-2",
+                ":x11rb-0.13",
+                ":xkbcommon-dl-0.4",
+            ],
+        ),
+        "macos-arm64": dict(
+            deps = [
+                ":block2-0.5",
+                ":core-foundation-0.9",
+                ":core-graphics-0.23",
+                ":objc2-0.5",
+                ":objc2-app-kit-0.2",
+                ":objc2-foundation-0.2",
+            ],
+        ),
+        "macos-x86_64": dict(
+            deps = [
+                ":block2-0.5",
+                ":core-foundation-0.9",
+                ":core-graphics-0.23",
+                ":objc2-0.5",
+                ":objc2-app-kit-0.2",
+                ":objc2-foundation-0.2",
+            ],
+        ),
     },
     rustc_flags = ["@$(location :winit-0.30-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":ahash-0.8",
         ":bitflags-2",
-        ":bytemuck-1",
-        ":calloop-0.13",
         ":cursor-icon-1",
         ":dpi-0.1",
-        ":libc-0.2",
-        ":memmap2-0.9",
-        ":percent-encoding-2",
-        ":rustix-0.38",
         ":smol_str-0.2",
         ":tracing-0.1",
-        ":wayland-backend-0.3",
-        ":wayland-client-0.31",
-        ":wayland-protocols-0.32",
-        ":wayland-protocols-plasma-0.3",
-        ":x11-dl-2",
-        ":x11rb-0.13",
-        ":xkbcommon-dl-0.4",
     ],
 )
 
@@ -39904,29 +40879,51 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "winit-0.30.13.crate/build.rs",
     edition = "2021",
-    features = [
-        "ahash",
-        "bytemuck",
-        "memmap2",
-        "percent-encoding",
-        "rwh_06",
-        "sctk",
-        "wayland",
-        "wayland-backend",
-        "wayland-client",
-        "wayland-dlopen",
-        "wayland-protocols",
-        "wayland-protocols-plasma",
-        "x11",
-        "x11-dl",
-        "x11rb",
-    ],
+    features = ["rwh_06"],
     metadata = {
         "third-party.metadata": {
             "name": "winit",
             "version": "0.30.13",
             "licenses": ["Apache-2.0"],
         },
+    },
+    platform = {
+        "linux-arm64": dict(
+            features = [
+                "ahash",
+                "bytemuck",
+                "memmap2",
+                "percent-encoding",
+                "sctk",
+                "wayland",
+                "wayland-backend",
+                "wayland-client",
+                "wayland-dlopen",
+                "wayland-protocols",
+                "wayland-protocols-plasma",
+                "x11",
+                "x11-dl",
+                "x11rb",
+            ],
+        ),
+        "linux-x86_64": dict(
+            features = [
+                "ahash",
+                "bytemuck",
+                "memmap2",
+                "percent-encoding",
+                "sctk",
+                "wayland",
+                "wayland-backend",
+                "wayland-client",
+                "wayland-dlopen",
+                "wayland-protocols",
+                "wayland-protocols-plasma",
+                "x11",
+                "x11-dl",
+                "x11rb",
+            ],
+        ),
     },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
@@ -39936,23 +40933,45 @@ third_party_rust.buildscript_run(
     name = "winit-0.30-build-script-run",
     package_name = "winit",
     buildscript_rule = ":winit-0.30-build-script-build",
-    features = [
-        "ahash",
-        "bytemuck",
-        "memmap2",
-        "percent-encoding",
-        "rwh_06",
-        "sctk",
-        "wayland",
-        "wayland-backend",
-        "wayland-client",
-        "wayland-dlopen",
-        "wayland-protocols",
-        "wayland-protocols-plasma",
-        "x11",
-        "x11-dl",
-        "x11rb",
-    ],
+    features = ["rwh_06"],
+    platform = {
+        "linux-arm64": dict(
+            features = [
+                "ahash",
+                "bytemuck",
+                "memmap2",
+                "percent-encoding",
+                "sctk",
+                "wayland",
+                "wayland-backend",
+                "wayland-client",
+                "wayland-dlopen",
+                "wayland-protocols",
+                "wayland-protocols-plasma",
+                "x11",
+                "x11-dl",
+                "x11rb",
+            ],
+        ),
+        "linux-x86_64": dict(
+            features = [
+                "ahash",
+                "bytemuck",
+                "memmap2",
+                "percent-encoding",
+                "sctk",
+                "wayland",
+                "wayland-backend",
+                "wayland-client",
+                "wayland-dlopen",
+                "wayland-protocols",
+                "wayland-protocols-plasma",
+                "x11",
+                "x11-dl",
+                "x11rb",
+            ],
+        ),
+    },
     version = "0.30.13",
 )
 

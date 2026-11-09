@@ -350,4 +350,89 @@ winit = { version = "0.30.13", default-features = false, features = [
   "x11",
 ] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# quad's GUI (tilde/aseipp/quad) on macOS: winit's AppKit windows, with
+# AccessKit's macOS adapter, and fontique's fonts from CoreText.
+winit = { version = "0.30.13", default-features = false, features = ["rwh_06"] }
+accesskit = "0.25.2"
+accesskit_winit = { version = "0.34.2", default-features = false, features = ["rwh_06"] }
+fontique = "0.12.0"
+# ... drawn with Metal 4 into a CAMetalLayer. Each framework crate has a
+# feature per header, all on by default: only the headers used are named.
+objc2 = "0.6.5"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSEvent",
+  "NSMenu",
+  "NSMenuItem",
+  "NSPasteboard",
+  "NSResponder",
+  "NSRunningApplication",
+  "NSView",
+  "objc2-quartz-core",
+] }
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "CFCGTypes",
+  "CFDictionary",
+  "CFString",
+] }
+objc2-core-graphics = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "CGColorSpace",
+  "CGSession",
+] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSError",
+  "NSObject",
+  "NSString",
+] }
+objc2-metal = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "MTL4ArgumentTable",
+  "MTL4CommandAllocator",
+  "MTL4CommandBuffer",
+  "MTL4CommandEncoder",
+  "MTL4CommandQueue",
+  "MTL4CommitFeedback",
+  "MTL4Compiler",
+  "MTL4CompilerTask",
+  "MTL4ComputeCommandEncoder",
+  "MTL4FunctionDescriptor",
+  "MTL4LibraryDescriptor",
+  "MTL4LibraryFunctionDescriptor",
+  "MTL4PipelineState",
+  "MTL4RenderCommandEncoder",
+  "MTL4RenderPass",
+  "MTL4RenderPipeline",
+  "MTLAllocation",
+  "MTLBuffer",
+  "MTLCommandEncoder",
+  "MTLDevice",
+  "MTLDrawable",
+  "MTLEvent",
+  "MTLGPUAddress",
+  "MTLLibrary",
+  "MTLPipeline",
+  "MTLPixelFormat",
+  "MTLRenderCommandEncoder",
+  "MTLRenderPass",
+  "MTLRenderPipeline",
+  "MTLResidencySet",
+  "MTLResource",
+  "MTLTexture",
+  "MTLTypes",
+] }
+objc2-quartz-core = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "CALayer",
+  "CAMetalLayer",
+  "objc2-core-foundation",
+  "objc2-core-graphics",
+  "objc2-metal",
+] }
+
 [target.'cfg(windows)'.dependencies]
