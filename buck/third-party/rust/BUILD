@@ -4497,6 +4497,70 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "constant_time_eq-0.6.1.crate",
+    sha256 = "9eb6feb175df65d0a3ccd3e73484e940d0ac664e8034f0519fd49a93db3071d9",
+    strip_prefix = "constant_time_eq-0.6.1",
+    urls = ["https://static.crates.io/crates/constant_time_eq/0.6.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "constant_time_eq-0.6",
+    srcs = [":constant_time_eq-0.6.1.crate"],
+    crate = "constant_time_eq",
+    crate_root = "constant_time_eq-0.6.1.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :constant_time_eq-0.6-build-script-run[out_dir])",
+    },
+    features = [
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "constant_time_eq",
+            "version": "0.6.1",
+            "licenses": ["CC0-1.0 OR MIT-0 OR Apache-2.0"],
+        },
+    },
+    rustc_flags = ["@$(location :constant_time_eq-0.6-build-script-run[rustc_flags])"],
+    visibility = [],
+)
+
+third_party_rust.rust_binary(
+    name = "constant_time_eq-0.6-build-script-build",
+    srcs = [":constant_time_eq-0.6.1.crate"],
+    crate = "build_script_build",
+    crate_root = "constant_time_eq-0.6.1.crate/build.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "constant_time_eq",
+            "version": "0.6.1",
+            "licenses": ["CC0-1.0 OR MIT-0 OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [":rustversion-1"],
+)
+
+third_party_rust.buildscript_run(
+    name = "constant_time_eq-0.6-build-script-run",
+    package_name = "constant_time_eq",
+    buildscript_rule = ":constant_time_eq-0.6-build-script-build",
+    features = [
+        "default",
+        "std",
+    ],
+    version = "0.6.1",
+)
+
+shims.http_archive(
     name = "convert_case-0.6.0.crate",
     sha256 = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca",
     strip_prefix = "convert_case-0.6.0",
@@ -34672,27 +34736,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "typed-path-0.12.3.crate",
-    sha256 = "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e",
-    strip_prefix = "typed-path-0.12.3",
-    urls = ["https://static.crates.io/crates/typed-path/0.12.3/download"],
+    name = "typed-path-0.13.0.crate",
+    sha256 = "9ce898823d8cd0f028662d2f349694b1af0a5cc9be83f1d213a00d3147445e1e",
+    strip_prefix = "typed-path-0.13.0",
+    urls = ["https://static.crates.io/crates/typed-path/0.13.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "typed-path-0.12",
-    srcs = [":typed-path-0.12.3.crate"],
+    name = "typed-path-0.13",
+    srcs = [":typed-path-0.13.0.crate"],
     crate = "typed_path",
-    crate_root = "typed-path-0.12.3.crate/src/lib.rs",
+    crate_root = "typed-path-0.13.0.crate/src/lib.rs",
     edition = "2021",
-    features = [
-        "default",
-        "std",
-    ],
     metadata = {
         "third-party.metadata": {
             "name": "typed-path",
-            "version": "0.12.3",
+            "version": "0.13.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -38515,23 +38575,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "zip-9.0.5.crate",
-    sha256 = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e",
-    strip_prefix = "zip-9.0.5",
-    urls = ["https://static.crates.io/crates/zip/9.0.5/download"],
+    name = "zip-9.5.0.crate",
+    sha256 = "0700e6c427aff64acdbf02e85fbfd946c2ee12319d1af013092f3a2178914ff8",
+    strip_prefix = "zip-9.5.0",
+    urls = ["https://static.crates.io/crates/zip/9.5.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "zip-9",
-    srcs = [":zip-9.0.5.crate"],
+    srcs = [":zip-9.5.0.crate"],
     crate = "zip",
-    crate_root = "zip-9.0.5.crate/src/lib.rs",
+    crate_root = "zip-9.5.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "zip",
         "CARGO_CRATE_NAME": "zip",
-        "CARGO_MANIFEST_DIR": "zip-9.0.5.crate",
+        "CARGO_MANIFEST_DIR": "zip-9.5.0.crate",
         "CARGO_PKG_AUTHORS": "Mathijs van de Nes <git@mathijs.vd-nes.nl>:Marli Frost <marli@frost.red>:Ryan Levick <ryan.levick@gmail.com>:Chris Hennick <hennickc@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Library to support the reading and writing of zip files.",
         "CARGO_PKG_HOMEPAGE": "",
@@ -38539,10 +38599,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/zip-rs/zip2",
         "CARGO_PKG_RUST_VERSION": "1.88",
-        "CARGO_PKG_VERSION": "9.0.5",
+        "CARGO_PKG_VERSION": "9.5.0",
         "CARGO_PKG_VERSION_MAJOR": "9",
-        "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "5",
+        "CARGO_PKG_VERSION_MINOR": "5",
+        "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -38555,25 +38615,46 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "zip",
-            "version": "9.0.5",
+            "version": "9.5.0",
             "licenses": ["MIT"],
         },
     },
     platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
         "macos-arm64": dict(
-            deps = [":nix-0.31"],
+            deps = [
+                ":libc-0.2",
+                ":nix-0.31",
+            ],
         ),
         "macos-x86_64": dict(
-            deps = [":nix-0.31"],
+            deps = [
+                ":libc-0.2",
+                ":nix-0.31",
+            ],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
     deps = [
+        ":constant_time_eq-0.6",
         ":crc32fast-1",
         ":flate2-1",
+        ":getrandom-0.4",
         ":indexmap-2",
         ":memchr-2",
-        ":typed-path-0.12",
+        ":typed-path-0.13",
+        ":zeroize-1",
         ":zopfli-0.8",
     ],
 )

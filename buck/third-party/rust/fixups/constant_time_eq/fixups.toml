@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# 0.6's build script sets `inline_asm_is_stable` on the architectures whose
+# inline asm is stable, which selects the asm optimization barrier the
+# constant-time comparison relies on. Without it the generic fallback is used.
+buildscript.run = true
