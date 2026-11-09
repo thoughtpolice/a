@@ -299,6 +299,27 @@ def _chez_standalone_impl(ctx: AnalysisContext) -> list[Provider]:
         )
         kernel_exe = stripped
         sub_targets["debug"] = [DefaultInfo(default_output = debug)]
+    if ctx.attrs.interpreter:
+        # Run on the host's dynamic linker and libraries, not the
+        # toolchain's: what it then loads at run time (a GPU driver, say)
+        # comes from the host too, and finds its own libraries there. Like
+        # stripping, this rewrites the ELF file, so it comes before the boot
+        # files are appended.
+        hosted = ctx.actions.declare_output("hosted", name)
+        ctx.actions.run(
+            cmd_args(
+                "sh",
+                "-c",
+                'cp "$1" "$2" && chmod u+w "$2" && "$3" --set-interpreter "$4" --remove-rpath "$2"',
+                "--",
+                kernel_exe,
+                hosted.as_output(),
+                ctx.attrs._patchelf[RunInfo],
+                ctx.attrs.interpreter,
+            ),
+            category = "chez_standalone_host",
+        )
+        kernel_exe = hosted
     runtime = {
         "petite": [("petite", tc.petite_boot)],
         "scheme": [("petite", tc.petite_boot), ("scheme", tc.scheme_boot)],
@@ -328,6 +349,11 @@ _chez_standalone = rule(
     attrs = {
         "boots": attrs.list(attrs.dep(providers = [ChezBootInfo]), default = []),
         "kernel": attrs.dep(),
+        "interpreter": attrs.option(
+            attrs.string(),
+            default = None,
+            doc = "Run on this dynamic linker, with no search path of the toolchain's: the host's libraries, for executables that load the host's (see `host` on chez.standalone).",
+        ),
         "out": attrs.option(attrs.string(), default = None),
         "runtime": attrs.enum(["petite", "scheme"], default = "scheme"),
         "strip": attrs.bool(
@@ -336,8 +362,33 @@ _chez_standalone = rule(
         ),
         "_chez_toolchain": attrs.toolchain_dep(default = "toolchains//:chez", providers = [ChezToolchainInfo]),
         "_cxx_toolchain": attrs.toolchain_dep(default = "toolchains//:cxx", providers = [CxxToolchainInfo]),
+        "_patchelf": attrs.exec_dep(default = "third-party//by-name/pa/patchelf:patchelf", providers = [RunInfo]),
     },
 )
+
+# The host's dynamic linker, for each CPU.
+_HOST_INTERPRETER = {
+    "config//cpu:arm64": "/lib/ld-linux-aarch64.so.1",
+    "config//cpu:x86_64": "/lib64/ld-linux-x86-64.so.2",
+}
+
+def _standalone(name, host = False, **kwargs):
+    """A standalone executable: `kernel` with `boots` appended.
+
+    With `host`, on Linux, it runs on the host's dynamic linker and C and
+    C++ libraries in place of the toolchain's (which must be no newer than
+    the host's), as an executable to hand out does: one that loads libraries
+    the host provides, such as its Vulkan loader and GPU driver, needs this,
+    since those cannot load into a process of the toolchain's C library.
+    Elsewhere the toolchain's C library is the host's, and `host` changes
+    nothing.
+    """
+    if host:
+        kwargs["interpreter"] = select({
+            "config//os:linux": select(_HOST_INTERPRETER),
+            "DEFAULT": None,
+        })
+    _chez_standalone(name = name, **kwargs)
 
 # MARK: Rust libraries
 
@@ -385,5 +436,5 @@ chez = struct(
     library = _library,
     program = _chez_program,
     boot = _chez_boot,
-    standalone = _chez_standalone,
+    standalone = _standalone,
 )
