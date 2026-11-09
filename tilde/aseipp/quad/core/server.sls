@@ -79,6 +79,8 @@
                         (list "result" id #t (stringify (eval-string (caddr msg)))))))))]
             [(detach) (with-client c (lambda () (client-quit! c)))]
             [(hello) (void)]
+            [(user) (when (and (pair? (cdr msg)) (string? (cadr msg)))
+                      (set-client-user! c (cadr msg)))]
             [else (with-client c (lambda () (message-error "Unknown message ~a" (car msg))))])))
     (for-each (lambda (c) (client-dirty?-set! c #t)) (clients)))
 

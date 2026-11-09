@@ -33,7 +33,7 @@ buffers.
 | text, undo history, file, major mode, buffer-locals | the buffer, shared | `core/buffer.sls` |
 | commands, keymaps, hooks, variables, themes, kill ring | global, shared | `core/editor.sls` |
 | selections, normal/insert mode, selection mode, extend, scroll, selection history | the *view*: one per client per buffer | `core/buffer.sls` |
-| which buffer is shown, prompt/picker, layer, jump labels, message, screen size, capabilities | the *client* | `core/editor.sls` |
+| which buffer is shown, prompt/picker, layer, jump labels, message, screen size, capabilities, who is at it (name, color) | the *client* | `core/editor.sls` |
 
 Commands run on behalf of one client, the *current client*, the one whose
 event is being handled. `current-view`, `current-buffer`, `message`, prompts,
@@ -104,6 +104,7 @@ encodings.
 | Message | Meaning |
 | --- | --- |
 | `["hello", version, name, rows, cols, capabilities]` | first, once: who it is, its size, and what it can do (below) |
+| `["user", name]` | who is at the client, for the others to see (name tags, the people list) |
 | `["key", name, mods, text, kind]` | a key: `name` as keymaps spell it (`"a"`, `"A"`, `"enter"`, `"left"`, `"space"`); `mods` bits shift 1, alt 2, ctrl 4, super 8 (shift folded into printable names); `text` typed, or false; `kind` `"press"`, `"repeat"` or `"release"` |
 | `["paste", text]` | pasted text, as one event |
 | `["mouse", kind, button, col, row, mods]` | `kind` `"press"`, `"release"`, `"drag"`, `"scroll-up"`, `"scroll-down"`; cells, from 0 |

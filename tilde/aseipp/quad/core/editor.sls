@@ -27,6 +27,7 @@
    client? client-id client-name client-rows client-cols client-rows-set! client-cols-set!
    client-capabilities client-has? client-connection client-view client-views
    client-frame client-frame-set! client-dirty? client-dirty?-set! client-local client-local-set!
+   client-user set-client-user! client-color person? people default-user-name peer-colors
    clients current-client set-current-client! with-client add-client! remove-client! client-send!
    client-quit! client-switch-buffer! view-of
    ;; editor state
@@ -106,6 +107,48 @@
   (define (client-local c key default) (hashtable-ref (client-locals c) key default))
   (define (client-local-set! c key v) (hashtable-set! (client-locals c) key v))
 
+  ;; ---------------------------------------------------------------------------
+  ;; People: who is at each client, for the others to see
+
+  ;; How many colors people are told apart by (faces ui.peer.N.*).
+  (define peer-colors 6)
+
+  ;; Clients that are someone (a terminal, a GUI), not a one-off --eval.
+  (define (person? c) (not (equal? (client-name c) "eval")))
+  (define (people) (filter person? the-clients))
+
+  ;; Who is at client c: the name it gave, else "client N".
+  (define (client-user c) (or (client-local c 'user #f) (format "client ~a" (client-id c))))
+
+  ;; Name client c's person; client-user-hook runs with c and the old
+  ;; name (#f the first time).
+  (define (set-client-user! c name)
+    (let ([old (client-local c 'user #f)])
+      (client-local-set! c 'user name)
+      (run-hooks 'client-user-hook c old)))
+
+  ;; Client c's color, 0 to peer-colors - 1: the first that nobody else
+  ;; here has, given as it attaches.
+  (define (client-color c) (client-local c 'color 0))
+
+  (define (assign-color! c)
+    (let ([taken (map client-color (remq c the-clients))])
+      (client-local-set! c 'color
+                         (let loop ([i 0])
+                           (cond [(= i peer-colors) (modulo (client-id c) peer-colors)]
+                                 [(memv i taken) (loop (+ i 1))]
+                                 [else i])))))
+
+  ;; $QUAD_USER, else user@host.
+  (define (default-user-name)
+    (or (getenv "QUAD_USER")
+        (let ([user (or (getenv "USER") "someone")]
+              [host (or (getenv "HOSTNAME")
+                        (guard (e [#t #f])
+                          (let ([h (call-with-input-file "/proc/sys/kernel/hostname" get-line)])
+                            (and (string? h) h))))])
+          (if host (format "~a@~a" user (car (string-split host #\.))) user))))
+
   (define next-client-id 0)
   (define the-clients '())
   (define the-client #f)
@@ -141,7 +184,7 @@
   (define (add-client! name connection rows cols capabilities)
     (set! next-client-id (+ next-client-id 1))
     (let ([c (make-client next-client-id name connection rows cols capabilities)])
-      (when connection (set! the-clients (append the-clients (list c))))
+      (when connection (set! the-clients (append the-clients (list c))) (assign-color! c))
       (let ([b (or (current-buffer) (and (pair? the-buffers) (car the-buffers)))])
         (when b (client-switch-buffer! c b)))
       (unless the-client (set! the-client c))
@@ -952,6 +995,7 @@
   ;; Handle an event from the current client. Mouse and paste handling are
   ;; hooks: commands.sls installs them.
   (define (handle-event ev)
+    (run-hooks 'before-event-hook ev)
     (cond
      [(key-event? ev) (handle-key ev)]
      [(paste-event? ev) (run-hooks 'paste-hook (paste-event-text ev))]

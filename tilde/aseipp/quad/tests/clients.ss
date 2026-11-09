@@ -27,7 +27,7 @@
 (check "a's mode" (string-contains (list-ref (screen-of a) 10) "WORD"))
 (check "b's mode" (string-contains (list-ref (screen-of b) 8) "LINE"))
 ;; Each sees the other is here.
-(check "presence" (string-contains (list-ref (screen-of a) 10) "+1"))
+(check "presence, by name" (string-contains (list-ref (screen-of a) 10) (format "with ~a" (client-user b))))
 
 ;; An edit by one remaps the other's selections.
 (press! "y" "g" "g")

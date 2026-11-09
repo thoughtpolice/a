@@ -180,17 +180,39 @@
            [(< col left) (view-left-set! v (max 0 (- col 4)))]
            [(>= col (+ left w -1)) (view-left-set! v (+ (- col w) 5))])))))
 
-  ;; Overlay faces per position on a line: selections and cursors, and the
-  ;; cursors of the other clients' views of the same buffer.
+  ;; The views of v's buffer that other people are looking at.
+  (define (others-views v)
+    (filter (lambda (o)
+              (let ([c (view-client o)])
+                (and (not (eq? o v)) (memq c (clients)) (person? c) (eq? (client-view c) o))))
+            (buffer-views (view-buffer v))))
+
+  (define (peer-face c part)
+    (F (string->symbol (format "ui.peer.~a.~a" (client-color c) part))))
+
+  ;; Overlay faces per position on a line: selections and cursors, under
+  ;; the other people's selections and cursors in the same buffer, each in
+  ;; their color.
   (define (selection-spans v line-start line-end)
     (let ([insert? (eq? (view-input-mode v) 'insert)]
-          [others (filter-map (lambda (o)
-                                (and (not (eq? o v)) (memq (view-client o) (clients))
-                                     (eq? (client-view (view-client o)) o)
-                                     (let ([h (head-position o (view-primary o))])
-                                       (and (<= line-start h (+ line-end 1))
-                                            (list h (+ h 1) (F 'ui.cursor.other))))))
-                              (buffer-views (view-buffer v)))])
+          [others (apply append
+                         (map (lambda (o)
+                                (let ([c (view-client o)])
+                                  (apply append
+                                         (map (lambda (s)
+                                                (let ([rs (sel-range-start s)] [re (sel-range-end s)]
+                                                      [h (head-position o s)])
+                                                  (append
+                                                   (if (and (< rs re) (<= rs (+ line-end 1)) (>= re line-start)
+                                                            (not (eq? (view-input-mode o) 'insert)))
+                                                       (list (list (max rs line-start) (min re (+ line-end 1))
+                                                                   (peer-face c 'selection)))
+                                                       '())
+                                                   (if (<= line-start h (+ line-end 1))
+                                                       (list (list h (+ h 1) (peer-face c 'cursor)))
+                                                       '()))))
+                                              (view-sels o)))))
+                              (others-views v)))])
       (let loop ([sels (view-sels v)] [primary? #t] [acc others])
         (if (null? sels)
             acc
@@ -304,6 +326,7 @@
            [tw (get-var 'tab-width b)]
            [ws? (get-var 'show-whitespace b)]
            [jumps (jump-labels)]
+           [others (others-views v)]
            [decos (if (or (null? decorators) (> top last))
                       '()
                       (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))])
@@ -328,7 +351,16 @@
                 (draw-line! g b row s e gutter width left row-face (vector-ref spans r)
                             (append (filter (lambda (d) (and (< (car d) (+ e 1)) (> (cadr d) s))) decos)
                                     (selection-spans v s e))
-                            match tw ws?)))))
+                            match tw ws?)
+                ;; Who else has their cursor on this line, after its end.
+                (let ([here (filter (lambda (o) (<= s (head-position o (view-primary o)) e)) others)])
+                  (unless (null? here)
+                    (let loop ([os here] [col (+ gutter (- (display-column b e) left) 2)])
+                      (when (and (pair? os) (< col width))
+                        (let ([c (view-client (car os))])
+                          (loop (cdr os)
+                                (+ 1 (put-string! g row (max gutter col) (string-append "◂ " (client-user c))
+                                                  (face-merge row-face (peer-face c 'name)) width))))))))))))
       ;; Jump labels over the units they name.
       (for-each
        (lambda (j)
@@ -374,10 +406,12 @@
      (cons 'right
            (lambda (v)
              ;; Who else is here.
-             (let ([n (length (filter (lambda (o) (and (not (eq? o v)) (memq (view-client o) (clients))
-                                                       (eq? (client-view (view-client o)) o)))
-                                      (buffer-views (view-buffer v))))])
-               (and (> n 0) (cons (format "+~a  " n) 'ui.statusline.dim)))))
+             (let ([names (map (lambda (o) (client-user (view-client o))) (others-views v))])
+               (and (pair? names)
+                    (cons (format "with ~a  " (if (> (length names) 3)
+                                                  (format "~a and ~a more" (string-join (take names 2) ", ") (- (length names) 2))
+                                                  (string-join names ", ")))
+                          'ui.statusline.dim)))))
      (cons 'right
            (lambda (v)
              (cons (format "~a  " (major-mode-name (buffer-major-mode (view-buffer v)))) 'ui.statusline.dim)))
@@ -697,6 +731,7 @@
   (define (render-client! c)
     (with-client c
       (lambda ()
+        (run-hooks 'before-render-hook c)
         (let ([v (client-view c)])
           (when v
             (let* ([rows (max 3 (client-rows c))] [cols (max 10 (client-cols c))]

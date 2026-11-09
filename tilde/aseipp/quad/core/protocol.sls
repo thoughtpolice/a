@@ -10,6 +10,7 @@
 ;;
 ;;   client -> server
 ;;     ("hello" version name rows cols capabilities)   first, once
+;;     ("user" name)        who is at the client, for the others to see
 ;;     ("key" name mods text kind)  ("paste" text)  ("mouse" kind button col row mods)
 ;;     ("focus" in?)  ("resize" rows cols)  ("clipboard" target text)
 ;;     ("redraw")  ("open" path line)  ("eval" id expression)  ("detach")

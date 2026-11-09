@@ -32,6 +32,7 @@ EXTENSIONS = {
     "lisp": [],
     "lsp": [],
     "markdown": [],
+    "people": [],
     "shell": [],
     "tutor": [],
 }
@@ -49,6 +50,7 @@ EXTENSION_ORDER = [
     "blake3",
     "codex",
     "lsp",
+    "people",
     "tutor",
 ]
 
@@ -233,6 +235,7 @@ shims.filegroup(
         "native",
         "json",
         "tutor",
+        "people",
     ]
 ]
 

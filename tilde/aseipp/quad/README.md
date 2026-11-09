@@ -44,6 +44,19 @@ The socket is `$QUAD_SOCKET`, else `quad.sock` in `$XDG_RUNTIME_DIR/quad`;
 detaches a client; the editor stops with its last client, unless it is a
 daemon (`space j k` stops it for everyone).
 
+### Working together
+
+Everyone attached to an editor works in the same buffers, as one editor, so
+there is nothing to merge or keep in step: an edit is in everyone's buffer
+at once. Each person has a name (`$QUAD_USER`, else `user@host`) and a
+color, and sees the others' cursors and selections in their colors, with
+their names at the end of the lines their cursors are on; the status line
+says who else is in the buffer. `space j l` lists the people here and where
+they are, and following one keeps your view on theirs (their buffer, their
+cursor, their scroll) until you press a key. `space j t` says something to
+everyone, and `space j h` shows the chat, and who came and went. Over iroh
+(below), that is anyone, anywhere, with the code.
+
 With `--mesh` (or the command `mesh-listen`, in a running editor) an
 editor also accepts clients over [iroh](https://iroh.computer), through
 NATs and from anywhere, using the repository's `iroh-mesh`. It prints a
@@ -304,7 +317,7 @@ with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 (`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
-language servers, and
+language servers, `people`, working together, and
 `tutor`, whose lessons are `ext/tutor.md`, compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).
 

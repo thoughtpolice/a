@@ -53,6 +53,7 @@
                             (lambda () (invalidate-client! client))))])
       (set! client (server-connect! (terminal-client-name) (tty-rows tty) (tty-cols tty)
                                     (tty-capabilities tty) send close))
+      (set-client-user! client (default-user-name))
       (set! src
             (make-source
              (tty-in-fd tty)
@@ -87,6 +88,7 @@
              [buf (make-bytevector 65536)])
         (send (list "hello" protocol-version (terminal-client-name) (tty-rows tty) (tty-cols tty)
                     (tty-capabilities tty)))
+        (send (list "user" (default-user-name)))
         ;; Paths are the server's to open, so they go absolute.
         (for-each (lambda (f)
                     (send (list "open" (if (string-prefix? "/" f) f (path-join (current-directory) f)) line)))
