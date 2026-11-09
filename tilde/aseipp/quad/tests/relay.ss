@@ -6,20 +6,7 @@
 ;; Run by :test-remote, with a daemon at $QUAD_SOCKET showing a file that
 ;; says "remote content".
 
-;; Run the event loop until (pred); a timeout ends the test.
-(define (run-until name pred)
-  (let* ([deadline (+ (real-time) 10000)] [timed-out? #f]
-         [src (make-source -1 void (lambda () (max 0 (- deadline (real-time))))
-                           (lambda () (set! timed-out? #t) (editor-stop!))
-                           (lambda () (when (pred) (editor-stop!))))])
-    (add-source! src)
-    (unless (pred) (server-run!))
-    (remove-source! src)
-    (when timed-out? (printf "FAIL ~a: timed out\n" name) (exit 1))
-    (editor-restart!)
-    (redraw!)))
 
-(define (on-screen? s) (exists (lambda (r) (string-contains r s)) (screen)))
 
 (headless-start! 12 60)
 (define here (headless-buffer! "local text\n" 'text))

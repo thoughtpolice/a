@@ -157,15 +157,14 @@
 (expect-equal "bracketed paste" (buffer-contents) "new")
 
 ;; Saving writes the file atomically.
-(let ([path (format "~a/quad-test-~a.txt" (or (getenv "TMPDIR") "/tmp") (random 1000000))])
+(let ([path (path-join (test-temp-dir "editing") "save.txt")])
   (call-with-output-file path (lambda (p) (display "abc" p)))
   (switch-to-buffer! (open-file! path))
   (press! "s" "g" "g")
   (type! "xyz")
   (press! "esc" "enter")
   (expect-equal "saved" (read-file-string path) "xyz")
-  (check "not modified after save" (not (buffer-modified? (current-buffer))))
-  (delete-file path))
+  (check "not modified after save" (not (buffer-modified? (current-buffer)))))
 
 ;; Evaluating Scheme: eval-string runs in the quad environment.
 (expect-equal "eval" (eval-string "(+ 1 2)") 3)

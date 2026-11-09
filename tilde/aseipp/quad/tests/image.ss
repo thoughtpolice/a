@@ -14,8 +14,7 @@
       (bytevector-u8-set! px (+ i 2) b) (bytevector-u8-set! px (+ i 3) 255))
     (png-encode w h px)))
 
-(define dir (let ([t (current-time)]) (format "/tmp/quad-image-test-~a-~a" (time-second t) (time-nanosecond t))))
-(mkdir dir)
+(define dir (test-temp-dir "image"))
 (define png-path (string-append dir "/red.png"))
 (define png (solid-png 30 20 255 0 0))
 (call-with-port (open-file-output-port png-path) (lambda (p) (put-bytevector p png)))
@@ -101,5 +100,3 @@
               (and (exists (lambda (l) (string-contains l "PNG image, 10 × 40")) (grid-model-lines (cadr words))) #t)
               #t)
 
-(delete-file png-path)
-(delete-directory dir)

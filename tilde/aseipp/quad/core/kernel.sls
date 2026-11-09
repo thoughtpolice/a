@@ -9,10 +9,10 @@
 ;; libraries) they are simply unavailable. The Rust half's procedures are
 ;; (quad native), generated from kernel/lib.rs.
 (library (quad kernel)
-  (export kernel-available?
-          kernel-isatty kernel-tty-raw kernel-tty-restore kernel-tty-size kernel-tty-pixels
+  (export kernel-isatty kernel-tty-raw kernel-tty-restore kernel-tty-size kernel-tty-pixels
           kernel-read kernel-write kernel-take-winch kernel-suspend
           kernel-poll kernel-unix-listen kernel-unix-connect kernel-accept kernel-close
+          kernel-fork-detached
           quad-self-path)
   (import (chezscheme))
 
@@ -25,8 +25,6 @@
              (unless proc (set! proc (foreign-procedure cname (arg ...) ret)))
              (apply proc args))))]))
 
-  ;; Whether this process is a quad kernel, with the primitives registered.
-  (define (kernel-available?) (foreign-entry? "quad_self_path"))
 
   ;; The terminal (kernel.c).
   (define-kernel kernel-isatty "quad_isatty" (int) int)
@@ -46,6 +44,16 @@
   (define-kernel kernel-unix-connect "quad_unix_connect" (string) int)
   (define-kernel kernel-accept "quad_accept" (int) int)
   (define-kernel kernel-close "quad_close" (int) int)
+  (define-kernel k-fork-detached "quad_fork_detached" (u8*) int)
+
+  ;; Fork a process that goes on without the terminal (kernel.c): in the
+  ;; parent, the child's pid and the read end of a pipe from it; in the
+  ;; child, 0 and the write end; #f and #f if it could not.
+  (define (kernel-fork-detached)
+    (let* ([fd (make-bytevector 4 0)] [pid (k-fork-detached fd)])
+      (if (< pid 0)
+          (values #f #f)
+          (values pid (bytevector-s32-native-ref fd 0)))))
 
   ;; Wait up to timeout-ms (-1: forever) for any of `fds` to be readable;
   ;; returns those that are (or have hung up), '() on timeout.

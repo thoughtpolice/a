@@ -10,7 +10,7 @@
 //! by calling [`quad_native_register`].
 //!
 //! Components that run threads of their own -- iroh (mesh.rs), GUI windows
-//! (gui.rs) -- hand Scheme
+//! (gui/) -- hand Scheme
 //! an object holding a [`Mailbox`], whose file descriptor the editor's event
 //! loop polls; the ticker below is the smallest such component.
 //! Subprocesses ([`Process`]) need no thread: Scheme polls and reads their
@@ -213,11 +213,6 @@ fn launch_process(argv: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-#[chez::procedure]
-fn process_pid(p: Ref<Process>) -> u32 {
-    p.child.id()
-}
-
 /// The descriptor to write the process's input to, or -1 once closed.
 #[chez::procedure]
 fn process_input_fd(p: Ref<Process>) -> i32 {
@@ -319,7 +314,7 @@ fn mesh_session_editor(s: Ref<mesh::Session>) -> String {
     s.editor.clone()
 }
 
-// MARK: GUI windows (gui.rs, for core/gui.sls)
+// MARK: GUI windows (gui/, for core/gui.sls)
 
 /// The font to draw with: `family` (else the system's monospace font) at
 /// `points`, with OpenType `features` (HarfBuzz's spellings, separated by
@@ -372,46 +367,14 @@ fn gui_take(g: Ref<gui::Gui>) -> Vec<gui::Event> {
 /// [`screen::Update`]): the screen's rows; whether every row is sent;
 /// scrolls (three i32s each: top, bottom, n); the rows sent (four u32s
 /// each: the row, and its rectangles, cells and bytes of text, taken in
-/// turn from `rects` (gui.slang's Rect, 32 bytes each), `cells` (font.rs's
+/// turn from `rects` (gui.slang's Rect, 32 bytes each), `cells` (font/cells.rs's
 /// CELL_BYTES each) and `text`); the background, and the color of text
 /// left to the terminal's; the cursor, or -1s where it is hidden; and the
 /// images placed (keys, and five u32s each, as image.rs's Placement
 /// reads them).
+#[chez::procedure(name = "gui-frame")]
 #[allow(clippy::too_many_arguments)]
-fn frame_update(
-    rows: u32,
-    whole: bool,
-    scrolls: &[u8],
-    index: &[u8],
-    rects: &[u8],
-    cells: &[u8],
-    text: &[u8],
-    background: u32,
-    foreground: u32,
-    cursor_row: i32,
-    cursor_col: i32,
-    image_keys: Vec<String>,
-    image_places: &[u8],
-) -> Result<screen::Update, String> {
-    let (scrolls, changed) = screen::Update::rows_from(scrolls, index, rects, cells, text)?;
-    Ok(screen::Update {
-        rows,
-        whole,
-        scrolls,
-        changed,
-        background,
-        foreground,
-        cursor: (cursor_row >= 0 && cursor_col >= 0)
-            .then_some((cursor_row as u32, cursor_col as u32)),
-        placements: image::Placement::parse(image_keys, image_places)?,
-    })
-}
-
-/// Paint a frame: its changes, as `frame_update` reads them.
-#[chez::procedure(name = "gui-paint!")]
-#[allow(clippy::too_many_arguments)]
-fn gui_paint(
-    g: Ref<gui::Gui>,
+fn gui_frame(
     rows: u32,
     whole: bool,
     scrolls: Bytes,
@@ -425,23 +388,25 @@ fn gui_paint(
     cursor_col: i32,
     image_keys: Vec<String>,
     image_places: Bytes,
-) -> Result<(), String> {
-    g.paint(frame_update(
+) -> Result<Object<screen::Update>, String> {
+    let (scrolls, changed) = screen::Update::rows_from(&scrolls, &index, &rects, &cells, &text)?;
+    Ok(Object(screen::Update {
         rows,
         whole,
-        &scrolls,
-        &index,
-        &rects,
-        &cells,
-        &text,
+        scrolls,
+        changed,
         background,
         foreground,
-        cursor_row,
-        cursor_col,
-        image_keys,
-        &image_places,
-    )?);
-    Ok(())
+        cursor: (cursor_row >= 0 && cursor_col >= 0)
+            .then_some((cursor_row as u32, cursor_col as u32)),
+        placements: image::Placement::parse(image_keys, &image_places)?,
+    }))
+}
+
+/// Paint a frame (gui-frame), which is used up.
+#[chez::procedure(name = "gui-paint!")]
+fn gui_paint(g: Ref<gui::Gui>, mut frame: RefMut<screen::Update>) {
+    g.paint(std::mem::take(&mut *frame));
 }
 
 /// Take a PNG, for frames to place by `key`: gui-paint!'s images are
@@ -484,43 +449,15 @@ fn gui_headless_info(h: Ref<gui::Snapshots>) -> Vec<String> {
     vec![w.to_string(), hh.to_string(), h.device_name()]
 }
 
-/// A frame's changes, as gui-paint! takes them, drawn `cols` cells wide:
-/// the screen's pixels, RGBA, top row first.
+/// Draw a frame (gui-frame, which is used up) as a window would, `cols`
+/// cells wide: the screen's pixels, RGBA, top row first.
 #[chez::procedure(name = "gui-headless-draw!")]
-#[allow(clippy::too_many_arguments)]
 fn gui_headless_draw(
     mut h: RefMut<gui::Snapshots>,
     cols: u32,
-    rows: u32,
-    whole: bool,
-    scrolls: Bytes,
-    index: Bytes,
-    rects: Bytes,
-    cells: Bytes,
-    text: Bytes,
-    background: u32,
-    foreground: u32,
-    cursor_row: i32,
-    cursor_col: i32,
-    image_keys: Vec<String>,
-    image_places: Bytes,
+    mut frame: RefMut<screen::Update>,
 ) -> Result<ByteVec, String> {
-    let update = frame_update(
-        rows,
-        whole,
-        &scrolls,
-        &index,
-        &rects,
-        &cells,
-        &text,
-        background,
-        foreground,
-        cursor_row,
-        cursor_col,
-        image_keys,
-        &image_places,
-    )?;
-    h.draw(update, cols).map(ByteVec)
+    h.draw(std::mem::take(&mut *frame), cols).map(ByteVec)
 }
 
 #[chez::procedure(name = "gui-set-title!")]
@@ -576,11 +513,11 @@ chez::library! {
     /// `(quad native)`.
     pub fn native() -> "quad native" {
         blake3, version, timing_mark, png_file_write, png_file_read, make_ticker, ticker_fd, ticker_take,
-        spawn_process, launch_process, process_pid, process_input_fd, process_output_fd,
+        spawn_process, launch_process, process_input_fd, process_output_fd,
         process_close_input, process_status, process_stop,
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
         mesh_target_kind, mesh_connect, mesh_session_fd, mesh_session_editor,
-        gui_prepare, gui_open, gui_fd, gui_take, gui_paint, gui_image, gui_set_title, gui_close,
+        gui_prepare, gui_open, gui_fd, gui_take, gui_frame, gui_paint, gui_image, gui_set_title, gui_close,
         gui_headless, gui_headless_info, gui_headless_draw, gui_headless_image,
         gui_has_clipboard, gui_clipboard_set, gui_clipboard_get, gui_set_font, gui_set_pointer,
     }

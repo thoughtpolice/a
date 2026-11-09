@@ -171,15 +171,15 @@
                          [else (list (cons (path-join ".quad" r) (guard (e [#t ""]) (read-file-string full))))])))
                     names)))))
 
-  (define (hex bv)
-    (apply string-append (map (lambda (b) (string-append (if (< b 16) "0" "") (number->string b 16)))
-                              (bytevector->u8-list bv))))
-
+  ;; The hash of a project's configuration, which trust is recorded by: in
+  ;; uppercase hex, as the trust files written so far have it.
   (define (project-hash root)
-    (hex (blake3 (string->utf8
-                  (apply string-append
-                         (map (lambda (f) (format "~a\x0;~a\x0;~a" (car f) (string-length (cdr f)) (cdr f)))
-                              (project-config-files root)))))))
+    (string-upcase
+     (bytevector->hex
+      (blake3 (string->utf8
+               (apply string-append
+                      (map (lambda (f) (format "~a\x0;~a\x0;~a" (car f) (string-length (cdr f)) (cdr f)))
+                           (project-config-files root))))))))
 
   (define (trust-file)
     (or (get-var 'project-trust-file #f)
@@ -367,14 +367,11 @@ mislead it): ~a" (string-trim first))))
     (if (and c (memq c (clients))) (with-client c thunk) (as-asker thunk)))
 
   (define (show-review! p)
-    (let ([b (or (find-buffer-named "*project review*")
-                 (new-buffer! "*project review*" "" (or (find-major-mode 'markdown) fundamental-mode)))])
-      (buffer-read-only?-set! b #f)
-      (buffer-replace-all! b (format "# AI review of ~a/.quad/\n\nThe reviewer read the code without tools, as \
+    (show-text-buffer! "*project review*"
+                       (format "# AI review of ~a/.quad/\n\nThe reviewer read the code without tools, as \
 untrusted text. Its verdict is advice: code can be written to mislead a reviewer.\n\n~a\n\nTo trust it: space space project-trust\n"
-                                     (proj-root p) (proj-review p)))
-      (buffer-read-only?-set! b #t)
-      (switch-to-buffer! b)))
+                               (proj-root p) (proj-review p))
+                       'markdown))
 
   ;; ---------------------------------------------------------------------------
   ;; Commands

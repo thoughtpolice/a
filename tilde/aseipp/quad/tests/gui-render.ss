@@ -4,17 +4,14 @@
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
 ;; Frames of a real editor, drawn as the window draws them (core/gui.sls,
-;; kernel/render.rs) into images, and checked against the cells a terminal
+;; kernel/render/) into images, and checked against the cells a terminal
 ;; shows: backgrounds exactly, text where there is text, box drawing
 ;; joining up. It runs on whatever Vulkan device QUAD_GUI_DEVICE names
 ;; (BUILD's :test-gui-render asks for Mesa's lavapipe, a software renderer,
 ;; so that results do not depend on a GPU), with the system's fonts; with
 ;; no Vulkan, it says SKIP and passes.
 
-(define h
-  (guard (e [#t (printf "SKIP: ~a\n" (if (condition? e) (condition->string e) e))
-                (exit 0)])
-    (gui-headless (get-var 'gui-font-family) 12 #t)))
+(define h (headless-gpu (get-var 'gui-font-family) 12 #t))
 (printf "drawing with ~a\n" (caddr (gui-headless-info h)))
 
 (define rows 14)
@@ -23,8 +20,7 @@
 (define buf (headless-buffer! "(define (hello world) 42)\n\n█ ▀ ▄\n" 'scheme))
 
 ;; A client keeping a grid model, as the window does.
-(define model (make-grid-model))
-(define gui (server-connect! "gui" rows cols '() (lambda (m) (grid-model-apply! model m)) void))
+(define-values (gui model) (model-client! "gui" rows cols '()))
 (with-client gui (lambda () (switch-to-buffer! buf)))
 (redraw!)
 
@@ -208,13 +204,11 @@
         (bytevector-u8-set! px (+ (* 4 i) 2) (if left? 0 255))
         (bytevector-u8-set! px (+ (* 4 i) 3) 255)))
     (png-encode 40 20 px)))
-(define png-dir (let ([t (current-time)]) (format "/tmp/quad-render-test-~a-~a" (time-second t) (time-nanosecond t))))
-(mkdir png-dir)
+(define png-dir (test-temp-dir "render"))
 (define png-path (string-append png-dir "/two.png"))
 (call-with-port (open-file-output-port png-path) (lambda (p) (put-bytevector p png)))
 
-(define viewing (make-grid-model))
-(define viewer (server-connect! "gui" rows cols '("images") (lambda (m) (grid-model-apply! viewing m)) void))
+(define-values (viewer viewing) (model-client! "gui" rows cols '("images")))
 (with-client viewer (lambda () (switch-to-buffer! (open-file! png-path))))
 (redraw!)
 (define placed (car (grid-model-images viewing)))
@@ -228,16 +222,13 @@
   (expect-equal "and its right half" (pixel (+ x0 35) (+ top 10)) #x0000ff)
   (expect-equal "the background beside it" (pixel (- x0 2) (+ top 10)) default-bg)
   (expect-equal "and below it" (pixel (+ x0 5) (+ top 22)) default-bg))
-(delete-file png-path)
-(delete-directory png-dir)
 
 ;; ---------------------------------------------------------------------------
 ;; Emoji, from a color font where there is one: in their own colors (the
 ;; smiling face is yellow), which neither the text's color nor the
 ;; background, nor any blend of the two, is.
 
-(define emoji-view (make-grid-model))
-(define emoji-client (server-connect! "gui" rows cols '() (lambda (m) (grid-model-apply! emoji-view m)) void))
+(define-values (emoji-client emoji-view) (model-client! "gui" rows cols '()))
 (with-client emoji-client (lambda () (switch-to-buffer! (headless-buffer! "😀 🦀\n" 'fundamental))))
 (redraw!)
 (let-values ([(w ht px) (draw-frame-image h emoji-view)])

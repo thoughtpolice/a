@@ -9,7 +9,7 @@
 //
 // The Slug algorithm's patent is dedicated to the public domain.
 
-// The GUI's pipelines (kernel/gui.rs). There are no vertex buffers or
+// The GUI's pipelines (kernel/render/). There are no vertex buffers or
 // descriptor sets: the push constants point at the frame's data by buffer
 // device address, and each instance draws one rectangle or glyph as a
 // four-vertex strip.
@@ -35,7 +35,7 @@ struct Rect
     uint3 reserved;
 };
 
-// A glyph, placed (kernel/font.rs makes these; slug.rs, the data).
+// A glyph, placed (kernel/font/layout.rs makes these; slug.rs, the data).
 struct Glyph
 {
     float4 rect;    // its quad, in pixels: x, y, width, height
@@ -177,7 +177,7 @@ struct GlyphVertex
 };
 
 // The quad is the glyph's bounds, already a pixel wider on each side for
-// its edges' antialiasing (font.rs): text here is never rotated or skewed,
+// its edges' antialiasing (font/layout.rs): text here is never rotated or skewed,
 // so it needs none of the reference vertex shader's dynamic dilation.
 [shader("vertex")]
 GlyphVertex glyphVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID)

@@ -197,7 +197,7 @@
   ;; Positions: LSP's (line, character), the character counted in the
   ;; server's encoding -- UTF-16 code units unless it agrees to another.
 
-  (define (char-units c encoding)
+  (define (code-units c encoding)
     (let ([n (char->integer c)])
       (case encoding
         [(utf-32) 1]
@@ -209,7 +209,7 @@
            [line (text-line-of t pos)] [start (text-line-start t line)])
       `((line . ,line)
         (character . ,(let loop ([i start] [n 0])
-                        (if (>= i pos) n (loop (+ i 1) (+ n (char-units (text-ref t i) encoding)))))))))
+                        (if (>= i pos) n (loop (+ i 1) (+ n (code-units (text-ref t i) encoding)))))))))
 
   (define (lsp-offset b p encoding)
     (let* ([t (buffer-text b)] [lines (text-line-count t)]
@@ -220,7 +220,7 @@
        [else
         (let ([end (text-line-end t line)])
           (let loop ([i (text-line-start t line)] [n 0])
-            (if (or (>= i end) (>= n ch)) i (loop (+ i 1) (+ n (char-units (text-ref t i) encoding))))))])))
+            (if (or (>= i end) (>= n ch)) i (loop (+ i 1) (+ n (code-units (text-ref t i) encoding))))))])))
 
   (define (lsp-range b range encoding)
     (let ([s (lsp-offset b (json-ref range 'start) encoding)] [e (lsp-offset b (json-ref range 'end) encoding)])
@@ -1142,11 +1142,7 @@
   ;; Commands and keys
 
   (define (show-log!)
-    (let ([b (or (find-buffer-named "*lsp*") (new-buffer! "*lsp*" "" fundamental-mode))])
-      (buffer-read-only?-set! b #f)
-      (buffer-replace-all! b (string-join (lsp-log-lines) "\n"))
-      (buffer-read-only?-set! b #t)
-      (switch-to-buffer! b)))
+    (show-text-buffer! "*lsp*" (string-join (lsp-log-lines) "\n") 'fundamental))
 
   (define (show-info!)
     (message "~a"

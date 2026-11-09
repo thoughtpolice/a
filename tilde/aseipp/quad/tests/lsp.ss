@@ -9,20 +9,7 @@
 (define here (getenv "QUAD_TEST_DIR"))
 (define work (getenv "QUAD_LSP_DIR"))
 
-;; Run the event loop until (pred); a timeout ends the test.
-(define (run-until name pred)
-  (let* ([deadline (+ (real-time) 10000)] [timed-out? #f]
-         [src (make-source -1 void (lambda () (max 0 (- deadline (real-time))))
-                           (lambda () (set! timed-out? #t) (editor-stop!))
-                           (lambda () (when (pred) (editor-stop!))))])
-    (add-source! src)
-    (unless (pred) (server-run!))
-    (remove-source! src)
-    (when timed-out? (printf "FAIL ~a: timed out\n" name) (exit 1))
-    (editor-restart!)
-    (redraw!)))
 
-(define (on-screen? s) (exists (lambda (r) (string-contains r s)) (screen)))
 (define (bottom) (list-ref (screen) 29))
 (define (select! b text n)
   ;; Select the nth occurrence of text in b, in CHAR mode.
@@ -42,10 +29,10 @@
     (run-until "the server's text" (lambda () r))
     r))
 
-(define (write-file! name text) (call-with-output-file (path-join work name) (lambda (p) (display text p)) 'replace))
-(write-file! ".fakeroot" "")
-(write-file! "a.fake" "def top\n  def inner\nfoo = 1\n😀 bad meh foo\nprint(foo)   \n")
-(write-file! "b.fake" "use foo\n")
+(define (work-file! name text) (call-with-output-file (path-join work name) (lambda (p) (display text p)) 'replace))
+(work-file! ".fakeroot" "")
+(work-file! "a.fake" "def top\n  def inner\nfoo = 1\n😀 bad meh foo\nprint(foo)   \n")
+(work-file! "b.fake" "use foo\n")
 
 (define-lsp-server! 'fake (list (quad-self-path) "-q" "--batch" (path-join here "lsp-server.ss")) '("fake") 'roots '(".fakeroot"))
 (headless-start! 30 100)

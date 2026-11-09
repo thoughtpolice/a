@@ -20,16 +20,16 @@
 
 ;; Menus draw a legend with their keys.
 (press! "space")
-(check "space legend" (exists (lambda (r) (string-contains r "Command")) (screen)))
-(check "legend border" (exists (lambda (r) (string-contains r "╭")) (screen)))
+(check "space legend" (on-screen? "Command"))
+(check "legend border" (on-screen? "╭"))
 (press! "esc")
 
 ;; Pickers float in the middle, filtering as you type.
 (press! "space" "k" "f")
-(check "picker" (exists (lambda (r) (string-contains r "Buffers")) (screen)))
+(check "picker" (on-screen? "Buffers"))
 (type! "mess")
-(check "picker filters" (exists (lambda (r) (string-contains r "*Messages*")) (screen)))
-(check "picker count" (exists (lambda (r) (string-contains r "1/1")) (screen)))
+(check "picker filters" (on-screen? "*Messages*"))
+(check "picker count" (on-screen? "1/1"))
 (press! "esc")
 (check "picker closed" (not (current-prompt)))
 

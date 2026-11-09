@@ -11,23 +11,8 @@
 (define root (path-join dir "repo"))
 (define inner (path-join root "sub"))
 
-(define (run-until name pred)
-  (let* ([deadline (+ (real-time) 10000)] [timed-out? #f]
-         [src (make-source -1 void (lambda () (max 0 (- deadline (real-time))))
-                           (lambda () (set! timed-out? #t) (editor-stop!))
-                           (lambda () (when (pred) (editor-stop!))))])
-    (add-source! src)
-    (unless (pred) (server-run!))
-    (remove-source! src)
-    (when timed-out? (printf "FAIL ~a: timed out\n" name) (exit 1))
-    (editor-restart!)
-    (redraw!)))
-(define (on-screen? s) (exists (lambda (r) (string-contains r s)) (screen)))
-(define (asked? title) (let ([p (current-prompt)]) (and p (equal? (prompt-label p) title))))
 (define (choose! text) (type! text) (press! "enter"))
 
-(define (mkdir-p d) (unless (file-exists? d) (mkdir-p (path-dirname d)) (mkdir d)))
-(define (write-file! path text) (mkdir-p (path-dirname path)) (call-with-output-file path (lambda (p) (display text p)) 'replace))
 
 (write-file! (path-join root ".quad/init.ss")
              "(project-set! 'tab-width 3)
@@ -61,7 +46,7 @@
 (define a (open-file! (path-join root "a.txt")))
 (switch-to-buffer! a)
 (redraw!)
-(check "asked" (and (asked? "Trust this project?") (on-screen? "Have an AI review its code first")
+(check "asked" (and (prompt-titled? "Trust this project?") (on-screen? "Have an AI review its code first")
                     (string-contains (prompt-hint (current-prompt)) "lines: .quad/files, .quad/init.ss, servers.json, ../escape). quad would run its code")))
 (check "not loaded yet" (and (not (find-command 'from-project)) (= (get-var 'tab-width a) 8)))
 (check "no server while it asks" (not (lsp-buffer-server a)))
@@ -73,7 +58,7 @@
 ;; tools, outside the project.
 (press! "space" "space")
 (choose! "project-trust")
-(check "asked again" (asked? "Trust this project?"))
+(check "asked again" (prompt-titled? "Trust this project?"))
 (choose! "review")
 (run-until "the review" (lambda () (and (project-review root) (current-prompt))))
 (let ([r (project-review root)])
@@ -84,7 +69,7 @@
   (check "not ephemeral, so it can be sampled" (string-contains r "ephemeral: #f"))
   (check "outside the project" (string-contains r "in the project: #f"))
   (check "the code, fenced by a nonce" (and (string-contains r "fenced: #t") (string-contains r "has the code: #t"))))
-(check "the verdict, in the question" (and (asked? "Trust this project?") (on-screen? "CAUTION")
+(check "the verdict, in the question" (and (prompt-titled? "Trust this project?") (on-screen? "CAUTION")
                                            (on-screen? "Read the review")))
 (choose! "Read the review")
 (check "the review, in a buffer" (and (equal? (buffer-name (current-buffer)) "*project review*")
@@ -108,7 +93,7 @@
 ;; A project in a project: the inner one asks too, and its settings win.
 (define c (open-file! (path-join inner "c.txt")))
 (redraw!)
-(check "the inner one asks" (and (asked? "Trust this project?") (on-screen? (path-join root "sub"))))
+(check "the inner one asks" (and (prompt-titled? "Trust this project?") (on-screen? (path-join root "sub"))))
 (choose! "Trust it")
 (check "both apply, the inner last" (and (= (get-var 'tab-width c) 5) (buffer-local c 'seen-by-project #f)))
 
@@ -140,7 +125,7 @@
 (write-file! (path-join root ".quad/init.ss") "(project-set! 'tab-width 4)\n")
 (press! "space" "space")
 (choose! "project-reload")
-(check "changed: asked again" (asked? "Trust this project?"))
+(check "changed: asked again" (prompt-titled? "Trust this project?"))
 (check "unloaded meanwhile" (not (eq? (project-state root) 'loaded)))
 (choose! "Trust it")
 (check "the new one" (= (get-var 'tab-width a) 4))

@@ -264,6 +264,41 @@ quad_close(int fd)
   return close(fd);
 }
 
+// Fork a process to go on without the terminal, as a window does by
+// default (main.sls): the child leaves the terminal's session, with its
+// standard input, output and error on /dev/null, and keeps the write end
+// of a pipe to tell the parent how opening its window went; the parent
+// keeps the read end. Returns the child's pid in the parent, 0 in the
+// child, or -1; *fd is the end of the pipe each keeps.
+int
+quad_fork_detached(int* fd)
+{
+  int p[2];
+  if (pipe2(p, O_CLOEXEC) != 0) return -1;
+  pid_t pid = fork();
+  if (pid < 0) {
+    close(p[0]);
+    close(p[1]);
+    return -1;
+  }
+  if (pid == 0) {
+    close(p[0]);
+    setsid();
+    int null = open("/dev/null", O_RDWR | O_CLOEXEC);
+    if (null >= 0) {
+      dup2(null, 0);
+      dup2(null, 1);
+      dup2(null, 2);
+      if (null > 2) close(null);
+    }
+    *fd = p[1];
+    return 0;
+  }
+  close(p[1]);
+  *fd = p[0];
+  return pid;
+}
+
 const char*
 quad_self_path(void)
 {
@@ -285,7 +320,8 @@ quad_self_path(void)
   _(quad_unix_listen) \
   _(quad_unix_connect) \
   _(quad_accept)      \
-  _(quad_close)
+  _(quad_close)       \
+  _(quad_fork_detached)
 
 /* -------------------------------------------------------------------------- */
 /* -- Entry point ----------------------------------------------------------- */

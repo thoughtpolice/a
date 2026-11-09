@@ -52,7 +52,7 @@ impl Curve {
 
 /// Outlines as closed contours of quadratic curves, from any source of
 /// lines, quadratics and cubics: a font's [`skrifa::PathSink`], or code
-/// drawing shapes (box drawing, in font.rs). Coordinates are scaled by
+/// drawing shapes (box drawing, in font/sprites.rs). Coordinates are scaled by
 /// `scale` as they come in (to em units, from a font's units).
 pub struct Outline {
     pub contours: Vec<Vec<Curve>>,

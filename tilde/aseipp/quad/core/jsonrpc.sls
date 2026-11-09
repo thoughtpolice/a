@@ -204,10 +204,4 @@
       (bytevector-copy! bv start out 0 (- end start))
       out))
 
-  (define (bytevector-append a b)
-    (if (zero? (bytevector-length a))
-        b
-        (let ([out (make-bytevector (+ (bytevector-length a) (bytevector-length b)))])
-          (bytevector-copy! a 0 out 0 (bytevector-length a))
-          (bytevector-copy! b 0 out (bytevector-length a) (bytevector-length b))
-          out))))
+)

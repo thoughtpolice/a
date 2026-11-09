@@ -18,12 +18,14 @@
           headless-start! headless-client! use-client! headless-buffer!
           press! type! screen screen-row screen-cursor screen-of client-received buffer-contents
           selected primary-text redraw!
-          check expect-equal failure!)
+          check expect-equal failure!
+          run-until on-screen? screen-row-of prompt-titled? error-message-of
+          test-temp-dir write-file! model-client! headless-gpu)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
           (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad project) (quad mesh)
-          (quad relay) (only (quad native) timing-mark gui-prepare))
+          (quad relay) (only (quad native) timing-mark gui-prepare gui-headless))
 
   (define quad-version "0.1.0")
 
@@ -40,6 +42,9 @@
                        opens a window where there is a display and one can
                        open, and uses the terminal where not
   --tui                edit in the terminal, never a window
+  --wait               with a window, stay in the terminal until it closes
+                       (for $EDITOR); otherwise the window goes on alone
+                       and the command returns once it opens
   --new                start an editor of its own, even where a daemon
                        listens at PATH (quad is otherwise its client)
   --listen[=PATH]      also accept clients on the Unix socket PATH
@@ -74,15 +79,13 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   (define editor-init!
     (case-lambda
      [(files) (editor-init! files void)]
-     [(files setup) (editor-setup! files setup)]))
-
-  (define (editor-setup! files setup)
-    (let ([m (new-buffer! "*Messages*" "" fundamental-mode)])
-      (buffer-read-only?-set! m #t)
-      (set-messages-buffer! m))
-    (setup)
-    (let ([opened (map open-file! files)])
-      (set-current-buffer!
+     [(files setup)
+      (let ([m (new-buffer! "*Messages*" "" fundamental-mode)])
+        (buffer-read-only?-set! m #t)
+        (set-messages-buffer! m))
+      (setup)
+      (let ([opened (map open-file! files)])
+        (set-current-buffer!
        (if (pair? opened)
            (car opened)
            (new-buffer! "*scratch*"
@@ -91,7 +94,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
                                        ";; and space e evaluates Scheme. Select a form with d, then space l e.\n"
                                        ";; New to them? space k h (or quad --tutor) teaches them.\n\n"
                                        "(message \"hello from ~a\" (scheme-version))\n")
-                        (or (find-major-mode 'scheme) fundamental-mode))))))
+                        (or (find-major-mode 'scheme) fundamental-mode)))))]))
 
   (define (report-error e)
     (display "quad: " (current-error-port))
@@ -115,12 +118,79 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; and one opens, else this terminal: (window . why), window #f for the
   ;; terminal, and why the window that was tried did not open.
   (define (open-ui ui)
-    (case ui
-      [(gui) (cons (gui-window) #f)]
-      [(tui) (cons #f #f)]
-      [else (if (display-available?)
-                (guard (e [#t (cons #f (condition->string e))]) (cons (gui-window) #f))
-                (cons #f #f))]))
+    (let ([w (guard (e [report-fd (report! "E" (condition->string e)) (exit 1)])
+               (case ui
+                 [(gui) (cons (gui-window) #f)]
+                 [(tui) (cons #f #f)]
+                 [else (if (display-available?)
+                           (guard (e [#t (cons #f (condition->string e))]) (cons (gui-window) #f))
+                           (cons #f #f))]))])
+      ;; Detached, the window is this process's to keep; without one, the
+      ;; terminal is the parent's (detach!).
+      (when report-fd
+        (if (car w)
+            (report! "W" "")
+            (begin (report! "T" (or (cdr w) "")) (exit 0))))
+      w))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Detaching
+  ;;
+  ;; A window goes on without the terminal it was started from, which gets
+  ;; its prompt back once the window is open (unless --wait, as $EDITOR
+  ;; needs). It must fork before anything starts a thread (the window's,
+  ;; the device made ahead of it), so it forks before it knows a window will
+  ;; open: the child tries, and says over a pipe how it went -- "W", it
+  ;; opened; "T" and why not, so the parent goes on in the terminal; "E" and
+  ;; an error, which the parent reports.
+
+  ;; In the detached child, the pipe to its parent.
+  (define report-fd #f)
+
+  (define (report! what text)
+    (let ([b (string->utf8 (string-append what text))])
+      (kernel-write report-fd b (bytevector-length b))
+      (kernel-close report-fd)
+      (set! report-fd #f)))
+
+  ;; Whether a window may open, and should go on without the terminal.
+  (define (detaches? o)
+    (and (not (options-wait? o)) (not (eq? (options-ui o) 'tui)) (display-available?)))
+
+  ;; Forks, if o says to: returns the ui this process goes on with (the
+  ;; terminal's, in a parent whose child had no window), or exits (the
+  ;; parent, once its child's window is open, or failed).
+  (define (detach! o)
+    (if (not (detaches? o))
+        (options-ui o)
+        (let-values ([(pid fd) (kernel-fork-detached)])
+          (cond
+           [(not pid) (options-ui o)]          ; no fork: stay attached
+           [(= pid 0) (set! report-fd fd) (options-ui o)]
+           [else
+            (let* ([said (read-all fd)] [what (and (> (string-length said) 0) (string-ref said 0))]
+                   [text (if what (substring said 1 (string-length said)) "")])
+              (kernel-close fd)
+              (case what
+                [(#\W) (exit 0)]
+                [(#\E) (fprintf (current-error-port) "quad: ~a\n" text) (exit 1)]
+                [else
+                 (set! detach-why (if (eqv? what #\T) text "the window's process stopped"))
+                 'tui]))]))))
+
+  ;; Why a parent went on in the terminal, if it did.
+  (define detach-why #f)
+
+  ;; Everything on fd until it ends, as text.
+  (define (read-all fd)
+    (let ([buf (make-bytevector 4096)])
+      (let loop ([acc '()])
+        (let ([n (kernel-read fd buf 4096 -1)])
+          (if (<= n 0)
+              (utf8->string (apply bytevector-append (reverse acc)))
+              (let ([b (make-bytevector n)])
+                (bytevector-copy! buf 0 b 0 n)
+                (loop (cons b acc))))))))
 
   ;; Start making what a window draws with, on another thread, where one
   ;; may open, so that it opens sooner: Vulkan's device takes longer to
@@ -129,14 +199,16 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
     (when (and (not (eq? ui 'tui)) (display-available?))
       (gui-prepare)))
 
-  ;; The editor with this terminal or a window attached (as ui asks, see
-  ;; open-ui); with the tutor shown, if tutor? (and the editor has one).
+  ;; What sets the editor up before its files open: the init file and the
+  ;; working directory's project, unless init? is #f (-q).
   (define (configure! init?)
     (lambda ()
       (if init?
           (begin (load-init-file! (init-file-path)) (project-visit! (current-directory)))
           (set-var! 'project-config #f))))
 
+  ;; The editor with this terminal or a window attached (as ui asks, see
+  ;; open-ui); with the tutor shown, if tutor? (and the editor has one).
   (define (interactive! files line init? listen tutor? mesh? ui)
     (prepare-ui! ui)
     (editor-init! files (configure! init?))
@@ -147,7 +219,9 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
                (let ([w (open-ui ui)])
                  ;; Why there is no window goes in *Messages*, not in the
                  ;; way: a quad on the toolchain's C library never has one.
-                 (when (cdr w) (log-message! (string-append "No window, so this terminal: " (cdr w))))
+                 (let ([why (or (cdr w) detach-why)])
+                   (when (and why (not (string=? why "")))
+                     (log-message! (string-append "No window, so this terminal: " why))))
                  (if (car w) (gui-attach! (car w)) (tui-attach!))))])
       (cond
        [(not c) 1]                       ; neither a window nor a terminal
@@ -203,11 +277,6 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
            (let ([fd (kernel-unix-connect path)])
              (and (>= fd 0) fd)))))
 
-  ;; Where --connect goes: a socket path, a join code or a ticket; bare,
-  ;; the local editor's socket.
-  (define (connect-target spec)
-    (if (eq? spec 'local) (default-socket-path) spec))
-
   ;; A descriptor connected to target, and what keeps it open.
   (define (connect-fd target)
     (if (mesh-target? target)
@@ -220,8 +289,8 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
           (when (< fd 0) (errorf 'quad "no server is listening at ~a" target))
           (values fd #f))))
 
-  ;; Evaluate expr in the editor listening at path, as a client: print the
-  ;; result. Returns the exit status.
+  ;; Evaluate expr in the editor at target (a socket path, a join code or a
+  ;; ticket), as a client: print the result. Returns the exit status.
   (define (remote-eval! target expr)
     (let-values ([(fd session) (connect-fd target)])
       (let ([send (frame-sender fd)] [reader (make-frame-reader)] [buf (make-bytevector 65536)])
@@ -350,12 +419,94 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
           (failure!)
           (printf "FAIL ~a\n  got:  ~s\n  want: ~s\n" name got want))))
 
+  ;; Run the editor's loop until (pred) holds, then draw: for a test that
+  ;; waits on a process, a socket or a timer. Ten seconds without it end
+  ;; the test, failed: what it would do next might go elsewhere (save a
+  ;; buffer, say).
+  (define (run-until name pred)
+    (let* ([deadline (+ (real-time) 10000)] [timed-out? #f]
+           [src (make-source -1 void (lambda () (max 0 (- deadline (real-time))))
+                             (lambda () (set! timed-out? #t) (editor-stop!))
+                             (lambda () (when (pred) (editor-stop!))))])
+      (add-source! src)
+      (unless (pred) (server-run!))
+      (remove-source! src)
+      (when timed-out?
+        (printf "FAIL ~a: timed out\n" name)
+        (remove-test-dirs!)
+        (exit 1))
+      (editor-restart!)
+      (redraw!)))
+
+  ;; Whether text s is on the test client's screen.
+  (define (on-screen? s) (exists (lambda (r) (string-contains r s)) (screen)))
+
+  ;; The first row of client c's screen (the test client's) with s in it,
+  ;; or #f.
+  (define screen-row-of
+    (case-lambda
+     [(s) (screen-row-of the-test-client s)]
+     [(c s) (let loop ([rs (screen-of c)] [i 0])
+              (cond [(null? rs) #f] [(string-contains (car rs) s) i] [else (loop (cdr rs) (+ i 1))]))]))
+
+  ;; Whether a prompt titled title is open.
+  (define (prompt-titled? title)
+    (let ([p (current-prompt)]) (and p (equal? (prompt-label p) title))))
+
+  ;; The message of what (thunk) raises, or "no error".
+  (define (error-message-of thunk)
+    (guard (e [#t (if (condition? e) (condition-message e) e)]) (thunk) "no error"))
+
+  ;; A fresh directory for a test, under $TMPDIR, removed when it ends.
+  (define test-dirs '())
+  (define (test-temp-dir name)
+    (let* ([t (current-time)]
+           [dir (format "~a/quad-~a-~a-~a" (or (getenv "TMPDIR") "/tmp") name
+                        (time-second t) (time-nanosecond t))])
+      (mkdir dir)
+      (set! test-dirs (cons dir test-dirs))
+      dir))
+
+  (define (remove-tree! path)
+    (if (and (file-directory? path) (not (file-symbolic-link? path)))
+        (begin
+          (for-each (lambda (f) (remove-tree! (path-join path f))) (directory-list path))
+          (delete-directory path))
+        (delete-file path)))
+
+  (define (remove-test-dirs!)
+    (for-each (lambda (d) (when (file-exists? d) (remove-tree! d))) test-dirs)
+    (set! test-dirs '()))
+
+  ;; Write text to path, making the directories it is in.
+  (define (write-file! path text)
+    (let mkdir-p ([d (path-dirname path)])
+      (unless (file-exists? d) (mkdir-p (path-dirname d)) (mkdir d)))
+    (call-with-output-file path (lambda (p) (display text p)) 'replace))
+
+  ;; A client named name, rows by cols, with these capabilities, that keeps
+  ;; a model of its screen, as a window or a terminal does: the client and
+  ;; its model.
+  (define (model-client! name rows cols capabilities)
+    (let* ([model (make-grid-model)]
+           [c (server-connect! name rows cols capabilities (lambda (m) (grid-model-apply! model m)) void)])
+      (values c model)))
+
+  ;; Frames drawn with no window (gui-headless), or the test skipped where
+  ;; nothing can draw them.
+  (define (headless-gpu family points system-fonts?)
+    (guard (e [#t (printf "SKIP: ~a\n" (if (condition? e) (condition->string e) e))
+                  (exit 0)])
+      (gui-headless family points system-fonts?)))
+
   (define (batch! file)
     (guard (e [#t (display "quad: " (current-error-port))
                   (if (condition? e) (display-condition e (current-error-port)) (write e (current-error-port)))
                   (newline (current-error-port))
+                  (remove-test-dirs!)
                   1])
       (load file (lambda (x) (eval x (quad-environment))))
+      (remove-test-dirs!)
       (if (> failures 0)
           (begin (printf "~a failure~a\n" failures (if (= failures 1) "" "s")) 1)
           0)))
@@ -406,77 +557,117 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; ---------------------------------------------------------------------------
   ;; The command line
 
+  ;; What the command line asks for.
+  (define-record-type options
+    (fields (mutable mode)      ; edit, help, version, batch, repl or build-exe
+            (mutable mode-args) ; batch: (file); build-exe: (out file ...)
+            (mutable files)     ; to visit, in order
+            (mutable line)      ; +LINE's, or #f
+            (mutable init?)     ; load the init file and the project's (not -q)
+            (mutable ui)        ; auto (a window where one opens), gui or tui
+            (mutable new?) (mutable tutor?) (mutable mesh?) (mutable daemon?)
+            (mutable wait?)     ; a window keeps the terminal until it closes
+            (mutable listen)    ; a socket path, or #f
+            (mutable connect)   ; a socket path, join code or ticket, or #f
+            (mutable expr))     ; --eval's, or #f
+    (protocol (lambda (new) (lambda () (new 'edit '() '() #f #t 'auto #f #f #f #f #f #f #f #f)))))
+
+  ;; The options args ask for, or a string saying what is wrong with them.
+  ;; --help, --version, --batch, --repl and --build-exe end the options.
+  (define (parse-args args)
+    (let ([o (make-options)])
+      (define (finish) (options-files-set! o (reverse (options-files o))) o)
+      (define (mode! mode args) (options-mode-set! o mode) (options-mode-args-set! o args) (finish))
+      (let loop ([args args])
+        (define (next) (loop (cdr args)))
+        ;; --opt=VALUE, or bare --opt: the default socket.
+        (define (socket-option opt)
+          (let ([a (car args)])
+            (cond [(string=? a opt) (default-socket-path)]
+                  [(string-prefix? (string-append opt "=") a)
+                   (substring a (+ 1 (string-length opt)) (string-length a))]
+                  [else #f])))
+        (if (null? args)
+            (finish)
+            (let ([a (car args)] [more (cdr args)])
+              (cond
+               [(member a '("-h" "--help")) (mode! 'help '())]
+               [(string=? a "--version") (mode! 'version '())]
+               [(string=? a "--repl") (mode! 'repl '())]
+               [(string=? a "--batch") (if (pair? more) (mode! 'batch (list (car more))) "--batch needs a file")]
+               [(string=? a "--build-exe") (if (pair? more) (mode! 'build-exe more) "--build-exe needs an output path")]
+               [(string=? a "--eval")
+                (if (pair? more)
+                    (begin (options-expr-set! o (car more)) (loop (cdr more)))
+                    "--eval needs an expression")]
+               [(string=? a "--tutor") (options-tutor?-set! o #t) (next)]
+               [(string=? a "--gui") (options-ui-set! o 'gui) (next)]
+               [(string=? a "--tui") (options-ui-set! o 'tui) (next)]
+               [(string=? a "--new") (options-new?-set! o #t) (next)]
+               [(string=? a "--wait") (options-wait?-set! o #t) (next)]
+               [(string=? a "--mesh") (options-mesh?-set! o #t) (next)]
+               [(string=? a "--daemon") (options-daemon?-set! o #t) (next)]
+               [(member a '("-q" "--no-init")) (options-init?-set! o #f) (next)]
+               [(socket-option "--listen") => (lambda (p) (options-listen-set! o p) (next))]
+               [(socket-option "--connect") => (lambda (p) (options-connect-set! o p) (next))]
+               [(and (> (string-length a) 1) (char=? (string-ref a 0) #\+)
+                     (string->number (substring a 1 (string-length a))))
+                => (lambda (n) (options-line-set! o n) (next))]
+               [(string-prefix? "-" a) (format "unknown option ~a" a)]
+               [else (options-files-set! o (cons a (options-files o))) (next)]))))))
+
+  ;; Does what the options ask; returns the exit status.
+  (define (run! o)
+    (let ([files (options-files o)] [line (options-line o)] [init? (options-init? o)]
+          [ui (options-ui o)] [connect (options-connect o)] [expr (options-expr o)])
+      (case (options-mode o)
+        [(help) (display usage) 0]
+        [(version)
+         (let-values ([(major minor patch) (scheme-version-number)])
+           (printf "quad ~a (Chez Scheme ~a.~a.~a)\n" quad-version major minor patch))
+         0]
+        [(batch)
+         (unless init? (set-var! 'project-config #f))
+         (batch! (car (options-mode-args o)))]
+        [(repl)
+         (editor-init! '())
+         (interaction-environment (quad-environment))
+         (waiter-prompt-string "quad>")
+         (new-cafe)
+         0]
+        [(build-exe)
+         (build-exe! (car (options-mode-args o)) (cdr (options-mode-args o)))
+         0]
+        [else
+         (cond
+          [(and (eq? ui 'gui) (options-daemon? o))
+           (display "quad: --gui is a window, and --daemon an editor without one\n" (current-error-port))
+           2]
+          [(and expr connect) (remote-eval! connect expr)]
+          [expr
+           (editor-init! files (configure! init?))
+           (let ([v (eval-string expr)])
+             (unless (eq? v (void)) (write v) (newline))
+             0)]
+          [connect (let ([ui (detach! o)])
+                     (let-values ([(fd session) (connect-fd connect)])
+                       (client! fd files line ui)))]
+          [(options-daemon? o)
+           (daemon! files init? (or (options-listen o) (default-socket-path)) (options-mesh? o))]
+          [else
+           ;; An editor listening at the default socket is the one to
+           ;; edit in, unless this is to be an editor of its own.
+           (let* ([ui (detach! o)]
+                  [fd (and (not (or (options-new? o) (options-listen o) (options-mesh? o) (options-tutor? o)))
+                           (local-editor-fd))])
+             (if fd
+                 (client! fd files line ui)
+                 (interactive! files line init? (options-listen o) (options-tutor? o) (options-mesh? o) ui)))])])))
+
   (define (quad-main args)
-    (define tutor? #f)
-    (define mesh? #f)
-    ;; What to edit in: 'auto (a window where one opens, else the
-    ;; terminal), 'gui or 'tui.
-    (define ui 'auto)
-    (define new? #f)
     (timing-mark "scheme started")
-    (let loop ([args args] [files '()] [line #f] [init? #t] [listen #f] [daemon? #f] [connect #f] [expr #f])
-      ;; --opt, or --opt=PATH.
-      (define (path-option opt)
-        (cond [(string=? (car args) opt) (default-socket-path)]
-              [(string-prefix? (string-append opt "=") (car args))
-               (substring (car args) (+ 1 (string-length opt)) (string-length (car args)))]
-              [else #f]))
-      (cond
-       [(null? args)
-        (let ([files (reverse files)])
-          (cond
-           [(and expr connect) (remote-eval! (connect-target connect) expr)]
-           [expr
-            (editor-init! files (configure! init?))
-            (let ([v (eval-string expr)])
-              (unless (eq? v (void)) (write v) (newline))
-              0)]
-           [(and (eq? ui 'gui) daemon?)
-            (display "quad: --gui is a window, and --daemon an editor without one\n" (current-error-port))
-            2]
-           [connect (let-values ([(fd session) (connect-fd (connect-target connect))])
-                      (client! fd files line ui))]
-           [daemon? (daemon! files init? (or listen (default-socket-path)) mesh?)]
-           [else
-            ;; An editor listening at the default socket is the one to
-            ;; edit in, unless this is to be an editor of its own.
-            (let ([fd (and (not (or new? listen mesh? tutor?)) (local-editor-fd))])
-              (if fd
-                  (client! fd files line ui)
-                  (interactive! files line init? listen tutor? mesh? ui)))]))]
-       [(member (car args) '("-h" "--help")) (display usage) 0]
-       [(string=? (car args) "--version")
-        (let-values ([(major minor patch) (scheme-version-number)])
-          (printf "quad ~a (Chez Scheme ~a.~a.~a)\n" quad-version major minor patch))
-        0]
-       [(string=? (car args) "--tutor") (set! tutor? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
-       [(string=? (car args) "--gui") (set! ui 'gui) (loop (cdr args) files line init? listen daemon? connect expr)]
-       [(string=? (car args) "--tui") (set! ui 'tui) (loop (cdr args) files line init? listen daemon? connect expr)]
-       [(string=? (car args) "--new") (set! new? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
-       [(member (car args) '("-q" "--no-init")) (loop (cdr args) files line #f listen daemon? connect expr)]
-       [(path-option "--listen") => (lambda (p) (loop (cdr args) files line init? p daemon? connect expr))]
-       [(string=? (car args) "--daemon") (loop (cdr args) files line init? listen #t connect expr)]
-       [(string=? (car args) "--connect") (loop (cdr args) files line init? listen daemon? 'local expr)]
-       [(path-option "--connect") => (lambda (p) (loop (cdr args) files line init? listen daemon? p expr))]
-       [(string=? (car args) "--mesh") (set! mesh? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
-       [(and (string=? (car args) "--eval") (pair? (cdr args)))
-        (loop (cddr args) files line init? listen daemon? connect (cadr args))]
-       [(and (string=? (car args) "--batch") (pair? (cdr args)))
-        (unless init? (set-var! 'project-config #f))
-        (batch! (cadr args))]
-       [(string=? (car args) "--repl")
-        (editor-init! '())
-        (interaction-environment (quad-environment))
-        (waiter-prompt-string "quad>")
-        (new-cafe)
-        0]
-       [(and (string=? (car args) "--build-exe") (pair? (cdr args)))
-        (build-exe! (cadr args) (cddr args))
-        0]
-       [(and (> (string-length (car args)) 1) (char=? (string-ref (car args) 0) #\+)
-             (string->number (substring (car args) 1 (string-length (car args)))))
-        => (lambda (n) (loop (cdr args) files n init? listen daemon? connect expr))]
-       [(string-prefix? "-" (car args))
-        (fprintf (current-error-port) "quad: unknown option ~a\n~a" (car args) usage)
-        2]
-       [else (loop (cdr args) (cons (car args) files) line init? listen daemon? connect expr)]))))
+    (let ([o (parse-args args)])
+      (if (string? o)
+          (begin (fprintf (current-error-port) "quad: ~a\n~a" o usage) 2)
+          (run! o))))
+)

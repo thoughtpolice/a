@@ -103,8 +103,7 @@
 (client-receive! c (list "mouse" "release" 0 (+ 5 1) 1 mod-ctrl))
 (expect-equal "ctrl-click elsewhere still adds a cursor" (with-client c (lambda () (length (view-sels (current-view))))) 2)
 
-(define dir (let ([t (current-time)]) (format "/tmp/quad-link-test-~a-~a" (time-second t) (time-nanosecond t))))
-(mkdir dir)
+(define dir (test-temp-dir "link"))
 (define target (string-append dir "/target.md"))
 (with-output-to-file target (lambda () (display "one\ntwo\nthree\nfour\n")))
 (define here (headless-buffer! (format "[go](~a#L3)\n" target) 'markdown))
@@ -123,5 +122,3 @@
               (with-client plain (lambda () (cdr (current-message))))
               "Link: https://example.com/a_(b)")
 
-(delete-file target)
-(delete-directory dir)

@@ -51,10 +51,6 @@
     (define (chunk type data)
       (let ([td (bytevector-append (string->utf8 type) data)])
         (bytevector-append (u32 (bytevector-length data)) td (u32 (crc32 td)))))
-    (define (bytevector-append . bvs)
-      (let-values ([(out extract) (open-bytevector-output-port)])
-        (for-each (lambda (bv) (put-bytevector out bv)) bvs)
-        (extract)))
     (let* ([raw (let-values ([(out extract) (open-bytevector-output-port)])
                   (do ([y 0 (+ y 1)]) ((= y height) (extract))
                     (put-u8 out 0)
@@ -75,11 +71,6 @@
            [ihdr (bytevector-append (u32 width) (u32 height) #vu8(8 6 0 0 0))])
       (bytevector-append png-signature (chunk "IHDR" ihdr) (chunk "IDAT" z) (chunk "IEND" #vu8()))))
 
-  (define (hex bv)
-    (apply string-append
-           (map (lambda (b) (string-append (if (< b 16) "0" "") (number->string b 16)))
-                (bytevector->u8-list bv))))
-
   ;; Files' pictures, read again when the file's time changes: path ->
   ;; (time . picture), or (time . why) for a file that is not a PNG.
   (define read-pictures (make-hashtable string-hash string=?))
@@ -95,7 +86,7 @@
                             [png (if (eof-object? png) (make-bytevector 0) png)]
                             [size (png-size png)])
                        (if size
-                           (make-picture (hex (blake3 png)) (car size) (cdr size) png)
+                           (make-picture (bytevector->hex (blake3 png)) (car size) (cdr size) png)
                            (format "~a is not a PNG image" (path-basename path)))))])
             (hashtable-set! read-pictures path (cons mtime p))
             p))))

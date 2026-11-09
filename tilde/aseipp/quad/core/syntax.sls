@@ -52,11 +52,6 @@
   ;; States: 0 normal, 1 inside a string (of the first string char), 2 inside
   ;; a string of the second string char, 10+d inside a block comment at depth d.
 
-  (define (match-at? text i s)
-    (let ([n (string-length s)] [len (text-length text)])
-      (and (<= (+ i n) len)
-           (let loop ([j 0])
-             (or (= j n) (and (char=? (text-ref text (+ i j)) (string-ref s j)) (loop (+ j 1))))))))
 
   (define operator-chars (string->list "+-*/=<>!&|^%~?:.@$"))
   (define bracket-chars (string->list "()[]{}"))
@@ -90,10 +85,10 @@
         (let loop ([i i] [d d])
           (cond
            [(>= i e) (values e d)]
-           [(match-at? text i close)
+           [(text-match-at? text i close)
             (if (= d 1) (values (+ i (string-length close)) 0)
                 (loop (+ i (string-length close)) (- d 1)))]
-           [(and lisp? (match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
+           [(and lisp? (text-match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
            [else (loop (+ i 1) d)]))))
 
     (define (word-end i)
@@ -122,10 +117,10 @@
         (let ([c (ch i)])
           (cond
            [(char-whitespace? c) (loop (+ i 1) 0 def)]
-           [(exists (lambda (lc) (match-at? text i lc)) (syntax-line-comments syn))
+           [(exists (lambda (lc) (text-match-at? text i lc)) (syntax-line-comments syn))
             (emit i e 'comment)
             0]
-           [(and (pair? blocks) (match-at? text i (car (car blocks))))
+           [(and (pair? blocks) (text-match-at? text i (car (car blocks))))
             (loop (+ i (string-length (car (car blocks)))) 11 def)]
            [(memv c strs)
             (let ([end (string-end (+ i 1) c)])
@@ -240,8 +235,8 @@
     (define (skip-block i open close)
       (let loop ([i (+ i (string-length open))] [d 1])
         (cond [(>= i len) len]
-              [(match-at? text i close) (if (= d 1) (+ i (string-length close)) (loop (+ i (string-length close)) (- d 1)))]
-              [(and lisp? (match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
+              [(text-match-at? text i close) (if (= d 1) (+ i (string-length close)) (loop (+ i (string-length close)) (- d 1)))]
+              [(and lisp? (text-match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
               [else (loop (+ i 1) d)])))
     (define (skip-string i q)
       (let loop ([i (+ i 1)])
@@ -259,9 +254,9 @@
         (let ([c (ch i)])
           (cond
            [(char-whitespace? c) (loop (+ i 1) stack prefix)]
-           [(exists (lambda (lc) (match-at? text i lc)) (syntax-line-comments syn))
+           [(exists (lambda (lc) (text-match-at? text i lc)) (syntax-line-comments syn))
             (loop (skip-line i) stack prefix)]
-           [(and (pair? blocks) (match-at? text i (car (car blocks))))
+           [(and (pair? blocks) (text-match-at? text i (car (car blocks))))
             (loop (skip-block i (car (car blocks)) (cdr (car blocks))) stack prefix)]
            [(memv c strs)
             (let ([e (skip-string i c)]) (leaf! i e) (loop e stack #f))]

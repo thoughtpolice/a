@@ -11,8 +11,7 @@
 (define buf (headless-buffer! "one two three\nfour five six\n" 'text))
 
 ;; A client keeping a grid model, as the GUI does.
-(define model (make-grid-model))
-(define gui (server-connect! "gui" 12 50 '("title") (lambda (m) (grid-model-apply! model m)) void))
+(define-values (gui model) (model-client! "gui" 12 50 '("title")))
 (with-client gui (lambda () (switch-to-buffer! buf)))
 (redraw!)
 
@@ -155,8 +154,7 @@
 ;; Fonts: the editor tells windows theirs, as zoomed and as the variables
 ;; change.
 
-(define fonts (make-grid-model))
-(define zc (server-connect! "gui" 12 50 '("font") (lambda (m) (grid-model-apply! fonts m)) void))
+(define-values (zc fonts) (model-client! "gui" 12 50 '("font")))
 (define (last-font) (find (lambda (m) (equal? (car m) "font")) (grid-model-other fonts)))
 (expect-equal "a window is told its font" (last-font) '("font" "JetBrains Mono" 12 "" ()))
 (with-client zc (lambda () (run-command 'zoom-in)))
@@ -180,8 +178,7 @@
 ;; ---------------------------------------------------------------------------
 ;; The pointer: its shape over what is under it, sent as it changes.
 
-(define pointing (make-grid-model))
-(define pc (server-connect! "gui" 12 50 '("pointer-shape") (lambda (m) (grid-model-apply! pointing m)) void))
+(define-values (pc pointing) (model-client! "gui" 12 50 '("pointer-shape")))
 (with-client pc (lambda () (switch-to-buffer! buf)))
 (redraw!)
 (define (pointers) (filter (lambda (m) (equal? (car m) "pointer")) (grid-model-other pointing)))
@@ -200,10 +197,8 @@
 ;; sent hidden, where it is (for screen readers), to clients that can hide
 ;; it; others are told there is none.
 
-(define plain-model (make-grid-model))
-(define plain (server-connect! "gui" 12 50 '() (lambda (m) (grid-model-apply! plain-model m)) void))
-(define hiding (make-grid-model))
-(define hc (server-connect! "gui" 12 50 '("hidden-cursor") (lambda (m) (grid-model-apply! hiding m)) void))
+(define-values (plain plain-model) (model-client! "gui" 12 50 '()))
+(define-values (hc hiding) (model-client! "gui" 12 50 '("hidden-cursor")))
 (for-each (lambda (c) (with-client c (lambda () (switch-to-buffer! buf)))) (list plain hc))
 (redraw!)
 (expect-equal "no cursor, to clients that would draw it" (grid-model-cursor plain-model) #f)

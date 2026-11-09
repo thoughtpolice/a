@@ -24,10 +24,7 @@
 (define golden-dir (or (getenv "QUAD_GOLDEN") "tests/golden"))
 (define update? (equal? (getenv "QUAD_GOLDEN_UPDATE") "1"))
 
-(define h
-  (guard (e [#t (printf "SKIP: ~a\n" (if (condition? e) (condition->string e) e))
-                (exit 0)])
-    (gui-headless "JetBrains Mono" 12 #f)))
+(define h (headless-gpu "JetBrains Mono" 12 #f))
 (define device (caddr (gui-headless-info h)))
 (unless (string-contains device "llvmpipe")
   (printf "SKIP: golden images are drawn with lavapipe, not ~a\n" device)
@@ -85,8 +82,7 @@
 
 ;; A client keeping a grid model, as a window does, showing `buffer`.
 (define (viewer buffer)
-  (let* ([model (make-grid-model)]
-         [c (server-connect! "gui" rows cols '() (lambda (m) (grid-model-apply! model m)) void)])
+  (let-values ([(c model) (model-client! "gui" rows cols '())])
     (with-client c (lambda () (switch-to-buffer! buffer)))
     (redraw!)
     (values c model)))

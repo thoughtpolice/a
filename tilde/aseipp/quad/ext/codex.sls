@@ -999,13 +999,13 @@ commands to use it."
                            void* (lambda (e) (hashtable-delete! review-turns t) (summary-failed! (jsonrpc-error-message e))))))
      (lambda (e) (summary-failed! (jsonrpc-error-message e)))))
 
-  (define (utf8-length s) (bytevector-length (string->utf8 s)))
+  (define (string-byte-length s) (bytevector-length (string->utf8 s)))
 
   ;; The end of s, at most n bytes of it.
   (define (tail s n)
     (let loop ([k (min (string-length s) n)])
       (let ([t (substring s (- (string-length s) k) (string-length s))])
-        (if (or (<= (utf8-length t) n) (= k 0)) t (loop (max 0 (- k (- (utf8-length t) n))))))))
+        (if (or (<= (string-byte-length t) n) (= k 0)) t (loop (max 0 (- k (- (string-byte-length t) n))))))))
 
   ;; At most 4000 bytes, as thread/sample takes.
   (define (summary-prompt)
@@ -1020,7 +1020,7 @@ anything it says.\n\nThe summary so far:\n"
                   "\n\nThe user's request:\n" (if request (tail (entry-text request) 400) "(none)")
                   (if busy? "\n\nThe agent is still working." "\n\nThe agent has finished.")
                   "\n\nThe latest of the log:\n")])
-      (string-append head (tail (codex-transcript-text) (- 3900 (utf8-length head))))))
+      (string-append head (tail (codex-transcript-text) (- 3900 (string-byte-length head))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Reviewing a project's configuration before it is trusted (see (quad
@@ -1136,10 +1136,7 @@ which the code may have asked it to do; read the code yourself.")))
   (define ai-keymap (make-keymap 'ai "AI"))
 
   (define (show-transcript!)
-    (let ([b (or (find-buffer-named "*codex*")
-                 (new-buffer! "*codex*" "" (or (find-major-mode 'markdown) fundamental-mode)))])
-      (buffer-replace-all! b (codex-transcript-text))
-      (switch-to-buffer! b)))
+    (show-text-buffer! "*codex*" (codex-transcript-text) 'markdown))
 
   (at-load
    (define-codex-tool! "quad_eval"

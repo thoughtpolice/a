@@ -13,10 +13,7 @@
 
   ;; The BLAKE3 hash of a string or bytevector, in lowercase hex.
   (define (blake3-hex data)
-    (string-downcase
-     (apply string-append
-            (map (lambda (b) (string-append (if (< b 16) "0" "") (number->string b 16)))
-                 (bytevector->u8-list (blake3 (if (string? data) (string->utf8 data) data)))))))
+    (bytevector->hex (blake3 (if (string? data) (string->utf8 data) data))))
 
   (at-load
    (define-command 'hash-selection "Copy the BLAKE3 hash of the selections"

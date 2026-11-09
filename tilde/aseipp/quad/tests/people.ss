@@ -11,9 +11,6 @@
 (define buf (headless-buffer! "one two three\nfour five six\nseven eight\n" 'text))
 (with-client b (lambda () (switch-to-buffer! buf)))
 (redraw!)
-(define (row-of c s)
-  (let loop ([rs (screen-of c)] [i 0])
-    (cond [(null? rs) #f] [(string-contains (car rs) s) i] [else (loop (cdr rs) (+ i 1))])))
 (define (message-of c) (with-client c (lambda () (let ([m (current-message)]) (and m (cdr m))))))
 
 ;; Each has a name and a color of their own; each hears the other come.
@@ -22,17 +19,17 @@
 (check "both are people" (equal? (map client-user (people)) '("alice" "bob")))
 
 ;; Each sees the other: a name by their cursor's line, and who is here.
-(check "alice sees bob" (= (row-of a "◂ bob") 1))
-(check "bob sees alice" (= (row-of b "◂ alice") 1))
-(check "with bob" (row-of a "with bob"))
+(check "alice sees bob" (= (screen-row-of a "◂ bob") 1))
+(check "bob sees alice" (= (screen-row-of b "◂ alice") 1))
+(check "with bob" (screen-row-of a "with bob"))
 (use-client! b)
 (press! "k")
-(check "bob's name moves with him" (= (row-of a "◂ bob") 2))
+(check "bob's name moves with him" (= (screen-row-of a "◂ bob") 2))
 
 ;; Following: alice keeps to bob's view, whatever he does, until a key.
 (use-client! a)
 (press! "space" "j" "l")
-(check "the people" (and (current-prompt) (row-of a "alice (you)") (row-of a "bob  test:2")))
+(check "the people" (and (current-prompt) (screen-row-of a "alice (you)") (screen-row-of a "bob  test:2")))
 (type! "bob")
 (press! "enter")
 (check "following" (and (string-contains (list-ref (screen-of a) 14) "following bob")

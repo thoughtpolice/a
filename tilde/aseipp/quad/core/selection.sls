@@ -396,15 +396,9 @@
   (define (search-pattern b) (buffer-local b search-pattern-key #f))
   (define (search-pattern-set! b p) (buffer-local-set! b search-pattern-key p))
 
-  ;; Smart case: a pattern with no capitals matches either case.
-  (define (match-at? t i pat fold?)
-    (let ([m (string-length pat)])
-      (and (<= (+ i m) (text-length t))
-           (let loop ([j 0])
-             (or (= j m)
-                 (and ((if fold? char-ci=? char=?) (text-ref t (+ i j)) (string-ref pat j))
-                      (loop (+ j 1))))))))
-
+  ;; Where b's search pattern matches next from pos, in direction dir,
+  ;; wrapping around once: (start . end), or #f. Smart case: a pattern
+  ;; with no capitals matches either case.
   (define (search-from b pos dir)
     (let* ([t (buffer-text b)] [pat (search-pattern b)] [n (text-length t)])
       (and pat (> (string-length pat) 0)
@@ -414,7 +408,7 @@
                (cond
                 [(and (> dir 0) (> (+ i m) n)) (and (not wrapped?) (loop 0 #t))]
                 [(and (< dir 0) (< i 0)) (and (not wrapped?) (loop (- n m) #t))]
-                [(match-at? t i pat fold?) (cons i (+ i m))]
+                [(text-match-at? t i pat fold?) (cons i (+ i m))]
                 [else (loop (+ i dir) wrapped?)]))))))
 
   (define search-mode

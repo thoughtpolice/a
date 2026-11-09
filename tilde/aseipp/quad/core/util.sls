@@ -5,10 +5,10 @@
 (library (quad util)
   (export at-load clamp string-prefix? string-suffix? string-index string-contains
           string-join string-split string-trim-left string-trim-right string-trim
-          string-repeat string-upcase* string-downcase*
           char-width string-width grapheme-end grapheme-start grapheme-columns
           string-graphemes fuzzy-score
           list-index take drop last-pair* filter-map delete-duplicates*
+          bytevector-append bytevector->hex
           path-join path-basename path-dirname expand-home
           sort-strings)
   (import (chezscheme))
@@ -88,12 +88,6 @@
 
   (define (string-trim s) (string-trim-left (string-trim-right s)))
 
-  (define (string-repeat s n)
-    (let loop ([n n] [acc '()])
-      (if (<= n 0) (apply string-append acc) (loop (- n 1) (cons s acc)))))
-
-  (define (string-upcase* s) (string-upcase s))
-  (define (string-downcase* s) (string-downcase s))
 
   ;; Terminal columns a character occupies: 0 for combining marks and other
   ;; zero-width code points, 2 for East Asian wide and most emoji, else 1.
@@ -210,6 +204,19 @@
             w
             (let ([j (grapheme-end ref i n)])
               (loop j (+ w (grapheme-columns ref i j))))))))
+
+  ;; The bytevectors bvs, one after another, in one.
+  (define (bytevector-append . bvs)
+    (let-values ([(out extract) (open-bytevector-output-port)])
+      (for-each (lambda (bv) (put-bytevector out bv)) bvs)
+      (extract)))
+
+  ;; bv's bytes in lowercase hex, two digits each.
+  (define (bytevector->hex bv)
+    (string-downcase
+     (apply string-append
+            (map (lambda (b) (string-append (if (< b 16) "0" "") (number->string b 16)))
+                 (bytevector->u8-list bv)))))
 
   ;; Score `candidate` against `pattern` as a case-insensitive subsequence
   ;; match: #f if it does not match, else (score . matched-indices) where a

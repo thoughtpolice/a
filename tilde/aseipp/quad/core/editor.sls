@@ -34,7 +34,7 @@
    current-view current-buffer set-current-buffer! switch-to-buffer! buffers
    editor-running? editor-quit! editor-stop! editor-restart! editor-daemon? editor-daemon?-set!
    find-buffer-named kill-buffer! add-buffer!
-   open-file! new-buffer! save-buffer! buffer-display-name
+   open-file! new-buffer! show-text-buffer! save-buffer! buffer-display-name
    ;; messages
    message message-error current-message clear-message! messages-buffer log-message!
    set-messages-buffer!
@@ -524,6 +524,16 @@
       (add-buffer! b)
       (set-major-mode! b mode)
       b))
+
+  ;; Show text, read-only, in the buffer named name (made, in the major
+  ;; mode named mode, if there is none): a log, a report, a transcript.
+  (define (show-text-buffer! name text mode)
+    (let ([b (or (find-buffer-named name)
+                 (new-buffer! name "" (or (find-major-mode mode) fundamental-mode)))])
+      (buffer-read-only?-set! b #f)
+      (buffer-replace-all! b text)
+      (buffer-read-only?-set! b #t)
+      (switch-to-buffer! b)))
 
   (define (absolute-path p)
     (if (string-prefix? "/" p) p (path-join (current-directory) p)))

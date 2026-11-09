@@ -9,29 +9,9 @@
 (define here (getenv "QUAD_TEST_DIR"))
 (define work (path-dirname (getenv "QUAD_INIT")))
 
-;; Run the event loop until (pred), or fail after ten seconds. A timeout
-;; ends the test: the keys after it would go elsewhere (and might, say,
-;; save a buffer).
-(define (run-until name pred)
-  (let* ([deadline (+ (real-time) 10000)]
-         [timed-out? #f]
-         [src (make-source -1 void
-                           (lambda () (max 0 (- deadline (real-time))))
-                           (lambda () (set! timed-out? #t) (editor-stop!))
-                           (lambda () (when (pred) (editor-stop!))))])
-    (add-source! src)
-    (unless (pred) (server-run!))
-    (remove-source! src)
-    (when timed-out?
-      (printf "FAIL ~a: timed out\n" name)
-      (exit 1))
-    (editor-restart!)
-    (redraw!)))
 
-(define (on-screen? s) (exists (lambda (r) (string-contains r s)) (screen)))
 ;; Wait until the agent asks with a prompt titled title.
-(define (asked title)
-  (run-until title (lambda () (let ([p (current-prompt)]) (and p (equal? (prompt-label p) title))))))
+(define (asked title) (run-until title (lambda () (prompt-titled? title))))
 
 (headless-start! 30 120)
 (set-var! 'codex-summary-interval 0)

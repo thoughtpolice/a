@@ -82,19 +82,30 @@ KERNEL_RS_DEPS = [
 KERNEL_RS_SRCS = [
     "kernel/access.rs",
     "kernel/color.rs",
-    "kernel/font.rs",
-    "kernel/gui.rs",
+    "kernel/font/cells.rs",
+    "kernel/font/faces.rs",
+    "kernel/font/layout.rs",
+    "kernel/font/mod.rs",
+    "kernel/font/sprites.rs",
+    "kernel/gui/input.rs",
+    "kernel/gui/mod.rs",
+    "kernel/gui/snapshots.rs",
+    "kernel/gui/window.rs",
+    "kernel/gui/windows.rs",
     "kernel/image.rs",
     "kernel/lib.rs",
     "kernel/mesh.rs",
-    "kernel/render.rs",
+    "kernel/render/gpu.rs",
+    "kernel/render/headless.rs",
+    "kernel/render/mod.rs",
+    "kernel/render/window.rs",
     "kernel/screen.rs",
     "kernel/slug.rs",
     "kernel/timing.rs",
 ]
 
 # The GUI's shaders (kernel/gui.slang): a vertex and a fragment shader for
-# each of its pipelines, beside kernel/gui.rs, which includes them.
+# each of its pipelines, beside kernel/render/mod.rs, which includes them.
 GUI_SHADERS = {
     "gui.glyph.frag.spv": ("glyphFragment", "fragment"),
     "gui.glyph.vert.spv": ("glyphVertex", "vertex"),
@@ -104,10 +115,10 @@ GUI_SHADERS = {
     "gui.rect.vert.spv": ("rectVertex", "vertex"),
 }
 
-# The window's default font, built in, beside kernel/font.rs, which
+# The window's default font, built in, beside kernel/font/mod.rs, which
 # includes it.
 BUILT_IN_FONTS = {
-    "third-party//by-name/je/jetbrains-mono:" + style: "kernel/fonts/JetBrainsMono-{}.ttf".format(style)
+    "third-party//by-name/je/jetbrains-mono:" + style: "kernel/font/fonts/JetBrainsMono-{}.ttf".format(style)
     for style in [
         "Regular",
         "Bold",
@@ -117,7 +128,7 @@ BUILT_IN_FONTS = {
 }
 
 KERNEL_RS_MAPPED_SRCS = {
-    ":" + out: "kernel/" + out
+    ":" + out: "kernel/render/" + out
     for out in GUI_SHADERS
 } | BUILT_IN_FONTS
 

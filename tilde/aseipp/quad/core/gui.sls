@@ -10,12 +10,12 @@
 ;; an editor elsewhere, over a socket or iroh; either way it keeps the
 ;; cells in a grid model (grid.sls) and paints each frame as it is
 ;; flushed. The window itself is the Rust half's
-;; (kernel/gui.rs): it has a thread of its own, and its events -- keys, the
+;; (kernel/gui/): it has a thread of its own, and its events -- keys, the
 ;; mouse, a new size -- come back through a mailbox the event loop polls.
 ;;
 ;; A frame is painted as rectangles -- each cell's background, and the
 ;; cursor -- then the cells' text, which the Rust half shapes and draws
-;; from the fonts' curves (kernel/font.rs, kernel/slug.rs). Set the font
+;; from the fonts' curves (kernel/font/, kernel/slug.rs). Set the font
 ;; with the variables gui-font-family and gui-font-size, before the window
 ;; opens (in the init file).
 (library (quad gui)
@@ -51,7 +51,7 @@
   ;; scrolls that moved the rest. A row is rectangles -- as
   ;; kernel/gui.slang's Rect has them: x, y, width and height in cells
   ;; (32-bit floats), then the color, 0xAARRGGBB, padded to 32 bytes -- and
-  ;; cells, as kernel/font.rs reads them: seven native u32s each -- row << 16
+  ;; cells, as kernel/font/cells.rs reads them: seven native u32s each -- row << 16
   ;; | column, width << 16 | attributes (the protocol's flags), the text's
   ;; color (0xAARRGGBB), what is behind it (0xRRGGBB), the underline's color
   ;; (0xAARRGGBB, alpha 0 for the text's), and where the cell's text starts
@@ -221,7 +221,7 @@
          (painter-scrolls-set! p (cons (list top bottom n) (painter-scrolls p))))]
       [else (void)]))
 
-  ;; What changed in model's screen since the last flush, as gui-paint!
+  ;; What changed in model's screen since the last flush, as gui-frame
   ;; takes it, handed to (paint rows whole? scrolls index rects cells text
   ;; background foreground cursor-row cursor-col image-keys image-places).
   (define (painter-flush! p model paint)
@@ -290,7 +290,7 @@
              [height (* (grid-model-rows model) (string->number (cadr info)))]
              [pixels #f])
         (painter-flush! p model
-                        (lambda args (set! pixels (apply gui-headless-draw! h (grid-model-cols model) args))))
+                        (lambda args (set! pixels (gui-headless-draw! h (grid-model-cols model) (apply gui-frame args)))))
         (values width height pixels))]))
 
   ;; ---------------------------------------------------------------------------
@@ -339,7 +339,7 @@
         [(flush)
          (grid-model-apply! model msg)
          (painter-flush! (screen-painter screen) model
-                         (lambda args (apply gui-paint! win args)))
+                         (lambda args (gui-paint! win (apply gui-frame args))))
          #t]
         [(title) (gui-set-title! win (cadr msg)) #t]
         [(font) (apply gui-set-font! win (font-spec (cdr msg))) #t]

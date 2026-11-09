@@ -11,7 +11,7 @@
   (export make-text text? text-length text-ref text-substring text->string
           text-insert! text-delete! text-version
           text-line-count text-line-start text-line-end text-line-of
-          text-line-string text-column text-pos-at
+          text-line-string text-column text-pos-at text-match-at?
           text-search-forward text-search-backward)
   (import (chezscheme))
 
@@ -183,25 +183,29 @@
     (let ([s (text-line-start t line)] [e (text-line-end t line)])
       (min e (+ s (max 0 col)))))
 
-  (define (match-at? t i needle)
-    (let ([m (string-length needle)])
-      (and (<= (+ i m) (text-length t))
-           (let loop ([j 0])
-             (or (= j m)
-                 (and (char=? (text-ref t (+ i j)) (string-ref needle j))
-                      (loop (+ j 1))))))))
+  ;; Whether needle is in t at i; with fold?, in either case.
+  (define text-match-at?
+    (case-lambda
+     [(t i needle) (text-match-at? t i needle #f)]
+     [(t i needle fold?)
+      (let ([m (string-length needle)] [same? (if fold? char-ci=? char=?)])
+        (and (<= (+ i m) (text-length t))
+             (let loop ([j 0])
+               (or (= j m)
+                   (and (same? (text-ref t (+ i j)) (string-ref needle j))
+                        (loop (+ j 1)))))))]))
 
   (define (text-search-forward t needle pos)
     (let ([n (text-length t)])
       (and (> (string-length needle) 0)
            (let loop ([i pos])
              (cond [(> (+ i (string-length needle)) n) #f]
-                   [(match-at? t i needle) i]
+                   [(text-match-at? t i needle) i]
                    [else (loop (+ i 1))])))))
 
   (define (text-search-backward t needle pos)
     (and (> (string-length needle) 0)
          (let loop ([i (min pos (- (text-length t) (string-length needle)))])
            (cond [(< i 0) #f]
-                 [(match-at? t i needle) i]
+                 [(text-match-at? t i needle) i]
                  [else (loop (- i 1))])))))

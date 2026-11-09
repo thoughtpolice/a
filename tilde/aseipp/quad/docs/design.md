@@ -164,7 +164,14 @@ encodings.
 
 quad edits in a window where there is a display (Wayland or X11) and one
 can open, and in its terminal otherwise (`--gui` and `--tui` insist on
-one or the other; why no window opened goes in `*Messages*`). The window
+one or the other; why no window opened goes in `*Messages*`). A window
+goes on without the terminal it was started from, which gets its prompt
+back once the window is open: quad forks before anything starts a thread,
+the child (in a session of its own, its standard streams on `/dev/null`)
+opens the window and tells the parent over a pipe whether it did, and a
+parent whose child had no window goes on in the terminal itself.
+`--wait` keeps the terminal until the window closes, as `$EDITOR` needs.
+The window
 attaches in the editor's process (`core/gui.sls`), as the terminal does,
 or, as a client (`--connect`, or of a running daemon), opens onto an
 editor elsewhere (a socket, or iroh), as a terminal client does: either way
@@ -173,7 +180,7 @@ theme. The window keeps its screen a row at a time (`kernel/screen.rs`):
 a flush sends it only the rows that changed, and scrolls move the rest,
 so a frame costs about what changed; where the driver can
 (`VK_KHR_incremental_present`), the compositor is told which rows those
-were, and redraws only them. The window is the Rust half's (`kernel/gui.rs`): winit's, on
+were, and redraws only them. The window is the Rust half's (`kernel/gui/`): winit's, on
 Wayland or X11, drawn with Vulkan 1.3 through ash. Every window of a
 process runs on one thread, with one event loop, and draws with one Vulkan
 device; `new-window` (`space j w`) opens another onto the same editor, from
@@ -186,7 +193,7 @@ too), and glyphs.
 
 Text is drawn from the fonts' outlines on the GPU, at any size, with no
 rasterized atlas: Eric Lengyel's Slug algorithm, whose reference shader
-`kernel/gui.slang` ports. `kernel/font.rs` finds fonts with fontique
+`kernel/gui.slang` ports. `kernel/font/` finds fonts with fontique
 (fontconfig; `gui-font-family`, by default the built-in JetBrains Mono,
 else the system's monospace font, at `gui-font-size` points, with
 `gui-font-features`), with fallbacks for what it lacks
