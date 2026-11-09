@@ -35,7 +35,11 @@
 //!
 //! Each API is called in one module alone (vulkan.rs, metal.rs), whose
 //! types own its objects and keep the conditions its calls need; the rest
-//! is safe code.
+//! is safe code. The two give the same types to the code here, which is
+//! both's: what a frame's buffers hold and the draws it makes of them
+//! ([`Buffers::fill`]), the device made ahead, snapshots, and drawing
+//! with no window (headless.rs). What is each's own is recording and
+//! submitting commands, and presenting to a window (window.rs, macos.rs).
 
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -59,7 +63,6 @@ use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 
 #[cfg(target_os = "linux")]
 mod gpu;
-#[cfg(target_os = "linux")]
 mod headless;
 #[cfg(target_os = "macos")]
 mod macos;
@@ -74,10 +77,11 @@ mod window;
 pub use gpu::Gpu;
 #[cfg(target_os = "linux")]
 use gpu::*;
-#[cfg(target_os = "linux")]
 pub use headless::Headless;
 #[cfg(target_os = "macos")]
-pub use macos::{Gpu, Headless, Renderer, prepare};
+pub use macos::{Gpu, Renderer, prepare};
+#[cfg(target_os = "macos")]
+use metal::*;
 #[cfg(target_os = "linux")]
 use vulkan::*;
 #[cfg(target_os = "linux")]
@@ -215,6 +219,121 @@ impl Data<'_> {
     }
 }
 
+// MARK: A frame's data
+
+/// What a frame's draws read on the GPU, by address: buffers the frame
+/// keeps, refilled each time it is drawn (the atlas's curves and bands,
+/// and the pictures' pixels, only when they change).
+#[derive(Default)]
+struct Buffers {
+    rects: Option<HostBuffer>,
+    glyphs: Option<HostBuffer>,
+    decorations: Option<HostBuffer>,
+    curves: Option<HostBuffer>,
+    bands: Option<HostBuffer>,
+    /// The atlas generation `curves` and `bands` hold.
+    atlas: Option<u64>,
+    pictures: Option<HostBuffer>,
+    pixels: Option<HostBuffer>,
+    /// The generation of the pixels `pixels` holds.
+    pixels_generation: Option<u64>,
+}
+
+/// The pipelines a frame draws with (kernel/gui.slang).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Pipeline {
+    Rect,
+    Image,
+    Glyph,
+}
+
+/// One of a frame's draws: `count` instances, of four vertices each, with
+/// `pipeline`, given `params`.
+struct Draw {
+    pipeline: Pipeline,
+    count: usize,
+    params: Params,
+}
+
+/// Puts `data` in `slot`'s buffer, first making it larger if it does not
+/// fit; returns the buffer's address.
+fn put(device: &Arc<Device>, slot: &mut Option<HostBuffer>, data: Data) -> Result<u64, String> {
+    let len = data.len();
+    if slot.as_ref().is_none_or(|b| b.capacity() < len) {
+        *slot = None;
+        *slot = Some(HostBuffer::new(device, len, false)?);
+    }
+    let buffer = slot.as_mut().expect("made above");
+    data.write(buffer.bytes_mut(len));
+    Ok(buffer.address())
+}
+
+impl Buffers {
+    /// Fills the buffers with what `list` draws into a target `extent`
+    /// pixels in size (width, height), in an sRGB format if `linear`;
+    /// returns the frame's draws, in order: rectangles, pictures, glyphs,
+    /// decorations. The GPU must be done with the frame's last commands.
+    fn fill(
+        &mut self,
+        device: &Arc<Device>,
+        list: &DrawList,
+        extent: [u32; 2],
+        linear: bool,
+    ) -> Result<[Draw; 4], String> {
+        let rects = put(device, &mut self.rects, Data::Bytes(list.rects))?;
+        let glyphs = put(device, &mut self.glyphs, Data::Bytes(list.glyphs))?;
+        let decorations = put(device, &mut self.decorations, Data::Bytes(list.decorations))?;
+        if self.atlas != Some(list.atlas.generation) || self.curves.is_none() {
+            put(device, &mut self.curves, Data::Floats4(&list.atlas.curves))?;
+            put(device, &mut self.bands, Data::Words2(&list.atlas.bands))?;
+            self.atlas = Some(list.atlas.generation);
+        }
+        let curves = self.curves.as_ref().map_or(0, HostBuffer::address);
+        let bands = self.bands.as_ref().map_or(0, HostBuffer::address);
+        let pictures = put(device, &mut self.pictures, Data::Bytes(list.pictures))?;
+        let (pixels, generation) = list.pixels;
+        if self.pixels_generation != Some(generation) || self.pixels.is_none() {
+            put(device, &mut self.pixels, Data::Words(pixels))?;
+            self.pixels_generation = Some(generation);
+        }
+        let pixels = self.pixels.as_ref().map_or(0, HostBuffer::address);
+        let viewport = [extent[0] as f32, extent[1] as f32];
+        // Each draw's instances are at the start of its buffer: the
+        // rectangle pipeline reads `rects`, the glyph one `glyphs`, the
+        // image one `pictures`.
+        let draw = |pipeline, address, count| Draw {
+            pipeline,
+            count,
+            params: Params {
+                rects: address,
+                glyphs: address,
+                curves,
+                bands,
+                pictures: address,
+                pixels,
+                cell: list.cell,
+                viewport,
+                origin: list.origin,
+                linear: u32::from(linear),
+            },
+        };
+        Ok([
+            draw(Pipeline::Rect, rects, list.rects.len() / RECT_BYTES),
+            draw(
+                Pipeline::Image,
+                pictures,
+                list.pictures.len() / PICTURE_BYTES,
+            ),
+            draw(Pipeline::Glyph, glyphs, list.glyphs.len() / GLYPH_BYTES),
+            draw(
+                Pipeline::Rect,
+                decorations,
+                list.decorations.len() / RECT_BYTES,
+            ),
+        ])
+    }
+}
+
 /// Whether frames drawn in `format` blend in linear light: whether it
 /// encodes sRGB itself.
 #[cfg(target_os = "linux")]
@@ -247,6 +366,101 @@ fn clear_color(rgb: u32, linear: bool) -> [f32; 3] {
 #[cfg(target_os = "linux")]
 fn vk_error(what: &str) -> impl Fn(vk::Result) -> String + '_ {
     move |e| format!("vulkan: {what}: {e}")
+}
+
+// MARK: Made ahead
+
+/// What a device was made ahead for: on Linux, windows on one kind of
+/// display, whose surfaces this extension makes; on macOS, any window.
+#[cfg(target_os = "linux")]
+type MadeFor = &'static CStr;
+#[cfg(target_os = "macos")]
+type MadeFor = ();
+
+/// The device being made ahead of the first window (each platform's
+/// `prepare`), and what for.
+static PREPARED: Mutex<Option<(MadeFor, JoinHandle<Result<Gpu, String>>)>> = Mutex::new(None);
+
+/// Starts making a device with `make`, on another thread, for windows of
+/// `made_for`, unless one is made or being made.
+fn make_ahead(made_for: MadeFor, make: impl FnOnce() -> Result<Gpu, String> + Send + 'static) {
+    let mut prepared = PREPARED.lock().unwrap_or_else(|e| e.into_inner());
+    if prepared.is_some() {
+        return;
+    }
+    let made = std::thread::Builder::new()
+        .name("quad-gpu".into())
+        .spawn(make);
+    if let Ok(handle) = made {
+        *prepared = Some((made_for, handle));
+    }
+}
+
+/// The device made ahead, waited for, and what it was made for, if one
+/// was made.
+fn take_prepared() -> Option<(MadeFor, Gpu)> {
+    let (made_for, made) = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take()?;
+    Some((made_for, made.join().ok()?.ok()?))
+}
+
+/// Waits for the device being made ahead, if one is, before the process
+/// exits (kernel.c calls this): an exit must not race a driver still
+/// loading, as NVIDIA's takes a lock as it loads that exiting takes too, and
+/// the two deadlock.
+#[unsafe(no_mangle)]
+pub extern "C" fn quad_gui_settle() {
+    let made = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take();
+    if let Some((_, handle)) = made {
+        // The process is ending: the device goes with it.
+        if let Ok(Ok(gpu)) = handle.join() {
+            std::mem::forget(gpu);
+        }
+    }
+}
+
+// MARK: Snapshots
+
+/// With `QUAD_GUI_SNAPSHOT=FILE`, each frame a window presents is also
+/// written to FILE, as a PPM image: what the window shows. A frame is
+/// copied into [`Snapshot::buffer`] as it is drawn, then written.
+struct Snapshot {
+    path: std::path::PathBuf,
+    buffer: Option<HostBuffer>,
+}
+
+impl Snapshot {
+    fn from_env() -> Option<Snapshot> {
+        let path = std::env::var_os("QUAD_GUI_SNAPSHOT")?;
+        Some(Snapshot {
+            path: path.into(),
+            buffer: None,
+        })
+    }
+
+    /// Where the next frame is to be copied, once there is a buffer for it.
+    fn buffer(&mut self) -> Option<&mut HostBuffer> {
+        self.buffer.as_mut()
+    }
+
+    /// Writes the frame just drawn, `extent` pixels (in BGRA order if
+    /// `bgra`, else RGBA), from the buffer it was copied into; false where
+    /// there was none of its size, and it was not: one is made for the next
+    /// frame.
+    fn write(
+        &mut self,
+        device: &Arc<Device>,
+        extent: [u32; 2],
+        bgra: bool,
+    ) -> Result<bool, String> {
+        let bytes = extent[0] as usize * extent[1] as usize * 4;
+        if let Some(buffer) = self.buffer.as_ref().filter(|b| b.capacity() >= bytes) {
+            write_ppm(&self.path, extent, buffer.read(bytes)?, bgra)?;
+            return Ok(true);
+        }
+        self.buffer = None;
+        self.buffer = Some(HostBuffer::new(device, bytes, true)?);
+        Ok(false)
+    }
 }
 
 /// Writes RGBA (or BGRA) pixels, `width` by `height`, as a PPM image.

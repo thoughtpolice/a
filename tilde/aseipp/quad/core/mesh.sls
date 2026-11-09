@@ -14,7 +14,8 @@
 ;; afresh each time the editor starts listening, with a fresh identity,
 ;; and kept nowhere: once it stops, they are worth nothing.
 (library (quad mesh)
-  (export mesh-listen! mesh-listening? mesh-info mesh-target? mesh-connect-fd! mesh-local?)
+  (export mesh-listen! mesh-listening? mesh-info mesh-target? mesh-connect-fd! mesh-connect-later!
+          mesh-local? mesh-self?)
   (import (chezscheme) (quad util) (quad editor) (quad server) (quad native))
 
   ;; No relays or address lookup: only a ticket's addresses reach the
@@ -83,4 +84,27 @@
        (let ([client (current-client)])
          (mesh-listen! #t (lambda (info) (when (memq client (clients)) (with-client client say-how!))))
          (say-how!))))
-   (define-command 'mesh-info "How clients join this editor over iroh (copies a ticket)" say-how!)))
+   (define-command 'mesh-info "How clients join this editor over iroh (copies a ticket)" say-how!))
+  ;; Connect to the editor target names in the background, this editor
+  ;; going on meanwhile (looking up a join code takes seconds): (done fd
+  ;; session editor) once connected, as mesh-connect-fd! returns them, or
+  ;; (failed why). Returns a thunk that gives up on it; a connection made
+  ;; after that is closed.
+  (define (mesh-connect-later! target done failed)
+    (let* ([p (mesh-connect-start target (mesh-local?))]
+           [src #f]
+           [stop! (lambda () (when src (remove-source! src) (set! src #f) (set! p #f)))])
+      (set! src
+            (watch-fd! (mesh-pending-fd p)
+                       (lambda ()
+                         (let ([s (guard (e [#t (stop!) (failed (condition->string e)) #f])
+                                    (mesh-pending-take! p))])
+                           (when s
+                             (stop!)
+                             (done (mesh-session-fd s) s (mesh-session-editor s)))))))
+      stop!))
+
+  ;; Whether editor, an endpoint's ID, is this editor's own.
+  (define (mesh-self? editor)
+    (let ([id (assq 'id (mesh-info))])
+      (and id (equal? (cdr id) editor)))))

@@ -39,7 +39,7 @@ use pulse as sound;
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write as _;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -476,16 +476,21 @@ fn play(mut output: Output, mixer: &Mutex<Mixer>, playing: &AtomicBool) {
     }
 }
 
+/// The sequence number of this process's person's last frame: one count
+/// for every speak_loop, so that a person who mutes and speaks again goes
+/// on from where they were. Starting again from 0, what they say would be
+/// older than what each listener last played, and thrown away as stale.
+static SEQ: AtomicU16 = AtomicU16::new(0);
+
 /// Send this process's person's speech to every link in voice, until
 /// stopped.
 fn speak_loop(mut input: Input, mut encoder: Encoder, capturing: &AtomicBool) {
     let mut frame = [0i16; FRAME];
-    let mut seq: u16 = 0;
     while capturing.load(Ordering::Relaxed) {
         if input.read(&mut frame).is_err() {
             return;
         }
-        seq = seq.wrapping_add(1);
+        let seq = SEQ.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
         let Ok(Some(packet)) = encoder.encode(&frame) else {
             continue;
         };

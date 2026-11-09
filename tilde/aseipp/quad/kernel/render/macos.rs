@@ -3,9 +3,9 @@
 
 //! Drawing with Metal 4, on macOS: the device and its pipelines ([`Gpu`]),
 //! made ahead of the first window as Vulkan's are on Linux ([`prepare`]);
-//! a window's frames, drawn into its layer's drawables and shown as the
-//! display refreshes ([`Renderer`]); and frames drawn into images, with no
-//! window ([`Headless`]). Metal is called in metal.rs alone.
+//! and a window's frames, drawn into its layer's drawables and shown as the
+//! display refreshes ([`Renderer`]). Frames with no window are headless.rs's,
+//! as on Linux. Metal is called in metal.rs alone.
 //!
 //! A window draws in BGRA8 sRGB, so that frames blend in linear light (see
 //! kernel/gui.slang), and its layer says its colors are sRGB's, which macOS
@@ -27,8 +27,8 @@ const HEADLESS_FORMAT: MTLPixelFormat = MTLPixelFormat::RGBA8Unorm_sRGB;
 /// A device and its pipelines: what drawing needs. What is made on the
 /// device holds it, so it goes only once they all have.
 pub struct Gpu {
-    device: Arc<Device>,
-    pipelines: Pipelines,
+    pub(super) device: Arc<Device>,
+    pub(super) pipelines: Pipelines,
 }
 
 impl Gpu {
@@ -37,6 +37,16 @@ impl Gpu {
         let device = Device::new()?;
         let pipelines = Pipelines::new(&device, format)?;
         Ok(Gpu { device, pipelines })
+    }
+
+    /// A device to draw with no window.
+    pub(super) fn headless() -> Result<Gpu, String> {
+        Gpu::new(HEADLESS_FORMAT)
+    }
+
+    /// The device, by name.
+    pub(super) fn device_name(&self) -> String {
+        self.device.name()
     }
 }
 
@@ -47,10 +57,7 @@ pub struct Renderer {
     frames: Vec<Frame>,
     layer: Layer,
     frame: usize,
-    /// With `QUAD_GUI_SNAPSHOT=FILE`, each frame presented is also written
-    /// to FILE, as a PPM image: what the window shows.
-    snapshot: Option<std::path::PathBuf>,
-    snapshot_buffer: Option<HostBuffer>,
+    snapshot: Option<Snapshot>,
     gpu: Rc<Gpu>,
 }
 
@@ -63,7 +70,7 @@ impl Renderer {
             return Renderer::on(gpu.clone(), window);
         }
         let gpu = match take_prepared() {
-            Some(gpu) => gpu,
+            Some(((), gpu)) => gpu,
             None => Gpu::new(WINDOW_FORMAT)?,
         };
         let gpu = Rc::new(gpu);
@@ -72,8 +79,7 @@ impl Renderer {
     }
 
     fn on(gpu: Rc<Gpu>, window: &Arc<Window>) -> Result<Renderer, String> {
-        let snapshot: Option<std::path::PathBuf> =
-            std::env::var_os("QUAD_GUI_SNAPSHOT").map(Into::into);
+        let snapshot = Snapshot::from_env();
         let layer = Layer::new(
             &gpu.device,
             window,
@@ -88,7 +94,6 @@ impl Renderer {
             layer,
             frame: 0,
             snapshot,
-            snapshot_buffer: None,
             gpu,
         })
     }
@@ -109,7 +114,7 @@ impl Renderer {
         let Some(drawable) = self.layer.next() else {
             return Ok(false);
         };
-        let copy = self.snapshot.as_ref().and(self.snapshot_buffer.as_mut());
+        let copy = self.snapshot.as_mut().and_then(Snapshot::buffer);
         frame.draw(
             &self.gpu.pipelines,
             list,
@@ -117,125 +122,22 @@ impl Renderer {
             copy,
             Some(&drawable),
         )?;
-        if self.snapshot.is_some() {
-            self.write_snapshot(drawable.extent)?;
+        // Windows draw in BGRA.
+        if let Some(snapshot) = &mut self.snapshot {
+            snapshot.write(&self.gpu.device, drawable.extent, true)?;
         }
         self.frame = (self.frame + 1) % FRAMES_IN_FLIGHT;
         Ok(true)
-    }
-
-    /// Writes the frame just drawn to the snapshot file, and makes sure the
-    /// next frame has a buffer of `extent`'s size to copy into.
-    fn write_snapshot(&mut self, extent: [u32; 2]) -> Result<(), String> {
-        let bytes = extent[0] as usize * extent[1] as usize * 4;
-        if let Some(buffer) = self
-            .snapshot_buffer
-            .as_ref()
-            .filter(|b| b.capacity() >= bytes)
-        {
-            let pixels = buffer.read(bytes)?;
-            let path = self.snapshot.as_ref().expect("checked by the caller");
-            return write_ppm(path, extent, pixels, true);
-        }
-        // The next frame is copied into it; this one, drawn with no buffer
-        // to copy into, is not written.
-        self.snapshot_buffer = None;
-        self.snapshot_buffer = Some(HostBuffer::new(&self.gpu.device, bytes, true)?);
-        Ok(())
     }
 }
 
 // MARK: Made ahead
 
-/// The device being made ahead ([`prepare`]).
-static PREPARED: Mutex<Option<JoinHandle<Result<Gpu, String>>>> = Mutex::new(None);
-
 /// Starts making the device the first window will draw with, on another
 /// thread, unless one is made or being made: Metal compiles the shaders as
 /// it is made, which takes longer than the rest of opening a window.
 pub fn prepare() {
-    let mut prepared = PREPARED.lock().unwrap_or_else(|e| e.into_inner());
-    if prepared.is_some() {
-        return;
-    }
-    let made = std::thread::Builder::new()
-        .name("quad-gpu".into())
-        .spawn(|| Gpu::new(WINDOW_FORMAT));
-    if let Ok(handle) = made {
-        *prepared = Some(handle);
-    }
-}
-
-/// Waits for the device being made ahead, if one is, before the process
-/// exits (kernel.c calls this), as on Linux, where a driver still loading
-/// must not race the exit.
-#[unsafe(no_mangle)]
-pub extern "C" fn quad_gui_settle() {
-    let made = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take();
-    if let Some(handle) = made {
-        // The process is ending: the device goes with it.
-        if let Ok(Ok(gpu)) = handle.join() {
-            std::mem::forget(gpu);
-        }
-    }
-}
-
-/// The device made ahead, waited for, if it was made.
-fn take_prepared() -> Option<Gpu> {
-    let made = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take()?;
-    made.join().ok()?.ok()
-}
-
-// MARK: No window
-
-/// Draws frames into an image, with no window: for tests, and snapshots.
-pub struct Headless {
-    frame: Frame,
-    image: Option<Image>,
-    readback: Option<HostBuffer>,
-    gpu: Gpu,
-}
-
-impl Headless {
-    pub fn new() -> Result<Headless, String> {
-        let gpu = Gpu::new(HEADLESS_FORMAT)?;
-        Ok(Headless {
-            frame: Frame::new(&gpu.device)?,
-            image: None,
-            readback: None,
-            gpu,
-        })
-    }
-
-    /// The device drawing, by name.
-    pub fn device_name(&self) -> String {
-        self.gpu.device.name()
-    }
-
-    /// Draws a frame `width` by `height` pixels; returns its pixels, RGBA,
-    /// top row first.
-    pub fn draw(&mut self, list: &DrawList, width: u32, height: u32) -> Result<Vec<u8>, String> {
-        let extent = [width.max(1), height.max(1)];
-        let bytes = extent[0] as usize * extent[1] as usize * 4;
-        if self.image.as_ref().is_none_or(|i| i.extent != extent) {
-            self.image = None;
-            self.image = Some(Image::new(&self.gpu.device, extent, HEADLESS_FORMAT)?);
-        }
-        if self.readback.as_ref().is_none_or(|b| b.capacity() < bytes) {
-            self.readback = None;
-            self.readback = Some(HostBuffer::new(&self.gpu.device, bytes, true)?);
-        }
-        let target = self.image.as_ref().expect("made above").target();
-        self.frame.draw(
-            &self.gpu.pipelines,
-            list,
-            target,
-            self.readback.as_mut(),
-            None,
-        )?;
-        let readback = self.readback.as_ref().expect("made above");
-        Ok(readback.read(bytes)?.to_vec())
-    }
+    make_ahead((), || Gpu::new(WINDOW_FORMAT));
 }
 
 #[cfg(test)]

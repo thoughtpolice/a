@@ -56,4 +56,22 @@
 (define (result) (find (lambda (m) (equal? (car m) "result")) (grid-model-other model)))
 (await! "result" result)
 (expect-equal "eval" (result) '("result" 7 #t "\"file.txt\""))
+
+;; A size no screen has is ignored, and the daemon goes on.
+(send '("resize" "x" 1))
+(send '("resize" 100000 100000))
+(key! "esc")
+(expect-equal "still its size" (list (grid-model-rows model) (grid-model-cols model)) '(6 30))
 (send '("detach"))
+
+;; A client whose hello is malformed is let go, and the daemon goes on.
+(let ([bad (kernel-unix-connect (getenv "QUAD_SOCKET"))])
+  (let ([send (frame-sender bad)])
+    (send (list "hello" protocol-version "bad" 24 80 #f))
+    (check "a bad hello is let go" (not (kernel-read-some bad 5000))))
+  (kernel-close bad))
+(let ([again (kernel-unix-connect (getenv "QUAD_SOCKET"))])
+  ((frame-sender again) (list "hello" protocol-version "again" 4 20 '()))
+  (check "the daemon goes on" (let ([got (kernel-read-some again 5000)]) (and got (> (bytevector-length got) 0))))
+  ((frame-sender again) '("detach"))
+  (kernel-close again))

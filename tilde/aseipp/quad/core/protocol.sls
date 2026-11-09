@@ -45,7 +45,7 @@
 (library (quad protocol)
   (export protocol-version
           msgpack-encode msgpack-decode encode-frame make-frame-reader
-          event->message message->event)
+          event->message message->event lost-editor)
   (import (chezscheme) (quad util) (quad event))
 
   ;; 2: highlights carry an underline color, and flags for underline
@@ -173,7 +173,9 @@
       out))
 
   ;; A reader for a byte stream of frames: call it with each chunk read (a
-  ;; bytevector and its length) and it returns the messages completed.
+  ;; bytevector and its length) and it returns the messages completed. A
+  ;; frame that does not decode is dropped, and the frames after it are
+  ;; read: one bad message from a peer does not wedge its stream.
   (define (make-frame-reader)
     (let ([buf (make-bytevector 4096)] [len 0])
       (lambda (chunk n)
@@ -189,7 +191,8 @@
               (let* ([size (bytevector-u32-ref buf start (endianness big))]
                      [payload (make-bytevector size)])
                 (bytevector-copy! buf (+ start 4) payload 0 size)
-                (loop (+ start 4 size) (cons (msgpack-decode payload) acc)))
+                (loop (+ start 4 size)
+                      (guard (e [#t acc]) (cons (msgpack-decode payload) acc))))
               (begin
                 (bytevector-copy! buf start buf 0 (- len start))
                 (set! len (- len start))
@@ -222,4 +225,14 @@
                                    (list-ref args 2) (list-ref args 3) (list-ref args 4))]
         [(clipboard) (make-clipboard-event (car args) (cadr args))]
         [(focus) (make-focus-event (car args))]
-        [else #f]))))
+        [else #f])))
+
+  ;; A client's exit status once its connection ends: 0 after the editor's
+  ;; goodbye, or the client's own leaving; 1, saying so, if the editor went
+  ;; without one (`lost?`): killed, or unreachable over the network.
+  (define (lost-editor lost?)
+    (if lost?
+        (begin
+          (display "quad: lost the editor: its connection closed without a goodbye\n" (current-error-port))
+          1)
+        0)))

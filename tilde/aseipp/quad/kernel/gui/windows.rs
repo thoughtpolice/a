@@ -7,9 +7,9 @@
 
 use super::*;
 
-/// The thread every window of this process runs on: started for the first
-/// one, it runs for as long as the process does, since winit allows a
-/// process one event loop. On macOS it is the main thread (main_thread.rs).
+/// The thread every window of this process runs on, the main one
+/// (main_thread.rs): its event loop starts for the first window, and runs
+/// for as long as the process does, since winit allows a process one.
 pub(super) struct System {
     pub(super) proxy: Mutex<EventLoopProxy<Request>>,
     pub(super) has_clipboard: bool,
@@ -48,24 +48,12 @@ pub(super) fn system() -> Result<&'static System, String> {
         .map_err(Clone::clone)
 }
 
-/// The windows' thread, if it has started.
-#[cfg(target_os = "macos")]
+/// The windows' event loop, if it has started.
 pub(super) fn started() -> Option<&'static System> {
     SYSTEM.get()?.as_ref().ok()
 }
 
-/// Runs the event loop on a thread of its own: Scheme has the main thread.
-#[cfg(not(target_os = "macos"))]
-fn start(ready: mpsc::Sender<Result<System, String>>) -> Result<(), String> {
-    std::thread::Builder::new()
-        .name("quad-gui".into())
-        .spawn(move || run(ready))
-        .map(drop)
-        .map_err(|e| e.to_string())
-}
-
-/// Runs the event loop on the main thread, AppKit's, as a window must.
-#[cfg(target_os = "macos")]
+/// Runs the event loop on the main thread.
 fn start(ready: mpsc::Sender<Result<System, String>>) -> Result<(), String> {
     crate::main_thread::run(move || run(ready))
 }
@@ -74,9 +62,6 @@ pub(super) fn run(ready: mpsc::Sender<Result<System, String>>) {
     let mut builder = EventLoop::<Request>::with_user_event();
     #[cfg(target_os = "linux")]
     {
-        // Scheme has the main thread; this one is the windows'.
-        EventLoopBuilderExtWayland::with_any_thread(&mut builder, true);
-        EventLoopBuilderExtX11::with_any_thread(&mut builder, true);
         if std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1") {
             builder.with_x11();
         } else if std::env::var_os("WAYLAND_DISPLAY").is_some() {
@@ -339,7 +324,6 @@ impl ApplicationHandler<Request> for Windows {
                     }
                 }
             }
-            #[cfg(target_os = "macos")]
             Request::Exit(status) => std::process::exit(status),
         }
     }

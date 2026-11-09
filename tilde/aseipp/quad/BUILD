@@ -529,6 +529,8 @@ shims.command_test(
         test -S $QUAD_SOCKET
 
         $quad -q --batch $(location :tests)/tests/remote.ss
+        # A client that stops reading stops nobody else.
+        $quad -q --batch $(location :tests)/tests/stuck.ss
         # A client of another editor switches to the daemon, and back.
         $quad -q --batch $(location :tests)/tests/relay.ss
         # The daemon is still there, and its client left it.
@@ -538,6 +540,31 @@ shims.command_test(
         test "`$quad --connect --eval '(length (clients))'`" = 1
         # A second daemon on the same socket is refused.
         ! $quad -q --daemon > /dev/null 2>&1
+        # Two daemons starting at once, where a socket was left by one that
+        # is gone: one listens, the other is refused, and the one listening
+        # is still reached once the other has gone.
+        for i in 1 2 3 4 5; do
+            race=$dir/race.sock
+            rm -f $race && touch $race
+            QUAD_SOCKET=$race $quad -q --daemon > $dir/race1.log 2>&1 &
+            one=$!
+            QUAD_SOCKET=$race $quad -q --daemon > $dir/race2.log 2>&1 &
+            two=$!
+            # The one refused exits; then the other must answer.
+            for j in `seq 100`; do kill -0 $one 2>/dev/null && kill -0 $two 2>/dev/null || break; sleep 0.05; done
+            test "`QUAD_SOCKET=$race $quad --connect --eval '(+ 1 2)'`" = 3
+            QUAD_SOCKET=$race $quad --connect --eval '(editor-quit!)' > /dev/null
+            wait $one || true
+            wait $two || true
+            test "`cat $dir/race1.log $dir/race2.log | grep -c 'already listening'`" = 1
+        done
+        # The default socket's directory must be this user's alone: in one
+        # that others may write, quad neither listens nor connects.
+        mkdir -m 755 $dir/run && mkdir -m 777 $dir/run/quad
+        ! env -u QUAD_SOCKET XDG_RUNTIME_DIR=$dir/run $quad -q --daemon > $dir/open.log 2>&1
+        grep -q "not this user's alone" $dir/open.log
+        ! env -u QUAD_SOCKET XDG_RUNTIME_DIR=$dir/run $quad --connect --eval 1 > $dir/open.log 2>&1
+        grep -q "not yours alone" $dir/open.log
 
         $quad --connect --eval '(editor-quit!)' > /dev/null
         wait $daemon
@@ -689,8 +716,28 @@ shims.command_test(
         again=`sed -n 's/.*the ticket: quad --connect=//p' $dir/daemon2.log`
         test -n "$again" && test "$again" != "$ticket"
         test "`QUAD_SOCKET=$dir/none $quad --connect=$again --eval '(+ 2 2)'`" = 4
+        # An editor's client shows the daemon over iroh, the editor going
+        # on meanwhile; and no editor shows itself.
+        QUAD_TICKET=$again QUAD_SOCKET=$dir/none $quad -q --batch $(location :tests)/tests/connect.ss
         $quad --connect --eval '(editor-quit!)' > /dev/null
         wait $daemon
+        # An editor that goes leaves no client waiting: told to stop
+        # (SIGTERM), it says goodbye and exits; killed, its clients notice
+        # within seconds, not QUIC's half a minute.
+        for how in TERM:3000 KILL:15000; do
+            $quad -q --daemon --mesh > $dir/daemon3.log 2>&1 &
+            daemon=$!
+            for i in `seq 200`; do grep -q "the ticket" $dir/daemon3.log && break; sleep 0.05; done
+            QUAD_TICKET=`sed -n 's/.*the ticket: quad --connect=//p' $dir/daemon3.log` QUAD_LOST_WITHIN=${how#*:} \
+                QUAD_SOCKET=$dir/none $quad -q --batch $(location :tests)/tests/lost.ss > $dir/lost.log 2>&1 &
+            client=$!
+            for i in `seq 200`; do grep -q attached $dir/lost.log && break; sleep 0.05; done
+            kill -${how%:*} $daemon
+            wait $client || { cat $dir/lost.log; exit 1; }
+            status=0; wait $daemon || status=$?
+            test $how != TERM:3000 || test $status = 0
+            rm -f $QUAD_SOCKET
+        done
     """,
 )
 

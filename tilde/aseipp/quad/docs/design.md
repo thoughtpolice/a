@@ -205,12 +205,13 @@ quad edits in a window where there is a display (Wayland or X11, or
 macOS's window server) and one can open, and in its terminal otherwise
 (`--gui` and `--tui` insist on one or the other; why no window opened goes
 in `*Messages*`). A window goes on without the terminal it was started
-from, which gets its prompt back once the window is open: quad forks
-before anything starts a thread (on macOS it starts a new quad instead:
-see below), the child (in a session of its own, its standard streams on
+from, which gets its prompt back once the window is open: quad starts a
+child, a new quad with the same arguments (see "Threads" below for why
+not a fork), which (in a session of its own, its standard streams on
 `/dev/null`) opens the window and tells the parent over a pipe whether it
 did, and a parent whose child had no window goes on in the terminal
-itself.
+itself. The child starts making what its window draws with before Scheme
+boots, as that takes longer.
 `--wait` keeps the terminal until the window closes, as `$EDITOR` needs.
 The window
 attaches in the editor's process (`core/gui.sls`), as the terminal does,
@@ -339,19 +340,27 @@ editor moves over and deletes clusters whole. The server marks the right
 half of each wide character with an empty cell, so a client never has to
 measure text itself.
 
-### On macOS
+### Threads
 
-AppKit runs a process's windows on its main thread alone. So on macOS the
-kernel (`kernel/kernel.c`) runs Scheme on a thread of its own, with a main
+AppKit runs a process's windows on its main thread alone, and quad does
+so everywhere, so that both platforms run alike: the kernel
+(`kernel/kernel.c`) runs Scheme on a thread of its own, with a main
 thread's stack and the signals the terminal sends (the main thread blocks
 them), and gives the main thread to the Rust half (`kernel/main_thread.rs`),
 which runs the windows' event loop there once the first window opens, and
-ends the process from there once Scheme is done: so winit's event loop
-runs as on Linux, on its own thread, which is the main one. Detaching
-cannot fork, as macOS's frameworks refuse to run in the child of a process
-that had threads, as every quad there does: the child is a new quad, with
-the same arguments, told the pipe to its parent in `QUAD_DETACHED_FD`,
-which takes the forked child's part as it gets to where the parent forked.
+ends the process from there once Scheme is done. Signals reach Scheme's
+waits through a pipe their handlers write to, whichever thread they land
+on; SIGTERM and SIGHUP stop the editor as quitting does, saying goodbye to
+its clients (a second one, if it is too busy to stop, ends it at once).
+Detaching cannot fork: the child would have Scheme's thread alone, and no
+main thread to run windows on (and macOS's frameworks refuse to run in
+the child of a process that had threads at all). The child is a new quad,
+with the same arguments, told the pipe to its parent in
+`QUAD_DETACHED_FD`, which takes the forked child's part as it gets to
+where the parent would have forked.
+
+### On macOS
+
 An app that Finder, the Dock or `open` started (`quad.app`) has launchd
 for its parent: it has no terminal to detach from, so its window stays in
 its own process, and, as macOS starts every app in `/`, it starts in the

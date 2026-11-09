@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Drawing with no window: into an image, read back, for tests and
-//! snapshots.
+//! snapshots. The same on Vulkan and Metal: each gives a device for it
+//! ([`Gpu::headless`]), an image, a buffer to read back, and a frame.
 
 use super::*;
 
@@ -16,9 +17,7 @@ pub struct Headless {
 
 impl Headless {
     pub fn new() -> Result<Headless, String> {
-        let instance = Instance::load(&[])?;
-        let (physical, family) = pick_device(&instance, None)?;
-        let gpu = Gpu::new(physical, family, HEADLESS_FORMAT, false)?;
+        let gpu = Gpu::headless()?;
         Ok(Headless {
             frame: Frame::new(&gpu.device)?,
             image: None,
@@ -29,20 +28,18 @@ impl Headless {
 
     /// The device drawing, by name.
     pub fn device_name(&self) -> String {
-        self.gpu.device.physical().name()
+        self.gpu.device_name()
     }
 
     /// Draws a frame `width` by `height` pixels; returns its pixels, RGBA,
     /// top row first.
     pub fn draw(&mut self, list: &DrawList, width: u32, height: u32) -> Result<Vec<u8>, String> {
-        let extent = vk::Extent2D {
-            width: width.max(1),
-            height: height.max(1),
-        };
-        let bytes = extent.width as usize * extent.height as usize * 4;
+        let extent = [width.max(1), height.max(1)];
+        let bytes = extent[0] as usize * extent[1] as usize * 4;
         if self.image.as_ref().is_none_or(|i| i.extent != extent) {
             self.image = None;
-            self.image = Some(Image::new(&self.gpu.device, extent, HEADLESS_FORMAT)?);
+            let format = self.gpu.pipelines.format;
+            self.image = Some(Image::new(&self.gpu.device, extent, format)?);
         }
         if self.readback.as_ref().is_none_or(|b| b.capacity() < bytes) {
             self.readback = None;

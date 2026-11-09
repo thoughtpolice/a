@@ -166,6 +166,12 @@
   (expect-equal "saved" (read-file-string path) "xyz")
   (check "not modified after save" (not (buffer-modified? (current-buffer)))))
 
+;; A device (or a FIFO) is not read at a request: only this process's own
+;; command line opens one, as reading it might never end.
+(check "a device is refused" (guard (e [#t #t]) (open-file! "/dev/zero") #f))
+(check "unless this process's command line names it"
+       (buffer? (parameterize ([open-special-files? #t]) (open-file! "/dev/null"))))
+
 ;; Evaluating Scheme: eval-string runs in the quad environment.
 (expect-equal "eval" (eval-string "(+ 1 2)") 3)
 (headless-buffer! "(* 6 7)" 'scheme)

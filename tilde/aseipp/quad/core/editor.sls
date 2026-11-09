@@ -37,6 +37,7 @@
    open-file! new-buffer! show-text-buffer! save-buffer! buffer-display-name
    ;; messages
    message message-error current-message clear-message! messages-buffer log-message!
+   open-special-files?
    set-messages-buffer!
    ;; variables
    define-variable get-var set-var! set-local! variable-names variable-doc
@@ -552,6 +553,17 @@
             (if (string-prefix? cwd p) (substring p (string-length cwd) (string-length p)) p))
           (buffer-name b))))
 
+  ;; Whether open-file! reads files that are neither regular nor
+  ;; directories: pipes, FIFOs, devices. Only this process's own command
+  ;; line opens them (main.sls): reading one may block until a writer comes
+  ;; (a FIFO) or never end (/dev/zero), which in a daemon would stop every
+  ;; client's editor; and a path such as /dev/fd/63 that another process
+  ;; sends names a descriptor of its own, not this one's.
+  (define open-special-files? (make-parameter #f))
+
+  (define (special-file? path)
+    (and (file-exists? path) (not (file-regular? path)) (not (file-directory? path))))
+
   ;; Visit a file, reusing its buffer if it is open; a missing file makes an
   ;; empty buffer that saving creates.
   ;; The buffer visiting path, opened if need be: before-open-file-hook
@@ -560,6 +572,9 @@
   (define (open-file! path)
     (let* ([path (absolute-path (expand-home path))]
            [existing (find (lambda (b) (equal? (buffer-path b) path)) the-buffers)])
+      (when (and (not existing) (special-file? path) (not (open-special-files?)))
+        (errorf 'open-file "~a is not a regular file: only a quad of its own opens it (quad --new ~a)"
+                path path))
       (or existing
           (let* ([_ (run-hooks 'before-open-file-hook path)]
                  [mode (major-mode-for-path path)]

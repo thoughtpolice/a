@@ -27,6 +27,18 @@ impl Gpu {
         Ok(Gpu { device, pipelines })
     }
 
+    /// A device to draw with no window: the one [`pick_device`] picks.
+    pub(super) fn headless() -> Result<Gpu, String> {
+        let instance = Instance::load(&[])?;
+        let (physical, family) = pick_device(&instance, None)?;
+        Gpu::new(physical, family, HEADLESS_FORMAT, false)
+    }
+
+    /// The device, by name.
+    pub(super) fn device_name(&self) -> String {
+        self.device.physical().name()
+    }
+
     pub(super) fn format(&self) -> vk::Format {
         self.pipelines.format
     }

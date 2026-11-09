@@ -34,3 +34,30 @@
 (check "nowhere is an error"
        (guard (e [#t #t]) (relay-connect! c "/nonexistent/quad.sock") #f))
 (check "still here" (not (relayed? c)))
+
+;; A client that closes while it shows the daemon leaves the daemon too.
+(define (daemon-clients)
+  (let* ([fd (kernel-unix-connect (getenv "QUAD_SOCKET"))]
+         [send (frame-sender fd)]
+         [reader (make-frame-reader)])
+    (send (list "hello" protocol-version "eval" 3 10 '()))
+    (send (list "eval" 1 "(length (clients))"))
+    (let loop ()
+      (let* ([got (kernel-read-some fd 5000)]
+             [r (and got (find (lambda (m) (equal? (car m) "result")) (reader got (bytevector-length got))))])
+        (cond
+         [r (send '("detach")) (kernel-close fd) (string->number (cadddr r))]
+         [got (loop)]
+         [else (kernel-close fd) #f])))))
+(define (wait! ms) (sleep (make-time 'time-duration (* ms 1000000) 0)))
+(define d (headless-client! 12 60))
+(define before (daemon-clients))
+(relay-connect! d #f)
+(run-until "the second client shows the daemon" (lambda () (relayed? d)))
+(expect-equal "the daemon has it" (daemon-clients) (+ before 1))
+(remove-client! d)
+(expect-equal "and lets it go"
+              (let loop ([n 0])
+                (let ([k (daemon-clients)])
+                  (if (or (= k before) (= n 20)) k (begin (wait! 100) (loop (+ n 1))))))
+              before)

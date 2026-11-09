@@ -17,6 +17,7 @@
   (export make-source source? add-source! remove-source! sources watch-fd!
           server-connect! client-receive! server-render! server-run!
           serve-stream! server-listen! server-unlisten! server-listening-paths default-socket-path
+          socket-dir-safe?
           frame-sender)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad buffer)
           (quad editor) (quad commands) (quad display) (quad link) (quad protocol))
@@ -93,9 +94,10 @@
                 (with-client c (lambda () (handle-event ev)))))
           (case (string->symbol (car msg))
             [(resize)
-             (client-rows-set! c (cadr msg))
-             (client-cols-set! c (caddr msg))
-             (invalidate-client! c)]
+             (when (and (= (length msg) 3) (screen-size? (cadr msg)) (screen-size? (caddr msg)))
+               (client-rows-set! c (cadr msg))
+               (client-cols-set! c (caddr msg))
+               (invalidate-client! c))]
             [(redraw) (invalidate-client! c)]
             [(open)
              (with-client c
@@ -120,9 +122,28 @@
             [else (with-client c (lambda () (message-error "Unknown message ~a" (car msg))))])))
     (for-each (lambda (c) (client-dirty?-set! c #t)) (clients)))
 
-  ;; Draw every client.
+  ;; Draw every client. One whose drawing fails is let go, with why in
+  ;; *Messages*, rather than the error ending the editor and every other
+  ;; client with it.
   (define (server-render!)
-    (for-each render-client! (clients)))
+    (for-each (lambda (c)
+                (guard (e [#t (log-message! (format "Letting client ~a go: drawing it failed: ~a"
+                                                    (client-name c) (condition->string e)))
+                              (remove-client! c)])
+                  (render-client! c)))
+              (clients)))
+
+  ;; Whether n is a screen's height or width in cells, as a client may say:
+  ;; a size that no screen has would make each frame without end.
+  (define (screen-size? n) (and (fixnum? n) (<= 1 n 4000)))
+
+  ;; Whether msg is a hello a client may send: ("hello" version name rows
+  ;; cols capabilities), capabilities a list of strings.
+  (define (valid-hello? msg)
+    (and (list? msg) (= (length msg) 6)
+         (fixnum? (list-ref msg 1)) (string? (list-ref msg 2))
+         (screen-size? (list-ref msg 3)) (screen-size? (list-ref msg 4))
+         (list? (list-ref msg 5)) (for-all string? (list-ref msg 5))))
 
   ;; ---------------------------------------------------------------------------
   ;; The loop
@@ -141,9 +162,21 @@
                                  (map idle-timeout (clients)))]
                [waits (filter (lambda (t) (>= t 0)) timeouts)]
                [timeout (if (null? waits) -1 (apply min waits))]
-               [ready (kernel-poll (map source-fd the-sources) timeout)]
-               [changed? (null? ready)]
+               [writes (map outbox-fd (filter (lambda (b) (not (outbox-empty? b))) outboxes))]
+               [timeout (if (exists outbox-over? outboxes) 0 timeout)]
+               [ready+writable (call-with-values
+                                   (lambda () (kernel-poll-rw (map source-fd the-sources) writes timeout))
+                                 cons)]
+               [ready (car ready+writable)]
+               [writable (cdr ready+writable)]
+               [timed-out? (and (null? ready) (null? writable))]
+               [changed? timed-out?]
                [r0 received] [q0 received-quietly])
+          (outboxes-serve! writable)
+          ;; Asked to stop (SIGTERM, SIGHUP): as told to quit, with a word
+          ;; to each client.
+          (when (and (kernel-stop-requested?) (editor-running?))
+            (editor-quit!))
           (for-each
            (lambda (s)
              (when (and (memv (source-fd s) ready) (memq s the-sources))
@@ -151,7 +184,7 @@
                  (guarded (source-readable s))
                  (when (= received before) (set! changed? #t)))))
            the-sources)
-          (when (null? ready)
+          (when timed-out?
             (for-each (lambda (s)
                         (let ([t ((source-timeout s))])
                           (when (and (>= t 0) (<= t timeout)) (guarded (source-on-timeout s)))))
@@ -163,6 +196,78 @@
   (define (guarded thunk)
     (guard (e [#t (message-error "~a" (condition->string e))])
       (thunk)))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Outboxes: what a client over a stream has yet to take
+  ;;
+  ;; A client that stops reading (stopped with ^Z, or on a slow link) must
+  ;; not stop the editor, as a write that waits for it would: what its
+  ;; stream does not take at once waits in its outbox, and is written as
+  ;; the stream takes it (the loop waits for that too). A client that falls
+  ;; outbox-limit bytes behind is let go.
+
+  (define outbox-limit (* 16 1024 1024))
+
+  ;; head: frames to write, the first from byte `start`; tail: those after,
+  ;; newest first. bytes: how many are waiting. over?: past the limit, it is
+  ;; to be let go (by `drop`), which the loop does once its round is done.
+  (define-record-type outbox
+    (fields fd drop (mutable head) (mutable start) (mutable tail) (mutable bytes) (mutable over?)))
+
+  ;; Outboxes with something in them.
+  (define outboxes '())
+
+  (define (outbox-empty? b) (and (null? (outbox-head b)) (null? (outbox-tail b))))
+
+  ;; Write what fd takes of b's frames, without waiting.
+  (define (outbox-flush! b)
+    (let loop ()
+      (when (null? (outbox-head b))
+        (outbox-head-set! b (reverse (outbox-tail b)))
+        (outbox-tail-set! b '()))
+      (unless (null? (outbox-head b))
+        (let* ([bv (car (outbox-head b))]
+               [start (outbox-start b)]
+               [n (kernel-write-some (outbox-fd b) bv start)])
+          (cond
+           ;; The stream failed: reading it says so, and lets the client go.
+           [(< n 0) (outbox-head-set! b '()) (outbox-tail-set! b '()) (outbox-bytes-set! b 0)]
+           [else
+            (outbox-bytes-set! b (- (outbox-bytes b) n))
+            (if (= (+ start n) (bytevector-length bv))
+                (begin (outbox-head-set! b (cdr (outbox-head b))) (outbox-start-set! b 0) (loop))
+                (outbox-start-set! b (+ start n)))])))))
+
+  ;; A sender to stream fd that never waits; (drop) lets the client go once
+  ;; it falls too far behind.
+  (define (stream-sender fd drop)
+    (let ([b (make-outbox fd drop '() 0 '() 0 #f)])
+      (lambda (msg)
+        (unless (outbox-over? b)
+          (let ([bv (encode-frame msg)] [was-empty? (outbox-empty? b)])
+            (outbox-tail-set! b (cons bv (outbox-tail b)))
+            (outbox-bytes-set! b (+ (outbox-bytes b) (bytevector-length bv)))
+            (when was-empty? (outbox-flush! b))
+            (cond
+             [(> (outbox-bytes b) outbox-limit)
+              (outbox-over?-set! b #t)
+              (outbox-head-set! b '())
+              (outbox-tail-set! b '())
+              (unless (memq b outboxes) (set! outboxes (cons b outboxes)))]
+             [(and was-empty? (not (outbox-empty? b)))
+              (set! outboxes (cons b outboxes))]))))))
+
+  ;; Stream fd is closed: what it had yet to take goes.
+  (define (outbox-forget! fd)
+    (set! outboxes (filter (lambda (b) (not (= (outbox-fd b) fd))) outboxes)))
+
+  ;; After waiting: write to the streams that take more, and let go of the
+  ;; clients too far behind.
+  (define (outboxes-serve! writable)
+    (for-each (lambda (b) (when (memv (outbox-fd b) writable) (outbox-flush! b))) outboxes)
+    (let ([over (filter outbox-over? outboxes)])
+      (set! outboxes (filter (lambda (b) (not (or (outbox-over? b) (outbox-empty? b)))) outboxes))
+      (for-each (lambda (b) ((outbox-drop b))) over)))
 
   ;; ---------------------------------------------------------------------------
   ;; Streams: clients over a byte-stream descriptor, speaking frames
@@ -184,6 +289,7 @@
              [close! (lambda ()
                        (when (memq src the-sources)
                          (remove-source! src)
+                         (outbox-forget! fd)
                          (kernel-close fd)
                          (on-close)))])
         (set! src
@@ -200,10 +306,12 @@
                       (lambda (msg)
                         (cond
                          [client (client-receive! client msg)]
-                         [(and (pair? msg) (equal? (car msg) "hello"))
+                         [(and (pair? msg) (equal? (car msg) "hello") (valid-hello? msg))
                           ;; ("hello" version name rows cols capabilities)
                           (let-values ([(version name rows cols caps) (apply values (cdr msg))])
-                            (set! client (server-connect! name rows cols caps (frame-sender fd) close!))
+                            (set! client (server-connect! name rows cols caps
+                                                          (stream-sender fd (lambda () (if client (remove-client! client) (close!))))
+                                                          close!))
                             ;; What else goes with the stream (voice, over
                             ;; iroh) knows the client by its descriptor.
                             (client-local-set! client 'stream-fd fd)
@@ -229,6 +337,16 @@
 
   (define listening '())
 
+  ;; Whether the socket at path may be trusted to be this user's editor's:
+  ;; the default socket's directory, which may be in /tmp, must be this
+  ;; user's alone, or someone else could have made it, and put a socket of
+  ;; their own there for this user's quad to connect to (and type into).
+  ;; A socket named otherwise ($QUAD_SOCKET, --listen, --connect) is the
+  ;; user's choice.
+  (define (socket-dir-safe? path)
+    (or (not (equal? path (default-socket-path))) (getenv "QUAD_SOCKET")
+        (kernel-private-dir? (path-dirname path))))
+
   ;; The socket paths this editor listens at.
   (define (server-listening-paths) (map car listening))
 
@@ -236,15 +354,29 @@
   ;; that is gone is replaced; a live one is an error.
   (define (server-listen! path)
     (let ([dir (path-dirname path)])
-      (unless (file-exists? dir) (mkdir dir #o700)))
-    (when (file-exists? path)
-      (let ([fd (kernel-unix-connect path)])
-        (if (>= fd 0)
-            (begin (kernel-close fd) (errorf 'server-listen! "a server is already listening at ~a" path))
-            (delete-file path))))
-    (let ([fd (kernel-unix-listen path)])
+      ;; Another's daemon may have made it in the meantime.
+      (unless (file-exists? dir) (guard (e [#t (void)]) (mkdir dir #o700)))
+      (unless (socket-dir-safe? path)
+        (errorf 'server-listen! "~a is not this user's alone (it must be a directory of yours, mode 700): not listening there" dir)))
+    ;; Whether a server listens there, and if not making the socket, as one
+    ;; step: two editors starting at once would otherwise both find a
+    ;; socket left by one that is gone, and the second would delete the
+    ;; first's new one and listen in its place, leaving the first where no
+    ;; client can reach it.
+    (let* ([lock (or (kernel-lock (string-append path ".lock"))
+                     (errorf 'server-listen! "cannot lock ~a.lock" path))]
+           [fd (dynamic-wind
+                 void
+                 (lambda ()
+                   (when (file-exists? path)
+                     (let ([fd (kernel-unix-connect path)])
+                       (if (>= fd 0)
+                           (begin (kernel-close fd) (errorf 'server-listen! "a server is already listening at ~a" path))
+                           (guard (e [#t (void)]) (delete-file path)))))
+                   (kernel-unix-listen path))
+                 (lambda () (kernel-close lock)))])
       (when (< fd 0) (errorf 'server-listen! "cannot listen at ~a" path))
-      (set! listening (cons (cons path fd) listening))
+      (set! listening (cons (list path fd (kernel-file-key path)) listening))
       (add-source! (make-source fd
                                 (lambda ()
                                   (let ([c (kernel-accept fd)])
@@ -253,10 +385,14 @@
       (add-hook! 'kill-editor-hook (lambda () (server-unlisten! path)))
       path))
 
+  ;; Stop listening at path. The socket there goes only if it is still this
+  ;; editor's: another may have replaced it since (it found this one gone
+  ;; quiet, say), and its clients must still find it.
   (define (server-unlisten! path)
     (let ([e (assoc path listening)])
       (when e
         (set! listening (remq e listening))
-        (for-each (lambda (s) (when (= (source-fd s) (cdr e)) (remove-source! s))) the-sources)
-        (kernel-close (cdr e))
-        (when (file-exists? path) (delete-file path))))))
+        (for-each (lambda (s) (when (= (source-fd s) (cadr e)) (remove-source! s))) the-sources)
+        (kernel-close (cadr e))
+        (when (and (caddr e) (equal? (kernel-file-key path) (caddr e)))
+          (guard (x [#t (void)]) (delete-file path)))))))

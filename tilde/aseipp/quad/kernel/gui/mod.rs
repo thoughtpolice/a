@@ -5,13 +5,12 @@
 //! macOS drawn with Metal 4.
 //!
 //! The GUI is a client of the editor like the terminal is (core/gui.sls):
-//! the server draws its frames as cells, and this draws the cells. A
-//! window runs on a thread of its own, with its event loop; Scheme sends it
-//! frames to paint ([`Gui::paint`]) and takes what happens to it -- keys,
-//! the mouse, a new size, closing -- from a [`Mailbox`], as [`Event`]s in
-//! the shape of the client protocol's messages. On macOS that thread is
-//! the process's main thread, AppKit's, and Scheme has one of its own
-//! (main_thread.rs).
+//! the server draws its frames as cells, and this draws the cells. Windows
+//! run on the process's main thread, in its event loop, as AppKit has it on
+//! macOS, and Scheme on a thread of its own (main_thread.rs); Scheme sends
+//! a window frames to paint ([`Gui::paint`]) and takes what happens to it
+//! -- keys, the mouse, a new size, closing -- from a [`Mailbox`], as
+//! [`Event`]s in the shape of the client protocol's messages.
 //!
 //! Nothing here links against Vulkan: ash loads the host's
 //! `libvulkan.so.1` when a window opens ([`ash::Entry::load`]), winit
@@ -89,6 +88,16 @@ pub fn display_available() -> bool {
     }
 }
 
+/// Starts making what the first window draws with, where one could open:
+/// kernel.c calls this before Scheme boots, in a process started to open a
+/// window, so that the device is made while Scheme boots.
+#[unsafe(no_mangle)]
+pub extern "C" fn quad_gui_prepare_early() {
+    if display_available() {
+        crate::render::prepare();
+    }
+}
+
 /// Whether this process is told it has no display (`QUAD_NO_DISPLAY=1`).
 fn told_no_display() -> bool {
     std::env::var_os("QUAD_NO_DISPLAY").is_some_and(|v| v == "1")
@@ -106,10 +115,9 @@ fn no_display() -> bool {
     }
 }
 
-/// Ends the process with `status` from the windows' event loop, where it
-/// runs on the main thread (macOS: see main_thread.rs): false where no
-/// window has opened, and the event loop does not run.
-#[cfg(target_os = "macos")]
+/// Ends the process with `status` from the windows' event loop, which runs
+/// on the main thread (main_thread.rs): false where no window has opened,
+/// and the event loop does not run.
 pub(crate) fn exit_from_windows(status: i32) -> bool {
     started().is_some_and(|system| system.send(Request::Exit(status)).is_ok())
 }
@@ -236,7 +244,6 @@ enum Request {
     CloseAll,
     /// End the process with this status, from the main thread: Scheme is
     /// done (main_thread.rs).
-    #[cfg(target_os = "macos")]
     Exit(i32),
 }
 

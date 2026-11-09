@@ -50,7 +50,7 @@ use objc2_quartz_core::{CAMetalDrawable, CAMetalLayer};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::Window;
 
-use super::{Data, DrawList, GLYPH_BYTES, PICTURE_BYTES, Params, RECT_BYTES, SHADERS, clear_color};
+use super::{Buffers, Data, DrawList, Pipeline, SHADERS, clear_color, put};
 use crate::timing;
 
 fn ns_error(what: &str) -> impl Fn(Retained<NSError>) -> String + '_ {
@@ -315,6 +315,11 @@ impl HostBuffer {
         })
     }
 
+    /// Where the GPU finds it.
+    pub(super) fn address(&self) -> u64 {
+        self.address
+    }
+
     pub(super) fn capacity(&self) -> usize {
         self.capacity
     }
@@ -333,7 +338,7 @@ impl HostBuffer {
 
     /// Its first `len` bytes, to fill. Only a [`Frame`] whose commands are
     /// done writes its buffers: nothing else uses them meanwhile.
-    fn bytes_mut(&mut self, len: usize) -> &mut [u8] {
+    pub(super) fn bytes_mut(&mut self, len: usize) -> &mut [u8] {
         assert!(
             len <= self.capacity,
             "a buffer of {} bytes, not {len}",
@@ -352,19 +357,6 @@ impl Drop for HostBuffer {
         self.device
             .set_resident(ProtocolObject::from_ref(&*self.raw), false);
     }
-}
-
-/// Puts `data` in `slot`'s buffer, first making it larger if it does not
-/// fit; returns the buffer's address.
-fn put(device: &Arc<Device>, slot: &mut Option<HostBuffer>, data: Data) -> Result<u64, String> {
-    let len = data.len();
-    if slot.as_ref().is_none_or(|b| b.capacity < len) {
-        *slot = None;
-        *slot = Some(HostBuffer::new(device, len, false)?);
-    }
-    let buffer = slot.as_mut().expect("made above");
-    data.write(buffer.bytes_mut(len));
-    Ok(buffer.address)
 }
 
 // MARK: Images and drawables
@@ -542,28 +534,12 @@ impl Drawable {
 /// constant buffer's address must be 256-byte aligned on some GPUs.
 const PARAMS_STRIDE: usize = 256;
 
-/// A frame's data on the GPU, refilled each time it is drawn.
-#[derive(Default)]
-struct Buffers {
-    rects: Option<HostBuffer>,
-    glyphs: Option<HostBuffer>,
-    decorations: Option<HostBuffer>,
-    curves: Option<HostBuffer>,
-    bands: Option<HostBuffer>,
-    /// The atlas generation `curves` and `bands` hold.
-    atlas: Option<u64>,
-    pictures: Option<HostBuffer>,
-    pixels: Option<HostBuffer>,
-    /// The generation of the pixels `pixels` holds.
-    pixels_generation: Option<u64>,
-    /// Each draw's [`Params`].
-    params: Option<HostBuffer>,
-}
-
 /// A frame in flight: its commands, the submission whose end says the GPU
 /// is done with them, and the buffers they read.
 pub(super) struct Frame {
     buffers: Buffers,
+    /// Each draw's [`Params`].
+    params: Option<HostBuffer>,
     device: Arc<Device>,
     allocator: Retained<ProtocolObject<dyn MTL4CommandAllocator>>,
     commands: Retained<ProtocolObject<dyn MTL4CommandBuffer>>,
@@ -591,6 +567,7 @@ impl Frame {
             .map_err(ns_error("making an argument table"))?;
         Ok(Frame {
             buffers: Buffers::default(),
+            params: None,
             device: device.clone(),
             allocator,
             commands,
@@ -622,64 +599,18 @@ impl Frame {
         self.wait()?;
         // The GPU is done with this frame's buffers: fill them.
         let device = &self.device;
-        let b = &mut self.buffers;
-        let rects = put(device, &mut b.rects, Data::Bytes(list.rects))?;
-        let glyphs = put(device, &mut b.glyphs, Data::Bytes(list.glyphs))?;
-        let decorations = put(device, &mut b.decorations, Data::Bytes(list.decorations))?;
-        if b.atlas != Some(list.atlas.generation) || b.curves.is_none() {
-            put(device, &mut b.curves, Data::Floats4(&list.atlas.curves))?;
-            put(device, &mut b.bands, Data::Words2(&list.atlas.bands))?;
-            b.atlas = Some(list.atlas.generation);
-        }
-        let curves = b.curves.as_ref().map_or(0, |b| b.address);
-        let bands = b.bands.as_ref().map_or(0, |b| b.address);
-        let pictures = put(device, &mut b.pictures, Data::Bytes(list.pictures))?;
-        let (pixels, generation) = list.pixels;
-        if b.pixels_generation != Some(generation) || b.pixels.is_none() {
-            put(device, &mut b.pixels, Data::Words(pixels))?;
-            b.pixels_generation = Some(generation);
-        }
-        let pixels = b.pixels.as_ref().map_or(0, |b| b.address);
-
         let linear = is_srgb(pipelines.format);
         let [r, g, bl] = clear_color(list.background, linear);
         let [width, height] = target.extent;
         let viewport = [width as f32, height as f32];
-        let draws = [
-            (&pipelines.rect, rects, list.rects.len() / RECT_BYTES),
-            (
-                &pipelines.image,
-                pictures,
-                list.pictures.len() / PICTURE_BYTES,
-            ),
-            (&pipelines.glyph, glyphs, list.glyphs.len() / GLYPH_BYTES),
-            (
-                &pipelines.rect,
-                decorations,
-                list.decorations.len() / RECT_BYTES,
-            ),
-        ];
-        // Each draw's instances are at the start of its buffer: the
-        // rectangle pipeline reads `rects`, the glyph one `glyphs`, the
-        // image one `pictures`.
+        let draws = self.buffers.fill(device, list, target.extent, linear)?;
+        // Each draw's Params, PARAMS_STRIDE apart.
         let mut params = vec![0; draws.len() * PARAMS_STRIDE];
-        for ((_, address, _), slot) in draws.iter().zip(params.chunks_exact_mut(PARAMS_STRIDE)) {
-            let bytes = Params {
-                rects: *address,
-                glyphs: *address,
-                curves,
-                bands,
-                pictures: *address,
-                pixels,
-                cell: list.cell,
-                viewport,
-                origin: list.origin,
-                linear: u32::from(linear),
-            }
-            .bytes();
+        for (draw, slot) in draws.iter().zip(params.chunks_exact_mut(PARAMS_STRIDE)) {
+            let bytes = draw.params.bytes();
             slot[..bytes.len()].copy_from_slice(&bytes);
         }
-        let params = put(device, &mut b.params, Data::Bytes(&params))?;
+        let params = put(device, &mut self.params, Data::Bytes(&params))?;
 
         let pass = MTL4RenderPassDescriptor::new();
         // SAFETY: the first of the pass's color attachments, of which it has
@@ -717,10 +648,15 @@ impl Frame {
             &self.arguments,
             MTLRenderStages::Vertex | MTLRenderStages::Fragment,
         );
-        for (i, (pipeline, _, count)) in draws.iter().enumerate() {
-            if *count == 0 {
+        for (i, draw) in draws.iter().enumerate() {
+            if draw.count == 0 {
                 continue;
             }
+            let pipeline = match draw.pipeline {
+                Pipeline::Rect => &pipelines.rect,
+                Pipeline::Image => &pipelines.image,
+                Pipeline::Glyph => &pipelines.glyph,
+            };
             encoder.setRenderPipelineState(pipeline);
             // SAFETY: the address of the Params of this draw, in a buffer
             // of the frame's, resident, which it keeps until the GPU is done
@@ -734,7 +670,7 @@ impl Frame {
                     MTLPrimitiveType::TriangleStrip,
                     0,
                     4,
-                    *count,
+                    draw.count,
                 );
             }
         }

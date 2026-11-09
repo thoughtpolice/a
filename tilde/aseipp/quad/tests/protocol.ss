@@ -37,6 +37,14 @@
         (loop (+ i n)))))
   (expect-equal "frames reassemble" got msgs))
 
+;; A frame that does not decode (0xc1 is no msgpack type) is dropped, and
+;; the frames on either side of it still arrive.
+(let* ([bad (bytevector 0 0 0 1 #xc1)]
+       [stream (bytevector-append (encode-frame '("a")) bad (encode-frame '("b")))]
+       [reader (make-frame-reader)])
+  (expect-equal "a bad frame is dropped" (reader stream (bytevector-length stream)) '(("a") ("b")))
+  (expect-equal "and the stream goes on" (let ([c (encode-frame '("c"))]) (reader c (bytevector-length c))) '(("c"))))
+
 ;; Events and messages.
 (for-each
  (lambda (e)

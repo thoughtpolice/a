@@ -475,7 +475,8 @@
   (define (gui-connect! win fd files line)
     (let* ([screen (make-screen)]
            [send (frame-sender fd)]
-           [reader (make-frame-reader)])
+           [reader (make-frame-reader)]
+           [lost? #f])                  ; the editor went without a goodbye
       (send (list "hello" protocol-version "gui" initial-rows initial-cols (gui-capabilities win)))
       (send (list "user" (default-user-name)))
       ;; Paths are the editor's to open, so they go absolute.
@@ -489,14 +490,15 @@
                          (window-events! win send report-to-stderr))
                      (or (not (memv fd ready))
                          (let ([got (kernel-read-some fd 0)])
+                           (unless got (set! lost? #t))
                            (and got
                                 (for-all (lambda (msg)
                                            (or (voice-message! fd msg send) (paint! win screen msg)))
                                          (reader got (bytevector-length got)))))))])
-          (if continue?
+          (if (and continue? (not (kernel-stop-requested?)))
               (loop)
               (begin
                 (guard (e [#t (void)]) (send '("detach")))
                 (gui-close! win)
                 (kernel-close fd)
-                0)))))))
+                (lost-editor lost?))))))))

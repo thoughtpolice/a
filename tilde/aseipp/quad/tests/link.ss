@@ -122,3 +122,10 @@
               (with-client plain (lambda () (cdr (current-message))))
               "Link: https://example.com/a_(b)")
 
+
+;; However many links are drawn, their faces are kept for only so many.
+(let ([many (headless-buffer! (apply string-append
+                                     (map (lambda (i) (format "https://example.com/~a\n" i)) (iota 5000)))
+                              'text)])
+  (check "every link is found" (= 5000 (length (urls many))))
+  (check "their faces are bounded" (<= (link-faces-count) 4096)))

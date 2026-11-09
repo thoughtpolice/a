@@ -95,7 +95,8 @@
       (when (< fd 0) (errorf 'quad "no server is listening at ~a" path))
       (let* ([tty (open-tty)]
              [send (frame-sender fd)]
-             [reader (make-frame-reader)])
+             [reader (make-frame-reader)]
+             [lost? #f])                ; the editor went without a goodbye
         (send (list "hello" protocol-version (terminal-client-name) (tty-rows tty) (tty-cols tty)
                     (tui-capabilities tty)))
         (send (list "user" (default-user-name)))
@@ -118,6 +119,7 @@
                    ;; The server.
                    (if (memv fd ready)
                        (let ([got (kernel-read-some fd 0)])
+                         (unless got (set! lost? #t))
                          (and got
                               (for-all (lambda (msg)
                                          (or (voice-message! fd msg send)
@@ -125,10 +127,10 @@
                                        (reader got (bytevector-length got)))))
                        #t))])
             (when (tty-take-resize! tty) (send (list "resize" (tty-rows tty) (tty-cols tty))))
-            (if continue?
+            (if (and continue? (not (kernel-stop-requested?)))
                 (loop)
                 (begin
                   (guard (e [#t (void)]) (send '("detach")))
                   (close-tty! tty)
                   (kernel-close fd)
-                  0))))))))
+                  (lost-editor lost?)))))))))

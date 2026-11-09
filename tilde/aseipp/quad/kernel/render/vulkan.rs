@@ -29,9 +29,8 @@ use winit::raw_window_handle::{
 use winit::window::Window;
 
 use super::{
-    Data, DrawList, GLYPH_BYTES, GLYPH_FRAGMENT, GLYPH_VERTEX, IMAGE_FRAGMENT, IMAGE_VERTEX,
-    PICTURE_BYTES, Params, RECT_BYTES, RECT_FRAGMENT, RECT_VERTEX, clear_color, entry_point_name,
-    is_srgb, vk_error,
+    Buffers, DrawList, GLYPH_FRAGMENT, GLYPH_VERTEX, IMAGE_FRAGMENT, IMAGE_VERTEX, Params,
+    Pipeline, RECT_FRAGMENT, RECT_VERTEX, clear_color, entry_point_name, is_srgb, vk_error,
 };
 use crate::timing;
 
@@ -497,6 +496,11 @@ impl HostBuffer {
         })
     }
 
+    /// Where the GPU finds it.
+    pub(super) fn address(&self) -> u64 {
+        self.address
+    }
+
     pub(super) fn capacity(&self) -> usize {
         self.capacity
     }
@@ -514,7 +518,7 @@ impl HostBuffer {
 
     /// Its first `len` bytes, to fill. Only a [`Frame`] whose commands are
     /// done writes its buffers: nothing else uses them meanwhile.
-    fn bytes_mut(&mut self, len: usize) -> &mut [u8] {
+    pub(super) fn bytes_mut(&mut self, len: usize) -> &mut [u8] {
         assert!(
             len <= self.capacity,
             "a buffer of {} bytes, not {len}",
@@ -536,19 +540,6 @@ impl Drop for HostBuffer {
             self.device.raw.free_memory(self.memory, None);
         }
     }
-}
-
-/// Puts `data` in `slot`'s buffer, first making it larger if it does not
-/// fit; returns the buffer's address.
-fn put(device: &Arc<Device>, slot: &mut Option<HostBuffer>, data: Data) -> Result<u64, String> {
-    let len = data.len();
-    if slot.as_ref().is_none_or(|b| b.capacity < len) {
-        *slot = None;
-        *slot = Some(HostBuffer::new(device, len, false)?);
-    }
-    let buffer = slot.as_mut().expect("made above");
-    data.write(buffer.bytes_mut(len));
-    Ok(buffer.address)
 }
 
 // MARK: Images and synchronization
@@ -586,19 +577,19 @@ fn image_view(
 }
 
 /// An image on the device to draw into and copy from: frames drawn with no
-/// window.
+/// window, `extent` pixels (width, height).
 pub(super) struct Image {
     device: Arc<Device>,
     image: vk::Image,
     memory: vk::DeviceMemory,
     view: vk::ImageView,
-    pub(super) extent: vk::Extent2D,
+    pub(super) extent: [u32; 2],
 }
 
 impl Image {
     pub(super) fn new(
         device: &Arc<Device>,
-        extent: vk::Extent2D,
+        extent: [u32; 2],
         format: vk::Format,
     ) -> Result<Image, String> {
         let d = &device.raw;
@@ -606,8 +597,8 @@ impl Image {
             .image_type(vk::ImageType::TYPE_2D)
             .format(format)
             .extent(vk::Extent3D {
-                width: extent.width,
-                height: extent.height,
+                width: extent[0],
+                height: extent[1],
                 depth: 1,
             })
             .mip_levels(1)
@@ -667,7 +658,10 @@ impl Image {
         Target {
             image: self.image,
             view: self.view,
-            extent: self.extent,
+            extent: vk::Extent2D {
+                width: self.extent[0],
+                height: self.extent[1],
+            },
             layout: vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
         }
     }
@@ -721,22 +715,6 @@ impl Drop for Semaphore {
 }
 
 // MARK: Frames
-
-/// A frame's data on the GPU, refilled each time it is drawn.
-#[derive(Default)]
-struct Buffers {
-    rects: Option<HostBuffer>,
-    glyphs: Option<HostBuffer>,
-    decorations: Option<HostBuffer>,
-    curves: Option<HostBuffer>,
-    bands: Option<HostBuffer>,
-    /// The atlas generation `curves` and `bands` hold.
-    atlas: Option<u64>,
-    pictures: Option<HostBuffer>,
-    pixels: Option<HostBuffer>,
-    /// The generation of the pixels `pixels` holds.
-    pixels_generation: Option<u64>,
-}
 
 /// A frame in flight: its commands, the fence that says the GPU is done
 /// with them, and the buffers they read.
@@ -839,43 +817,13 @@ impl Frame {
         self.wait()?;
         // The GPU is done with this frame's buffers: fill them.
         let device = &self.device;
-        let b = &mut self.buffers;
-        let rects = put(device, &mut b.rects, Data::Bytes(list.rects))?;
-        let glyphs = put(device, &mut b.glyphs, Data::Bytes(list.glyphs))?;
-        let decorations = put(device, &mut b.decorations, Data::Bytes(list.decorations))?;
-        if b.atlas != Some(list.atlas.generation) || b.curves.is_none() {
-            put(device, &mut b.curves, Data::Floats4(&list.atlas.curves))?;
-            put(device, &mut b.bands, Data::Words2(&list.atlas.bands))?;
-            b.atlas = Some(list.atlas.generation);
-        }
-        let curves = b.curves.as_ref().map_or(0, |b| b.address);
-        let bands = b.bands.as_ref().map_or(0, |b| b.address);
-        let pictures = put(device, &mut b.pictures, Data::Bytes(list.pictures))?;
-        let (pixels, generation) = list.pixels;
-        if b.pixels_generation != Some(generation) || b.pixels.is_none() {
-            put(device, &mut b.pixels, Data::Words(pixels))?;
-            b.pixels_generation = Some(generation);
-        }
-        let pixels = b.pixels.as_ref().map_or(0, |b| b.address);
-
         let linear = is_srgb(pipelines.format);
         let [r, g, bl] = clear_color(list.background, linear);
         let extent = target.extent;
         let viewport = [extent.width as f32, extent.height as f32];
-        let draws = [
-            (pipelines.rect, rects, list.rects.len() / RECT_BYTES),
-            (
-                pipelines.image,
-                pictures,
-                list.pictures.len() / PICTURE_BYTES,
-            ),
-            (pipelines.glyph, glyphs, list.glyphs.len() / GLYPH_BYTES),
-            (
-                pipelines.rect,
-                decorations,
-                list.decorations.len() / RECT_BYTES,
-            ),
-        ];
+        let draws = self
+            .buffers
+            .fill(device, list, [extent.width, extent.height], linear)?;
         let d = &device.raw;
         let c = self.commands;
         let attachments = [vk::RenderingAttachmentInfo::default()
@@ -940,34 +888,24 @@ impl Frame {
                 }],
             );
             d.cmd_set_scissor(c, 0, &[area]);
-            for (pipeline, address, count) in draws {
-                if count == 0 {
+            for draw in &draws {
+                if draw.count == 0 {
                     continue;
                 }
-                d.cmd_bind_pipeline(c, vk::PipelineBindPoint::GRAPHICS, pipeline);
-                // Each draw's instances are at the start of its buffer;
-                // the rectangle pipeline reads `rects`, the glyph one
-                // `glyphs`, the image one `pictures`.
-                let params = Params {
-                    rects: address,
-                    glyphs: address,
-                    curves,
-                    bands,
-                    pictures: address,
-                    pixels,
-                    cell: list.cell,
-                    viewport,
-                    origin: list.origin,
-                    linear: u32::from(linear),
+                let pipeline = match draw.pipeline {
+                    Pipeline::Rect => pipelines.rect,
+                    Pipeline::Image => pipelines.image,
+                    Pipeline::Glyph => pipelines.glyph,
                 };
+                d.cmd_bind_pipeline(c, vk::PipelineBindPoint::GRAPHICS, pipeline);
                 d.cmd_push_constants(
                     c,
                     pipelines.layout,
                     vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                     0,
-                    &params.bytes(),
+                    &draw.params.bytes(),
                 );
-                d.cmd_draw(c, 4, count as u32, 0, 0);
+                d.cmd_draw(c, 4, draw.count as u32, 0, 0);
             }
             d.cmd_end_rendering(c);
             let mut layout = vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL;

@@ -20,10 +20,7 @@ pub struct Renderer {
     /// window, whatever its damage says.
     fresh: bool,
     frame: usize,
-    /// With `QUAD_GUI_SNAPSHOT=FILE`, each frame presented is also written
-    /// to FILE, as a PPM image: what the window shows.
-    snapshot: Option<std::path::PathBuf>,
-    snapshot_buffer: Option<HostBuffer>,
+    snapshot: Option<Snapshot>,
     gpu: Rc<Gpu>,
 }
 
@@ -41,7 +38,7 @@ impl Renderer {
             RawDisplayHandle::Xlib(_) => ash::khr::xlib_surface::NAME,
             _ => return Err("only Wayland and X11 (Xlib) windows are supported".into()),
         };
-        let gpu = match take_prepared(surface_extension, window) {
+        let gpu = match take_prepared_for(surface_extension, window) {
             Some(gpu) => gpu,
             None => {
                 let instance = Instance::load(&[ash::khr::surface::NAME, surface_extension])?;
@@ -82,8 +79,7 @@ impl Renderer {
             stale: true,
             fresh: true,
             frame: 0,
-            snapshot: std::env::var_os("QUAD_GUI_SNAPSHOT").map(Into::into),
-            snapshot_buffer: None,
+            snapshot: Snapshot::from_env(),
             gpu,
         })
     }
@@ -144,7 +140,7 @@ impl Renderer {
             Acquired::NotYet => return Ok(false),
         };
         let target = swapchain.target(index);
-        let copy = self.snapshot.as_ref().and(self.snapshot_buffer.as_mut());
+        let copy = self.snapshot.as_mut().and_then(Snapshot::buffer);
         frame.draw(
             &self.gpu.pipelines,
             list,
@@ -159,44 +155,23 @@ impl Renderer {
             .unwrap_or_default();
         self.fresh = false;
         self.stale |= swapchain.present(index, &changed)?;
-        if self.snapshot.is_some() {
-            self.write_snapshot(target.extent)?;
-        }
-        self.frame = (self.frame + 1) % FRAMES_IN_FLIGHT;
-        Ok(true)
-    }
-
-    /// Writes the frame just drawn to the snapshot file, and makes sure the
-    /// next frame has a buffer of `extent`'s size to copy into.
-    fn write_snapshot(&mut self, extent: vk::Extent2D) -> Result<(), String> {
-        let bytes = extent.width as usize * extent.height as usize * 4;
-        if let Some(buffer) = self
-            .snapshot_buffer
-            .as_ref()
-            .filter(|b| b.capacity() >= bytes)
-        {
-            let pixels = buffer.read(bytes)?;
+        if let Some(snapshot) = &mut self.snapshot {
             let bgra = matches!(
                 self.surface_format.format,
                 vk::Format::B8G8R8A8_UNORM | vk::Format::B8G8R8A8_SRGB
             );
-            let path = self.snapshot.as_ref().expect("checked by the caller");
-            write_ppm(path, [extent.width, extent.height], pixels, bgra)?;
-            return Ok(());
+            let extent = [target.extent.width, target.extent.height];
+            // The frame that was not copied is drawn again.
+            if !snapshot.write(&self.gpu.device, extent, bgra)? {
+                self.stale = true;
+            }
         }
-        self.snapshot_buffer = None;
-        self.snapshot_buffer = Some(HostBuffer::new(&self.gpu.device, bytes, true)?);
-        // The frame that has not been copied yet is drawn again.
-        self.stale = true;
-        Ok(())
+        self.frame = (self.frame + 1) % FRAMES_IN_FLIGHT;
+        Ok(true)
     }
 }
 
 // MARK: Made ahead
-
-/// The device being made ahead ([`prepare`]): for windows on a display
-/// whose surfaces this extension makes.
-static PREPARED: Mutex<Option<(&'static CStr, JoinHandle<Result<Gpu, String>>)>> = Mutex::new(None);
 
 /// The format a device is made ahead to draw in: what NVIDIA's driver
 /// offers windows first. Pipelines are made again for another (Mesa's
@@ -216,43 +191,18 @@ pub fn prepare() {
     } else {
         return;
     };
-    let mut prepared = PREPARED.lock().unwrap_or_else(|e| e.into_inner());
-    if prepared.is_some() {
-        return;
-    }
-    let made = std::thread::Builder::new()
-        .name("quad-gpu".into())
-        .spawn(move || {
-            let instance = Instance::load(&[ash::khr::surface::NAME, surface_extension])?;
-            let (physical, family) = pick_device(&instance, None)?;
-            Gpu::new(physical, family, PREPARED_FORMAT, true)
-        });
-    if let Ok(handle) = made {
-        *prepared = Some((surface_extension, handle));
-    }
-}
-
-/// Waits for the device being made ahead, if one is, before the process
-/// exits (kernel.c calls this): an exit must not race a driver still
-/// loading, as NVIDIA's takes a lock as it loads that exiting takes too, and
-/// the two deadlock.
-#[unsafe(no_mangle)]
-pub extern "C" fn quad_gui_settle() {
-    let made = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take();
-    if let Some((_, handle)) = made {
-        // The process is ending: the device goes with it.
-        if let Ok(Ok(gpu)) = handle.join() {
-            std::mem::forget(gpu);
-        }
-    }
+    make_ahead(surface_extension, move || {
+        let instance = Instance::load(&[ash::khr::surface::NAME, surface_extension])?;
+        let (physical, family) = pick_device(&instance, None)?;
+        Gpu::new(physical, family, PREPARED_FORMAT, true)
+    });
 }
 
 /// The device made ahead, waited for, if it suits `window`: made for its
 /// kind of display, able to draw to it, and made to draw in its format (or
 /// made so again).
-fn take_prepared(surface_extension: &CStr, window: &Arc<Window>) -> Option<Gpu> {
-    let (made_for, made) = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take()?;
-    let mut gpu = made.join().ok()?.ok()?;
+fn take_prepared_for(surface_extension: &CStr, window: &Arc<Window>) -> Option<Gpu> {
+    let (made_for, mut gpu) = take_prepared()?;
     if made_for != surface_extension {
         return None;
     }

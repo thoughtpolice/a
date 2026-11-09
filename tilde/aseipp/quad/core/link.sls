@@ -16,7 +16,7 @@
 ;; ("open-url"), or shown.
 (library (quad link)
   (export define-link-finder! buffer-links link-at pointer-link pointer-hover!
-          follow-link! file-link-path can-open-urls? open-url-here!)
+          follow-link! file-link-path can-open-urls? open-url-here! link-faces-count)
   (import (chezscheme) (quad util) (quad text) (quad face) (quad buffer)
           (quad event) (quad editor) (quad display) (quad native))
 
@@ -93,11 +93,19 @@
         (string-append "file://" (if (string-prefix? "/" path) path (path-join dir path))))]))
 
   ;; Link faces, made once for each link and face under it, so that cells
-  ;; compare with eq?.
+  ;; compare with eq?. Every link ever drawn would stay (each prefix of
+  ;; one being typed, in a daemon that runs for weeks): past
+  ;; link-faces-limit links they all go, and are made again as they are
+  ;; drawn, which costs the cells under them a redraw.
   (define link-faces (make-hashtable string-hash string=?))
+  (define link-faces-limit 4096)
+  (define (link-faces-count) (hashtable-size link-faces))
   (define (link-face url base)
     (let ([inner (or (hashtable-ref link-faces url #f)
-                     (let ([h (make-eq-hashtable)]) (hashtable-set! link-faces url h) h))])
+                     (begin
+                       (when (>= (hashtable-size link-faces) link-faces-limit)
+                         (hashtable-clear! link-faces))
+                       (let ([h (make-eq-hashtable)]) (hashtable-set! link-faces url h) h)))])
       (or (hashtable-ref inner base #f)
           (let ([f (merge-faces base (make-face #f #f #f #f #f #f #f #f #f #f url))])
             (hashtable-set! inner base f)

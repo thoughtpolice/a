@@ -85,7 +85,9 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
         (buffer-read-only?-set! m #t)
         (set-messages-buffer! m))
       (setup)
-      (let ([opened (map open-file! files)])
+      ;; This process's own command line may name a pipe (quad <(git diff))
+      ;; for it to read.
+      (let ([opened (parameterize ([open-special-files? #t]) (map open-file! files))])
         (set-current-buffer!
        (if (pair? opened)
            (car opened)
@@ -139,13 +141,12 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
   ;;
   ;; A window goes on without the terminal it was started from, which gets
   ;; its prompt back once the window is open (unless --wait, as $EDITOR
-  ;; needs). It must fork before anything starts a thread (the window's,
-  ;; the device made ahead of it), so it forks before it knows a window will
-  ;; open: the child tries, and says over a pipe how it went -- "W", it
-  ;; opened; "T" and why not, so the parent goes on in the terminal; "E" and
-  ;; an error, which the parent reports. On macOS the child is a new quad
-  ;; with the same arguments instead (kernel.c), which gets here too and
-  ;; takes the forked child's part.
+  ;; needs). The child is a new quad with the same arguments (kernel.c),
+  ;; which gets here too and takes a forked child's part: it tries, and
+  ;; says over a pipe how it went -- "W", it opened; "T" and why not, so the
+  ;; parent goes on in the terminal; "E" and an error, which the parent
+  ;; reports. It is started before the parent knows a window will open,
+  ;; and before the parent starts any thread (the device made ahead).
 
   ;; In the detached child, the pipe to its parent.
   (define report-fd #f)
@@ -277,6 +278,10 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
   (define (local-editor-fd)
     (let ([path (default-socket-path)])
       (and (file-exists? path)
+           (or (socket-dir-safe? path)
+               (begin
+                 (fprintf (current-error-port) "quad: not connecting to ~a: its directory is not yours alone\n" path)
+                 #f))
            (let ([fd (kernel-unix-connect path)])
              (and (>= fd 0) fd)))))
 
@@ -288,7 +293,10 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
           (let-values ([(fd session editor) (mesh-connect-fd! target)])
             (set! sessions (cons session sessions))
             (values fd session)))
-        (let ([fd (kernel-unix-connect target)])
+        (let ([fd (begin
+                    (unless (socket-dir-safe? target)
+                      (errorf 'quad "not connecting to ~a: its directory is not yours alone" target))
+                    (kernel-unix-connect target))])
           (when (< fd 0) (errorf 'quad "no server is listening at ~a" target))
           (values fd #f))))
 
@@ -301,7 +309,7 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
         (send (list "eval" 1 expr))
         (let loop ()
           (let ([got (kernel-read-some fd -1)])
-            (if (not got)
+            (if (or (not got) (kernel-stop-requested?))
                 (begin (kernel-close fd) 1)
                 (let ([result (find (lambda (m) (equal? (car m) "result")) (reader got (bytevector-length got)))])
                   (if result

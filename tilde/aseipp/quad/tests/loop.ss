@@ -66,3 +66,17 @@
 
 (kernel-close fd)
 (server-unlisten! path)
+
+;; Waiting on more descriptors than an editor has ever had: the last of
+;; 301 is seen when it is the one readable.
+(let* ([path (path-join (test-temp-dir "loop-many") "many.sock")]
+       [listener (kernel-unix-listen path)]
+       [quiet (kernel-unix-connect path)]
+       [quiet-end (kernel-accept listener)]
+       [talking (kernel-unix-connect path)]
+       [talking-end (kernel-accept listener)])
+  (kernel-write talking (bytevector 1) 1)
+  (expect-equal "the 301st descriptor" (kernel-poll (append (make-list 300 quiet) (list talking-end)) 1000)
+                (list talking-end))
+  (for-each kernel-close (list quiet quiet-end talking talking-end listener))
+  (delete-file path))

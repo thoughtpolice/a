@@ -32,7 +32,6 @@ mod color;
 mod font;
 mod gui;
 mod image;
-#[cfg(target_os = "macos")]
 mod main_thread;
 mod mesh;
 mod render;
@@ -312,6 +311,27 @@ fn mesh_connect(target: String, local: bool) -> Result<Object<mesh::Session>, St
     mesh::connect(&target, local).map(Object)
 }
 
+/// Starts connecting to the editor `target` names, in the background:
+/// mesh-pending-take! has the connection once mesh-pending-fd is readable.
+#[chez::procedure(name = "mesh-connect-start")]
+fn mesh_connect_start(target: String, local: bool) -> Result<Object<mesh::Pending>, String> {
+    mesh::connect_start(&target, local)
+        .map(Object)
+        .map_err(|e| e.to_string())
+}
+
+/// Readable once a connection being made is done.
+#[chez::procedure]
+fn mesh_pending_fd(p: Ref<mesh::Pending>) -> i32 {
+    p.ready.fd()
+}
+
+/// The connection, once done (#f before); an error if it failed.
+#[chez::procedure(name = "mesh-pending-take!")]
+fn mesh_pending_take(p: Ref<mesh::Pending>) -> Result<Option<Object<mesh::Session>>, String> {
+    p.take().transpose().map(|s| s.map(Object))
+}
+
 /// The descriptor of a connection's stream, to speak the protocol on.
 #[chez::procedure]
 fn mesh_session_fd(s: Ref<mesh::Session>) -> i32 {
@@ -577,7 +597,8 @@ chez::library! {
         spawn_process, launch_process, process_input_fd, process_output_fd,
         process_close_input, process_status, process_stop,
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
-        mesh_target_kind, mesh_connect, mesh_session_fd, mesh_session_editor,
+        mesh_target_kind, mesh_connect, mesh_connect_start, mesh_pending_fd, mesh_pending_take,
+        mesh_session_fd, mesh_session_editor,
         voice_link, voice_join, voice_leave, voice_local, voice_events_fd, voice_talking,
         gui_prepare, gui_display, gui_open, gui_fd, gui_take, gui_frame, gui_paint, gui_image, gui_set_title, gui_close,
         gui_headless, gui_headless_info, gui_headless_draw, gui_headless_image,

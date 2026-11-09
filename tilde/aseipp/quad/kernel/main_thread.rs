@@ -1,16 +1,18 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! The process's main thread, on macOS: AppKit's, which every window must
-//! run on. There kernel.c gives the main thread to
-//! [`quad_main_thread_run`], which starts Scheme on a thread of its own and
-//! then runs what is sent to the main thread ([`run`]): the windows' event
-//! loop, once the first window opens (gui/windows.rs). When Scheme is done,
-//! the process exits from the main thread too: through the windows' event
-//! loop, where that has it.
+//! The process's main thread: the windows', where they draw and take their
+//! events, as AppKit has it on macOS (every window must run there) and
+//! quad has it everywhere, so that both run alike. kernel.c gives the main
+//! thread to [`quad_main_thread_run`], which starts Scheme on a thread of
+//! its own and then runs what is sent to the main thread ([`run`]): the
+//! windows' event loop, once the first window opens (gui/windows.rs). When
+//! Scheme is done, the process exits from the main thread too: through the
+//! windows' event loop, where that has it.
 //!
-//! Elsewhere the main thread is Scheme's, and windows have a thread of
-//! their own.
+//! A process that has a window to open is therefore never a fork, which
+//! would have only Scheme's thread: kernel.c's quad_fork_detached starts a
+//! new quad instead.
 
 use std::ffi::c_int;
 use std::sync::{Mutex, mpsc};
@@ -32,7 +34,7 @@ pub fn run(job: impl FnOnce() + Send + 'static) -> Result<(), String> {
         .map_err(|_| "the main thread stopped".to_string())
 }
 
-/// kernel.c's `main`, on macOS: runs `scheme` (kernel.c's Scheme, which
+/// kernel.c's `main`: runs `scheme` (kernel.c's Scheme, which
 /// returns its exit status) on a thread with a stack of `stack` bytes, then
 /// what is sent to the main thread, until the process exits with Scheme's
 /// status.

@@ -37,7 +37,7 @@
 (define (wait! ms) (sleep (make-time 'time-duration (* ms 1000000) 0)))
 
 (write-tone! (in-dir "host-in.raw") 440 4)
-(write-tone! (getenv "QUAD_VOICE_INPUT") 660 4)
+(write-tone! (getenv "QUAD_VOICE_INPUT") 660 8)
 
 ;; Attach over iroh, as a client that can do voice.
 (define-values (fd session editor) (mesh-connect-fd! (getenv "QUAD_TICKET")))
@@ -84,6 +84,17 @@
   (check "this client hears 440 Hz" (> (power-at here 440 1) (* 20 (+ 1 (power-at here 660 1)))))
   (check "the editor hears 660 Hz" (> (power-at there 660 1) (* 20 (+ 1 (power-at there 440 1)))))
   (check "loud enough" (> (power-at here 440 1) 1e6)))
+
+;; Muted and speaking again, this client is still heard: what it says goes
+;; on from where it was, not from the start.
+(eval-there! 7 "(voice-mute!)")
+(pump! 300)
+(eval-there! 8 "(voice-mute!)")
+(pump! 1500)
+(let* ([there (in-dir "host-out.raw")]
+       [last (- (quotient (file-length (open-file-input-port there)) 96000) 1)])
+  (check "the editor hears this client after a mute"
+         (> (power-at there 660 last) (* 20 (+ 1 (power-at there 440 last))))))
 
 ;; Leaving: the editor says so, and this client's sound stops.
 (eval-there! 5 "(voice-toggle!)")
