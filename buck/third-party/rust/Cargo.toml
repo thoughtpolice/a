@@ -251,21 +251,24 @@ uuid = { version = "1.29.1", features = ["v4"] }
 # NOTE (x509-parser): never `verify` or `verify-aws`, which bring in ring and
 # aws-lc-rs; verify signatures with BoringSSL (the `openssl` crate) instead.
 x509-parser = "0.18.1"
-wasm-encoder = { version = "0.259.0", features = ["wasmparser"] }
-wasm-smith = { version = "0.259.0", features = ["wasmparser"] }
-wasmparser = "0.259.0"
+wasm-encoder = { version = "0.262.0", features = ["wasmparser"] }
+wasm-smith = { version = "0.262.0", features = ["wasmparser"] }
+wasmparser = "0.262.0"
 wait4 = "0.2.0"
-wasmprinter = "0.259.0"
-wat = "1.259.0"
+wasmprinter = "0.262.0"
+# wat is versioned 1.x, so "1.262.0" would let it (and wast) move ahead of the
+# rest of wasm-tools and pull in a second wasm-encoder and wasmparser.
+wat = "~1.262.0"
 watchman_client = "0.9.0"
 # NOTE (wit-bindgen): the generators behind wit-bindgen's CLI, which `witgen c`
-# and `witgen rust` run in the build graph. 0.62 is the release on this
-# wasm-tools (wit-parser 0.259); move them together.
-wit-bindgen-c = { version = "0.62.0", features = ["clap"] }
-wit-bindgen-core = "0.62.0"
-wit-bindgen-rust = { version = "0.62.0", features = ["clap"] }
-wit-component = "0.259.0"
-wit-parser = "0.259.0"
+# and `witgen rust` run in the build graph. 0.63 is the release on this
+# wasm-tools (wit-parser 0.262); move them together, and leave wasm-tools at
+# the wit-parser wit-bindgen asks for even when a newer one is out.
+wit-bindgen-c = { version = "0.63.0", features = ["clap"] }
+wit-bindgen-core = "0.63.0"
+wit-bindgen-rust = { version = "0.63.0", features = ["clap"] }
+wit-component = "0.262.0"
+wit-parser = "0.262.0"
 zeroize = "1.9.1"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 # NOTE (zstd): 0.14.3 / zstd-safe 8.2 carry the fixes for RUSTSEC-2026-0391
