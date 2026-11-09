@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! The GUI's window: winit's, on Wayland or X11, drawn with Vulkan.
+//! The GUI's window: winit's, on Wayland or X11 drawn with Vulkan, and on
+//! macOS drawn with Metal 4.
 //!
 //! The GUI is a client of the editor like the terminal is (core/gui.sls):
 //! the server draws its frames as cells, and this draws the cells. A
 //! window runs on a thread of its own, with its event loop; Scheme sends it
 //! frames to paint ([`Gui::paint`]) and takes what happens to it -- keys,
 //! the mouse, a new size, closing -- from a [`Mailbox`], as [`Event`]s in
-//! the shape of the client protocol's messages.
+//! the shape of the client protocol's messages. On macOS that thread is
+//! the process's main thread, AppKit's, and Scheme has one of its own
+//! (main_thread.rs).
 //!
 //! Nothing here links against Vulkan: ash loads the host's
 //! `libvulkan.so.1` when a window opens ([`ash::Entry::load`]), winit
@@ -16,15 +19,14 @@
 //! so an editor that never opens a window never needs them. They are the
 //! host's, and the host's driver loads into this process, so the
 //! executable must run on the host's C library (`:quad` does: `host` on
-//! chez.standalone).
+//! chez.standalone). macOS's frameworks are the system's, linked as usual.
 //!
-//! The renderer is Vulkan 1.3 with no render passes, descriptor sets or
-//! vertex buffers: dynamic rendering, and three pipelines (kernel/gui.slang)
-//! whose push constants point at a frame's data by buffer device address.
-//! A frame is the cells' backgrounds and the cursor, as rectangles Scheme
-//! makes; then images; then their text, as glyphs font/ lays out and Slug
-//! draws from their curves; then underlines. A window keeps its screen
-//! (screen.rs): Scheme sends only the rows that changed.
+//! The renderer has no render passes, descriptor sets or vertex buffers:
+//! three pipelines (kernel/gui.slang) are given a frame's data by address
+//! (render/). A frame is the cells' backgrounds and the cursor, as
+//! rectangles Scheme makes; then images; then their text, as glyphs font/
+//! lays out and Slug draws from their curves; then underlines. A window
+//! keeps its screen (screen.rs): Scheme sends only the rows that changed.
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -38,8 +40,11 @@ use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, Ime, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
+#[cfg(target_os = "linux")]
 use winit::platform::wayland::{EventLoopBuilderExtWayland, WindowAttributesExtWayland};
+#[cfg(target_os = "linux")]
 use winit::platform::x11::EventLoopBuilderExtX11;
+#[cfg(target_os = "linux")]
 use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::{CursorIcon, Window, WindowId};
 
@@ -53,6 +58,8 @@ use crate::screen::{Screen, Update};
 use crate::timing;
 
 mod input;
+#[cfg(target_os = "macos")]
+mod macos;
 mod snapshots;
 mod window;
 mod windows;
@@ -61,6 +68,51 @@ use input::*;
 pub use snapshots::Snapshots;
 use window::*;
 use windows::*;
+
+/// Whether a window could open here: a display to show it on. On Linux, a
+/// Wayland or X11 display, as the environment names them; on macOS, the
+/// window server, which a login session at the Mac reaches and one over ssh
+/// does not. `QUAD_NO_DISPLAY=1` says there is none, wherever there is.
+pub fn display_available() -> bool {
+    if told_no_display() {
+        return false;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        ["WAYLAND_DISPLAY", "DISPLAY"]
+            .iter()
+            .any(|v| std::env::var_os(v).is_some_and(|s| !s.is_empty()))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        macos::window_server()
+    }
+}
+
+/// Whether this process is told it has no display (`QUAD_NO_DISPLAY=1`).
+fn told_no_display() -> bool {
+    std::env::var_os("QUAD_NO_DISPLAY").is_some_and(|v| v == "1")
+}
+
+/// Whether no window can open here, known before trying: on macOS, where
+/// AppKit cannot reach a window server without a session with it; and
+/// wherever this process is told so. On Linux winit finds out otherwise
+/// (a Wayland display passed as WAYLAND_SOCKET, say).
+fn no_display() -> bool {
+    if cfg!(target_os = "macos") {
+        !display_available()
+    } else {
+        told_no_display()
+    }
+}
+
+/// Ends the process with `status` from the windows' event loop, where it
+/// runs on the main thread (macOS: see main_thread.rs): false where no
+/// window has opened, and the event loop does not run.
+#[cfg(target_os = "macos")]
+pub(crate) fn exit_from_windows(status: i32) -> bool {
+    started().is_some_and(|system| system.send(Request::Exit(status)).is_ok())
+}
 
 /// What happens to a window, for Scheme: each is a list, as the client
 /// protocol's messages are (core/protocol.sls), which core/gui.sls turns
@@ -179,6 +231,13 @@ enum Request {
         key: u64,
         done: Option<mpsc::Sender<()>>,
     },
+    /// Close every window, as its close button would: the menu's Quit.
+    #[cfg(target_os = "macos")]
+    CloseAll,
+    /// End the process with this status, from the main thread: Scheme is
+    /// done (main_thread.rs).
+    #[cfg(target_os = "macos")]
+    Exit(i32),
 }
 
 impl From<accesskit_winit::Event> for Request {
@@ -191,8 +250,11 @@ impl From<accesskit_winit::Event> for Request {
 pub struct Gui {
     key: u64,
     pub events: Mailbox<Event>,
-    /// Whether the window has the system's clipboard (Wayland's).
+    /// Whether the window has the system's clipboard (Wayland's, or
+    /// macOS's pasteboard).
     pub has_clipboard: bool,
+    /// Whether it has a primary selection too (Wayland's).
+    pub has_primary: bool,
     closed: bool,
 }
 
@@ -229,6 +291,7 @@ impl Gui {
             key,
             events,
             has_clipboard: system.has_clipboard,
+            has_primary: system.has_primary,
             closed: false,
         })
     }
@@ -301,8 +364,12 @@ impl Drop for Gui {
 }
 
 /// The dynamic linker this process runs on, if it is a Nix store's: a
-/// process on it cannot load the host's libraries.
+/// process on it cannot load the host's libraries. (On macOS, the
+/// toolchain's C library is the system's.)
 fn toolchain_linked() -> Option<String> {
+    if cfg!(not(target_os = "linux")) {
+        return None;
+    }
     let maps = std::fs::read_to_string("/proc/self/maps").ok()?;
     maps.lines()
         .filter_map(|line| line.split_whitespace().nth(5))

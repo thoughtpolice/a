@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Standalone quad executables with Scheme code compiled in, and the GUI's
-shaders.
+shaders: SPIR-V for Vulkan (Linux), Metal source for Metal (macOS).
 
 quad is a kernel with boot files appended to it (kernel/kernel.c, and
 embed.sls in the Chez toolchain). `quad --build-exe OUT FILE...` writes a copy of itself
@@ -25,6 +25,27 @@ def quad_executable(name: str, srcs: list[str], quad: str = "depot-tilde//aseipp
         cmd = "$(exe {}) --build-exe $OUT {}".format(quad, " ".join(srcs)),
         executable = True,
         **kwargs
+    )
+
+def slang_metal(name: str, src: str, entries: list[(str, str)]):
+    """`:<name>`, Metal Shading Language source of the entry points
+    `entries` (each a name and its stage) of the Slang source `src`: one
+    library, which Metal compiles when a program makes it (there is no
+    Metal compiler at build time)."""
+    shims.genrule(
+        name = name,
+        srcs = [src],
+        out = name,
+        cmd = " ".join([
+            "$(exe third-party//by-name/sl/slang:slangc)",
+            "$SRCDIR/" + src,
+            "-target metal",
+        ] + [
+            "-entry {} -stage {}".format(entry, stage)
+            for entry, stage in entries
+        ] + [
+            "-o $OUT",
+        ]),
     )
 
 def slang_shader(name: str, src: str, entry: str, stage: str):

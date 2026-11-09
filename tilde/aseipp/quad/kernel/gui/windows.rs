@@ -9,10 +9,11 @@ use super::*;
 
 /// The thread every window of this process runs on: started for the first
 /// one, it runs for as long as the process does, since winit allows a
-/// process one event loop.
+/// process one event loop. On macOS it is the main thread (main_thread.rs).
 pub(super) struct System {
     pub(super) proxy: Mutex<EventLoopProxy<Request>>,
     pub(super) has_clipboard: bool,
+    pub(super) has_primary: bool,
 }
 
 impl System {
@@ -25,19 +26,20 @@ impl System {
     }
 }
 
+static SYSTEM: OnceLock<Result<System, String>> = OnceLock::new();
+
 /// The windows' thread, started if it is not yet; where it cannot start
 /// (no display), it never will.
 pub(super) fn system() -> Result<&'static System, String> {
-    static SYSTEM: OnceLock<Result<System, String>> = OnceLock::new();
     SYSTEM
         .get_or_init(|| {
+            if no_display() {
+                return Err("there is no display to open a window on".into());
+            }
             // The device, while the event loop and the window are made.
             crate::render::prepare();
             let (ready, started) = mpsc::channel();
-            std::thread::Builder::new()
-                .name("quad-gui".into())
-                .spawn(move || run(ready))
-                .map_err(|e| e.to_string())?;
+            start(ready)?;
             started
                 .recv()
                 .unwrap_or_else(|_| Err("the windows' thread stopped".into()))
@@ -46,15 +48,46 @@ pub(super) fn system() -> Result<&'static System, String> {
         .map_err(Clone::clone)
 }
 
+/// The windows' thread, if it has started.
+#[cfg(target_os = "macos")]
+pub(super) fn started() -> Option<&'static System> {
+    SYSTEM.get()?.as_ref().ok()
+}
+
+/// Runs the event loop on a thread of its own: Scheme has the main thread.
+#[cfg(not(target_os = "macos"))]
+fn start(ready: mpsc::Sender<Result<System, String>>) -> Result<(), String> {
+    std::thread::Builder::new()
+        .name("quad-gui".into())
+        .spawn(move || run(ready))
+        .map(drop)
+        .map_err(|e| e.to_string())
+}
+
+/// Runs the event loop on the main thread, AppKit's, as a window must.
+#[cfg(target_os = "macos")]
+fn start(ready: mpsc::Sender<Result<System, String>>) -> Result<(), String> {
+    crate::main_thread::run(move || run(ready))
+}
+
 pub(super) fn run(ready: mpsc::Sender<Result<System, String>>) {
     let mut builder = EventLoop::<Request>::with_user_event();
-    // Scheme has the main thread; this one is the windows'.
-    EventLoopBuilderExtWayland::with_any_thread(&mut builder, true);
-    EventLoopBuilderExtX11::with_any_thread(&mut builder, true);
-    if std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1") {
-        builder.with_x11();
-    } else if std::env::var_os("WAYLAND_DISPLAY").is_some() {
-        builder.with_wayland();
+    #[cfg(target_os = "linux")]
+    {
+        // Scheme has the main thread; this one is the windows'.
+        EventLoopBuilderExtWayland::with_any_thread(&mut builder, true);
+        EventLoopBuilderExtX11::with_any_thread(&mut builder, true);
+        if std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1") {
+            builder.with_x11();
+        } else if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            builder.with_wayland();
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // The menu is ours (macos.rs): winit's quits the process at once.
+        use winit::platform::macos::EventLoopBuilderExtMacOS;
+        builder.with_default_menu(false);
     }
     let event_loop = match builder.build() {
         Ok(event_loop) => event_loop,
@@ -63,18 +96,11 @@ pub(super) fn run(ready: mpsc::Sender<Result<System, String>>) {
             return;
         }
     };
-    // The clipboard is the display's: on Wayland, through its connection.
-    let clipboard = match event_loop.display_handle().map(|d| d.as_raw()) {
-        // SAFETY: the display outlives the clipboard, which `windows` holds
-        // and drops before the event loop.
-        Ok(RawDisplayHandle::Wayland(d)) => {
-            Some(unsafe { smithay_clipboard::Clipboard::new(d.display.as_ptr()) })
-        }
-        _ => None,
-    };
+    let clipboard = Clipboard::new(&event_loop);
     let _ = ready.send(Ok(System {
         proxy: Mutex::new(event_loop.create_proxy()),
-        has_clipboard: clipboard.is_some(),
+        has_clipboard: clipboard.has_clipboard(),
+        has_primary: clipboard.has_primary(),
     }));
     let mut windows = Windows {
         proxy: event_loop.create_proxy(),
@@ -82,9 +108,63 @@ pub(super) fn run(ready: mpsc::Sender<Result<System, String>>) {
         ids: HashMap::new(),
         gpu: None,
         clipboard,
+        #[cfg(target_os = "macos")]
+        menu: None,
     };
     let _ = event_loop.run_app(&mut windows);
 }
+
+/// The display's clipboard and primary selection: Wayland's, through its
+/// connection.
+#[cfg(target_os = "linux")]
+pub(super) struct Clipboard(Option<smithay_clipboard::Clipboard>);
+
+#[cfg(target_os = "linux")]
+impl Clipboard {
+    fn new(event_loop: &EventLoop<Request>) -> Clipboard {
+        Clipboard(match event_loop.display_handle().map(|d| d.as_raw()) {
+            // SAFETY: the display outlives the clipboard, which `windows`
+            // holds and drops before the event loop.
+            Ok(RawDisplayHandle::Wayland(d)) => {
+                Some(unsafe { smithay_clipboard::Clipboard::new(d.display.as_ptr()) })
+            }
+            _ => None,
+        })
+    }
+
+    fn has_clipboard(&self) -> bool {
+        self.0.is_some()
+    }
+
+    fn has_primary(&self) -> bool {
+        self.0.is_some()
+    }
+
+    /// Puts text on the clipboard ("c") or the primary selection ("p").
+    fn store(&self, target: &str, text: String) {
+        if let Some(clipboard) = &self.0 {
+            if target == "p" {
+                clipboard.store_primary(text);
+            } else {
+                clipboard.store(text);
+            }
+        }
+    }
+
+    /// What is on the clipboard ("c") or the primary selection ("p").
+    fn load(&self, target: &str) -> Option<String> {
+        let clipboard = self.0.as_ref()?;
+        if target == "p" {
+            clipboard.load_primary()
+        } else {
+            clipboard.load()
+        }
+        .ok()
+    }
+}
+
+#[cfg(target_os = "macos")]
+use super::macos::Clipboard;
 
 // Fields drop in order: the windows (and their renderers) before the device
 // they share, and the clipboard before the display.
@@ -94,7 +174,10 @@ pub(super) struct Windows {
     pub(super) open: HashMap<u64, Win>,
     pub(super) ids: HashMap<WindowId, u64>,
     pub(super) gpu: Option<Rc<Gpu>>,
-    pub(super) clipboard: Option<smithay_clipboard::Clipboard>,
+    pub(super) clipboard: Clipboard,
+    /// The application's menu, once it has launched.
+    #[cfg(target_os = "macos")]
+    pub(super) menu: Option<super::macos::Menu>,
 }
 
 impl Windows {
@@ -109,20 +192,21 @@ impl Windows {
     ) -> Result<(), String> {
         // At a scale of 1 until the window says what it has: its cells are
         // logical pixels.
-        let fonts = Fonts::new(&font, 1.0)?;
+        let fonts = Fonts::new(&font, font_scale(1.0))?;
         let [w, h] = fonts.metrics.cell;
         let pad = 2.0 * f64::from(fonts.metrics.padding);
         // Shown once AccessKit's adapter is made, as it must be.
         let attributes = Window::default_attributes()
             .with_visible(false)
-            // The app id (Wayland) and class (X11): what launchers and the
-            // compositor match to dist/quad.desktop.
-            .with_name("quad", "quad")
             .with_title(title.clone())
             .with_inner_size(LogicalSize::new(
                 f64::from(size.0) * f64::from(w) + pad,
                 f64::from(size.1) * f64::from(h) + pad,
             ));
+        // The app id (Wayland) and class (X11): what launchers and the
+        // compositor match to dist/quad.desktop.
+        #[cfg(target_os = "linux")]
+        let attributes = attributes.with_name("quad", "quad");
         let window = Arc::new(
             event_loop
                 .create_window(attributes)
@@ -171,8 +255,14 @@ impl Windows {
 }
 
 impl ApplicationHandler<Request> for Windows {
-    // Windows open when Scheme asks.
-    fn resumed(&mut self, _: &ActiveEventLoop) {}
+    // Windows open when Scheme asks. On macOS, the application has launched
+    // by now, and has a menu bar to put the menu in.
+    fn resumed(&mut self, _: &ActiveEventLoop) {
+        #[cfg(target_os = "macos")]
+        if self.menu.is_none() {
+            self.menu = super::macos::Menu::install(self.proxy.clone());
+        }
+    }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, request: Request) {
         match request {
@@ -216,29 +306,10 @@ impl ApplicationHandler<Request> for Windows {
                         .set_cursor(shape.parse::<CursorIcon>().unwrap_or_default());
                 }
             }
-            Request::ClipboardSet { target, text } => {
-                if let Some(clipboard) = &self.clipboard {
-                    if target == "p" {
-                        clipboard.store_primary(text);
-                    } else {
-                        clipboard.store(text);
-                    }
-                }
-            }
+            Request::ClipboardSet { target, text } => self.clipboard.store(&target, text),
             Request::ClipboardGet { key, target } => {
                 // Nothing on it (or no clipboard) reads as empty.
-                let text = self
-                    .clipboard
-                    .as_ref()
-                    .and_then(|c| {
-                        if target == "p" {
-                            c.load_primary()
-                        } else {
-                            c.load()
-                        }
-                        .ok()
-                    })
-                    .unwrap_or_default();
+                let text = self.clipboard.load(&target).unwrap_or_default();
                 if let Some(win) = self.open.get(&key) {
                     win.send(Event::Clipboard { target, text });
                 }
@@ -259,6 +330,17 @@ impl ApplicationHandler<Request> for Windows {
                     let _ = done.send(());
                 }
             }
+            #[cfg(target_os = "macos")]
+            Request::CloseAll => {
+                let keys: Vec<u64> = self.open.keys().copied().collect();
+                for key in keys {
+                    if let Some(events) = self.close(key) {
+                        let _ = events.send(Event::Closed);
+                    }
+                }
+            }
+            #[cfg(target_os = "macos")]
+            Request::Exit(status) => std::process::exit(status),
         }
     }
 

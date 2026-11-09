@@ -6,9 +6,10 @@
 
 use super::*;
 
-/// Shift, as (quad event) has it; the other modifiers are alt (2), ctrl
+/// Shift and alt, as (quad event) has them; the other modifiers are ctrl
 /// (4) and super (8).
 pub(super) const SHIFT: u32 = 1;
+pub(super) const ALT: u32 = 2;
 
 /// Text an input method is composing, drawn over the cells from `cursor`
 /// on as a terminal would show it: underlined, in `foreground` on

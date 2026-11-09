@@ -126,7 +126,11 @@ another editor (`core/relay.sls`) leaves voice in this one first, as its
 speech would otherwise go to both. Sound goes through the desktop's
 sound server with PulseAudio's simple API (`libpulse-simple.so.0`, which
 PipeWire serves), loaded when voice starts, as Vulkan is when a window
-opens; each stream shows in the desktop's mixer as quad's.
+opens; each stream shows in the desktop's mixer as quad's. On macOS it
+goes through Core Audio's audio queues instead (`kernel/voice/coreaudio.rs`),
+to the default input and output, which convert to and from the devices'
+own rates; the first time, macOS asks whether the terminal quad was
+started from may use the microphone, which records silence until it may.
 `QUAD_VOICE_INPUT` and `QUAD_VOICE_OUTPUT` name files of raw samples to
 use instead, for tests. There is no echo cancellation yet: use headphones,
 or mute.
@@ -197,14 +201,16 @@ encodings.
 
 ## A graphical client
 
-quad edits in a window where there is a display (Wayland or X11) and one
-can open, and in its terminal otherwise (`--gui` and `--tui` insist on
-one or the other; why no window opened goes in `*Messages*`). A window
-goes on without the terminal it was started from, which gets its prompt
-back once the window is open: quad forks before anything starts a thread,
-the child (in a session of its own, its standard streams on `/dev/null`)
-opens the window and tells the parent over a pipe whether it did, and a
-parent whose child had no window goes on in the terminal itself.
+quad edits in a window where there is a display (Wayland or X11, or
+macOS's window server) and one can open, and in its terminal otherwise
+(`--gui` and `--tui` insist on one or the other; why no window opened goes
+in `*Messages*`). A window goes on without the terminal it was started
+from, which gets its prompt back once the window is open: quad forks
+before anything starts a thread (on macOS it starts a new quad instead:
+see below), the child (in a session of its own, its standard streams on
+`/dev/null`) opens the window and tells the parent over a pipe whether it
+did, and a parent whose child had no window goes on in the terminal
+itself.
 `--wait` keeps the terminal until the window closes, as `$EDITOR` needs.
 The window
 attaches in the editor's process (`core/gui.sls`), as the terminal does,
@@ -216,7 +222,8 @@ a flush sends it only the rows that changed, and scrolls move the rest,
 so a frame costs about what changed; where the driver can
 (`VK_KHR_incremental_present`), the compositor is told which rows those
 were, and redraws only them. The window is the Rust half's (`kernel/gui/`): winit's, on
-Wayland or X11, drawn with Vulkan 1.3 through ash. Vulkan is called in
+Wayland or X11, drawn with Vulkan 1.3 through ash (on macOS, AppKit's,
+drawn with Metal 4: see below). Vulkan is called in
 one module alone (`kernel/render/vulkan.rs`): its types own Vulkan's
 objects, each holding what it was made from (instance, device, surface,
 window) so none outlives it, and destroying itself when dropped; mapped
@@ -235,10 +242,10 @@ too), and glyphs.
 Text is drawn from the fonts' outlines on the GPU, at any size, with no
 rasterized atlas: Eric Lengyel's Slug algorithm, whose reference shader
 `kernel/gui.slang` ports. `kernel/font/` finds fonts with fontique
-(fontconfig; `gui-font-family`, by default the built-in JetBrains Mono,
-else the system's monospace font, at `gui-font-size` points, with
-`gui-font-features`), with fallbacks for what it lacks
-(`gui-font-fallbacks`, then fontconfig's for each script),
+(fontconfig, or CoreText on macOS; `gui-font-family`, by default the
+built-in JetBrains Mono, else the system's monospace font, at
+`gui-font-size` points, with `gui-font-features`), with fallbacks for what
+it lacks (`gui-font-fallbacks`, then the system's for each script),
 and makes up the styles a family lacks as fontique suggests (a variable
 font's weight axis, else outlines emboldened or slanted, as FreeType's
 synthetic styles are); takes emoji (those asked for with U+FE0F, and those
@@ -255,7 +262,7 @@ does by default on Linux ("linear-corrected"): in linear light, with its
 coverage corrected so that glyphs keep the weight they have when blended
 gamma-encoded, as most terminals blend. The grid sits 2 points in from
 the window's edges, ghostty's padding, and text is 12 points, its size on
-Linux.
+Linux (13 on macOS, below).
 
 Nothing links against Vulkan or the window system: `libvulkan.so.1`,
 `libwayland-client` and `libX11` are loaded when a window opens. They
@@ -299,10 +306,11 @@ The same renderer draws into images with no window (`gui-headless`,
 `draw-frame-image`): `tests/gui-render.ss` draws an editor's frames so and
 checks them against its cells -- backgrounds exactly, ink where there is
 text, box drawing reaching its cells' edges. `:test-gui-render` runs it on
-Mesa's lavapipe, a software renderer, where it is installed, and skips
-where nothing can draw. `tests/golden.ss` (`:test-golden`) draws scenes
-(code, a picker, every text style) with the built-in font alone on
-lavapipe and compares them with the images in `tests/golden`, within a
+Mesa's lavapipe, a software renderer, where it is installed, else on any
+device (Metal's, on macOS), and skips where nothing can draw.
+`tests/golden.ss` (`:test-golden`) draws scenes (code, a picker, every
+text style) with the built-in font alone on lavapipe, or on macOS with
+Metal, and compares them with the images in `tests/golden`, within a
 tolerance for antialiasing; how to draw those again, after a change meant
 to change them, is at the top of it. The Rust half's tests check
 properties over generated cases too (hegel): rows moved and changed as a
@@ -330,3 +338,58 @@ graphemes (mode 2027, which the terminal client asks for) count them; the
 editor moves over and deletes clusters whole. The server marks the right
 half of each wide character with an empty cell, so a client never has to
 measure text itself.
+
+### On macOS
+
+AppKit runs a process's windows on its main thread alone. So on macOS the
+kernel (`kernel/kernel.c`) runs Scheme on a thread of its own, with a main
+thread's stack and the signals the terminal sends (the main thread blocks
+them), and gives the main thread to the Rust half (`kernel/main_thread.rs`),
+which runs the windows' event loop there once the first window opens, and
+ends the process from there once Scheme is done: so winit's event loop
+runs as on Linux, on its own thread, which is the main one. Detaching
+cannot fork, as macOS's frameworks refuse to run in the child of a process
+that had threads, as every quad there does: the child is a new quad, with
+the same arguments, told the pipe to its parent in `QUAD_DETACHED_FD`,
+which takes the forked child's part as it gets to where the parent forked.
+An app that Finder, the Dock or `open` started (`quad.app`) has launchd
+for its parent: it has no terminal to detach from, so its window stays in
+its own process, and, as macOS starts every app in `/`, it starts in the
+home directory instead.
+
+Windows are drawn with Metal 4 (macOS 26, on Apple silicon). Metal is
+called in one module alone (`kernel/render/metal.rs`), as Vulkan is, on
+the same terms: its types own Metal's objects, each holding the device it
+was made on, and a layer its window; and since Metal 4, as Vulkan, keeps
+nothing a command uses alive or resident and orders one pass after another
+only when asked, every buffer and image is in the device's residency set
+while it lives, a window's drawables are in its layer's, and a frame's
+copy waits for its drawing with a barrier. The same Slang source compiles
+to Metal's shading language (`slangc -target metal`), all six entry points
+in one library that Metal compiles when the device is made (ahead, as
+Vulkan's is), in IEEE arithmetic rather than Metal's fast math, as Slug's
+root finding meets infinities; Metal's clip space runs bottom to top, which
+the shader turns over (`clipY`). The pipelines find their `Params` in
+buffer 0 of an argument table, each draw binding its own. A window draws
+into a `CAMetalLayer` its view hosts, in BGRA8 sRGB, and the layer says
+its colors are sRGB's, which macOS matches to the display's, as it does a
+terminal's. Metal presents whole drawables, so the compositor is not told
+which rows changed. Headless frames draw on the Mac's GPU, and come out
+within a level or two of lavapipe's.
+
+A window opens in about 80 ms (an M4 Pro), and shows its first frame at
+90: the device and its shaders are ready in under 20 ms, compiled from
+Metal's shader cache, and the fonts (CoreText) take most of the rest. The
+clipboard is the general pasteboard, and there is no primary selection.
+Option types the characters the keyboard's layout gives it, as macOS
+terminals take it, and is alt with keys it changes nothing of. A point is a
+logical pixel on macOS, where Linux takes 96 to the inch, so fonts lay out
+at three quarters of the scale they would there, and text is 13 points,
+ghostty's size on macOS. winit's menu would end the process at once, and so
+would AppKit's answer to a quit asked by Apple event (the Dock's Quit,
+logging out): quad's own menu (`kernel/gui/macos.rs`) and answer close
+every window instead, as their close buttons do. AccessKit's macOS adapter
+gives VoiceOver the same tree AT-SPI gets. A window can open where the
+process shares a login session with the window server
+(`CGSessionCopyCurrentDictionary`), which one started over ssh does not;
+`QUAD_NO_DISPLAY=1` says there is no display, on macOS or Linux.

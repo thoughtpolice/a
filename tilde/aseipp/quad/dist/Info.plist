@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: © 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- quad as a macOS app (BUILD: :quad.app), as Finder, the Dock and
+     LaunchServices read it. Its version is quad-version's (core/main.sls);
+     its icon is dist/quad.svg (BUILD: :quad.icns). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>quad</string>
+  <key>CFBundleExecutable</key>
+  <string>quad</string>
+  <key>CFBundleIconFile</key>
+  <string>quad</string>
+  <key>CFBundleIdentifier</key>
+  <string>io.github.thoughtpolice.quad</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>quad</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleVersion</key>
+  <string>0.1.0</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.developer-tools</string>
+  <!-- Windows draw with Metal 4. -->
+  <key>LSMinimumSystemVersion</key>
+  <string>26.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <!-- Asked the first time voice opens the microphone. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>So that the people editing with you hear you, while you are in voice and not muted.</string>
+</dict>
+</plist>

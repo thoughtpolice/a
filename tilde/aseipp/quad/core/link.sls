@@ -214,12 +214,14 @@
   ;; Opening URLs, in a client
 
   ;; Whether this process can open a URL for its user: it runs in their
-  ;; desktop session, where xdg-open hands it to the browser, say.
-  (define (can-open-urls?) (and (getenv "WAYLAND_DISPLAY") #t))
+  ;; desktop session, where xdg-open (macOS's open, in a session with the
+  ;; window server) hands it to the browser, say.
+  (define (can-open-urls?)
+    (if macos? (gui-display?) (and (getenv "WAYLAND_DISPLAY") #t)))
 
   (define (open-url-here! url)
     (when (can-open-urls?)
-      (guard (e [#t (void)]) (launch-process (list "xdg-open" url)))))
+      (guard (e [#t (void)]) (launch-process (list (if macos? "open" "xdg-open") url)))))
 
   ;; Every buffer's links are drawn with their faces.
   (at-load

@@ -152,8 +152,10 @@
 
 ;; ---------------------------------------------------------------------------
 ;; Fonts: the editor tells windows theirs, as zoomed and as the variables
-;; change.
+;; change. Their size is ghostty's: 12 points, or 13 on macOS.
 
+(expect-equal "the size is ghostty's" (get-var 'gui-font-size) (if macos? 13 12))
+(set-var! 'gui-font-size 12)
 (define-values (zc fonts) (model-client! "gui" 12 50 '("font")))
 (define (last-font) (find (lambda (m) (equal? (car m) "font")) (grid-model-other fonts)))
 (expect-equal "a window is told its font" (last-font) '("font" "JetBrains Mono" 12 "" ()))

@@ -32,6 +32,8 @@ mod color;
 mod font;
 mod gui;
 mod image;
+#[cfg(target_os = "macos")]
+mod main_thread;
 mod mesh;
 mod render;
 mod screen;
@@ -156,15 +158,18 @@ fn spawn_process(
     }))
 }
 
-/// Run `argv` (the program, then its arguments, searched for in PATH) on
-/// its own, as a desktop's launcher does: nothing is read from or written
-/// to it, and a thread waits for it to exit, so that it is not left a
-/// zombie.
-/// Start making what a window draws with (its Vulkan device), on another
-/// thread, so that a window opened soon after opens sooner.
+/// Start making what a window draws with (its Vulkan or Metal device), on
+/// another thread, so that a window opened soon after opens sooner.
 #[chez::procedure(name = "gui-prepare")]
 fn gui_prepare() {
     render::prepare();
+}
+
+/// Whether a window could open here: a display to show it on (Wayland's or
+/// X11's, or macOS's window server), unless `QUAD_NO_DISPLAY=1`.
+#[chez::procedure(name = "gui-display?")]
+fn gui_display() -> bool {
+    gui::display_available()
 }
 
 /// Write `rgba` (`width` by `height` RGBA pixels) to `path` as a PNG.
@@ -196,6 +201,10 @@ fn timing_mark(step: String) {
     timing::mark(&step);
 }
 
+/// Run `argv` (the program, then its arguments, searched for in PATH) on
+/// its own, as a desktop's launcher does: nothing is read from or written
+/// to it, and a thread waits for it to exit, so that it is not left a
+/// zombie.
 #[chez::procedure(name = "launch-process")]
 fn launch_process(argv: Vec<String>) -> Result<(), String> {
     let (program, args) = argv
@@ -510,10 +519,17 @@ fn gui_set_title(g: Ref<gui::Gui>, title: String) {
     g.set_title(title);
 }
 
-/// Whether the window has the system's clipboard and primary selection.
+/// Whether the window has the system's clipboard.
 #[chez::procedure(name = "gui-clipboard?")]
 fn gui_has_clipboard(g: Ref<gui::Gui>) -> bool {
     g.has_clipboard
+}
+
+/// Whether the window has a primary selection too (Wayland's: macOS has
+/// none).
+#[chez::procedure(name = "gui-primary-selection?")]
+fn gui_has_primary(g: Ref<gui::Gui>) -> bool {
+    g.has_primary
 }
 
 /// Put text on the clipboard (target "c") or primary selection ("p").
@@ -563,9 +579,9 @@ chez::library! {
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
         mesh_target_kind, mesh_connect, mesh_session_fd, mesh_session_editor,
         voice_link, voice_join, voice_leave, voice_local, voice_events_fd, voice_talking,
-        gui_prepare, gui_open, gui_fd, gui_take, gui_frame, gui_paint, gui_image, gui_set_title, gui_close,
+        gui_prepare, gui_display, gui_open, gui_fd, gui_take, gui_frame, gui_paint, gui_image, gui_set_title, gui_close,
         gui_headless, gui_headless_info, gui_headless_draw, gui_headless_image,
-        gui_has_clipboard, gui_clipboard_set, gui_clipboard_get, gui_set_font, gui_set_pointer,
+        gui_has_clipboard, gui_has_primary, gui_clipboard_set, gui_clipboard_get, gui_set_font, gui_set_pointer,
     }
 }
 

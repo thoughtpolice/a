@@ -6,7 +6,9 @@ SPDX-License-Identifier: Apache-2.0
 # quad
 
 An editor platform in the spirit of Emacs, written in [Chez Scheme], with
-[Ki]'s selection-first modal bindings and a modern terminal front end.
+[Ki]'s selection-first modal bindings and a modern terminal front end. It
+runs on Linux and macOS, in a terminal or in a window of its own, drawn with
+Vulkan on Linux and Metal 4 on macOS.
 
 A small kernel in C and Rust (`kernel/`) boots Chez Scheme and provides the
 primitives Scheme can't express itself. Everything else is Scheme: the text
@@ -54,10 +56,11 @@ or a join code or ticket (empty: this machine's daemon), and shows that
 editor in its place; leaving it (`space j v`) comes back to this one, which
 kept running meanwhile.
 
-The socket is `$QUAD_SOCKET`, else `quad.sock` in `$XDG_RUNTIME_DIR/quad`;
-`--listen=PATH` and `--connect=PATH` name another. Quitting (`space j v`)
-detaches a client; the editor stops with its last client, unless it is a
-daemon (`space j k` stops it for everyone).
+The socket is `$QUAD_SOCKET`, else `quad.sock` in `$XDG_RUNTIME_DIR/quad`,
+or, where that is unset (macOS), in `/tmp/quad-$USER`; `--listen=PATH` and
+`--connect=PATH` name another. Quitting (`space j v`) detaches a client;
+the editor stops with its last client, unless it is a daemon (`space j k`
+stops it for everyone).
 
 ### Working together
 
@@ -79,8 +82,9 @@ on themselves. The status line says how many are in voice, and who is
 talking, as they start and stop; the people list (`space j l`) says who is
 in voice, muted, or talking. Switching to another editor (`space j o`)
 leaves voice in this one. Sound goes through your desktop's sound server (PipeWire or
-PulseAudio), where quad's streams can be routed and turned up or down;
-there is no echo cancellation yet, so use headphones. The speech travels
+PulseAudio), where quad's streams can be routed and turned up or down, or
+on macOS through Core Audio, to the input and output System Settings
+choose; there is no echo cancellation yet, so use headphones. The speech travels
 as Opus over the same iroh connection, beside the editor's protocol
 ([docs/design.md](docs/design.md#voice)).
 
@@ -103,9 +107,9 @@ shows the code and copies a ticket.
 and `scheme.boot` and quad's own boot file appended (`embed.sls` in the Chez
 toolchain has the layout). It needs only the host's C library at run time
 (on Linux it runs on the host's dynamic linker, not the toolchain's: see
-docs/design.md), and allocates with mimalloc, which overrides malloc for
-C, Chez Scheme and Rust alike. The full Chez compiler is in it, so
-extensions are compiled, not interpreted.
+docs/design.md), and on macOS the system's frameworks. It allocates with
+mimalloc, which overrides malloc for C, Chez Scheme and Rust alike. The
+full Chez compiler is in it, so extensions are compiled, not interpreted.
 
 A release build (`buck2 build -m release :quad`) is 22 MB, most of it the
 Rust half's iroh stack. The executable is stripped: its symbols and what
@@ -114,8 +118,11 @@ which it names (`.gnu_debuglink`) for gdb, lldb and perf. The rest of the
 debug info never reaches it (split DWARF, in debug builds: see
 `buck/toolchains/cxx`); `:kernel[dwp]` packs all of it into one file. To
 debug a debug build, from the repository root: `gdb -ex 'symbol-file
-QUAD.debug' QUAD`. The link drops the sections nothing refers to
-(`--gc-sections`), a quarter of the code.
+QUAD.debug' QUAD`. A Mach-O executable names no debug file, so on macOS
+lldb is told it: `lldb -o 'target symbols add QUAD.debug' QUAD` (its debug
+info stays in the objects, which the symbols point at). The link drops the
+sections nothing refers to (`--gc-sections`, or `-dead_strip`), a quarter
+of the code.
 
 `quad --build-exe OUT FILE...` writes a new standalone editor: a copy of
 itself with `FILE...` compiled into one more boot file, whose code runs as
@@ -124,12 +131,25 @@ out; `defs.bzl`'s `quad_executable` does the same from Buck, and
 `:quad-custom` builds `examples/site.ss` into one.
 
 `buck2 install :quad` puts the executable in `~/.local/bin`, and `dist/`'s
-desktop entry and icon, for application launchers, in `~/.local/share`
+desktop entry and icon, for Linux's application launchers, in `~/.local/share`
 (the installer is `buck/installers/prefix`; `-- --prefix DIR` installs
 under DIR instead). A file is replaced whole, so a running quad keeps its
 old executable. The entry runs `quad` from the session's `PATH`, with
 `--gui`, so it opens a window on the running editor when one listens, as
 `quad --gui` from a terminal does.
+
+## macOS
+
+quad runs on macOS as it does on Linux. A window needs macOS 26 or later
+on Apple silicon, for Metal 4, and a login session at the Mac (one over ssh
+reaches no window server, so quad uses the terminal there); it opens on the
+running editor, or detaches from the terminal, as on Linux. It has the
+system's clipboard but no primary selection; Option types the characters
+the keyboard's layout gives it, as macOS terminals take it; and the menu's
+Quit (⌘Q), the Dock's and logging out close every window as their close
+buttons do, so that the editor stops as it would then. Text is 13 points,
+ghostty's size there, where a point is a logical pixel. `QUAD_NO_DISPLAY=1`
+keeps quad from opening a window, here or on Linux.
 
 ## The terminal
 
@@ -406,7 +426,9 @@ keep a model of their screen from the server's messages, as any client does;
 `tests/clients.ss` has several at once, and `:test-remote` runs a daemon with
 clients in other processes. `:test-gui-render` draws frames as the window
 does, with no window, and checks them against the cells (on Mesa's
-lavapipe, where it is installed; skipped where nothing can draw).
+lavapipe where it is installed, else on any device, Metal's on macOS;
+skipped where nothing can draw), and `:test-golden` draws scenes and
+compares them with the images in `tests/golden` (on lavapipe, or Metal).
 
 ## Credits
 

@@ -29,9 +29,9 @@ use winit::raw_window_handle::{
 use winit::window::Window;
 
 use super::{
-    DrawList, GLYPH_BYTES, GLYPH_FRAGMENT, GLYPH_VERTEX, IMAGE_FRAGMENT, IMAGE_VERTEX,
-    PICTURE_BYTES, RECT_BYTES, RECT_FRAGMENT, RECT_VERTEX, entry_point_name, is_srgb, linearize,
-    vk_error,
+    Data, DrawList, GLYPH_BYTES, GLYPH_FRAGMENT, GLYPH_VERTEX, IMAGE_FRAGMENT, IMAGE_VERTEX,
+    PICTURE_BYTES, Params, RECT_BYTES, RECT_FRAGMENT, RECT_VERTEX, clear_color, entry_point_name,
+    is_srgb, vk_error,
 };
 use crate::timing;
 
@@ -538,47 +538,6 @@ impl Drop for HostBuffer {
     }
 }
 
-/// Data a frame puts in a buffer: written into its mapped memory.
-pub(super) enum Data<'a> {
-    Bytes(&'a [u8]),
-    Words(&'a [u32]),
-    /// Each item's floats, in order.
-    Floats4(&'a [[f32; 4]]),
-    Words2(&'a [[u32; 2]]),
-}
-
-impl Data<'_> {
-    fn len(&self) -> usize {
-        match self {
-            Data::Bytes(b) => b.len(),
-            Data::Words(w) => w.len() * 4,
-            Data::Floats4(f) => f.len() * 16,
-            Data::Words2(w) => w.len() * 8,
-        }
-    }
-
-    fn write(&self, out: &mut [u8]) {
-        match self {
-            Data::Bytes(b) => out.copy_from_slice(b),
-            Data::Words(w) => {
-                for (o, v) in out.chunks_exact_mut(4).zip(w.iter()) {
-                    o.copy_from_slice(&v.to_ne_bytes());
-                }
-            }
-            Data::Floats4(f) => {
-                for (o, v) in out.chunks_exact_mut(4).zip(f.iter().flatten()) {
-                    o.copy_from_slice(&v.to_ne_bytes());
-                }
-            }
-            Data::Words2(w) => {
-                for (o, v) in out.chunks_exact_mut(4).zip(w.iter().flatten()) {
-                    o.copy_from_slice(&v.to_ne_bytes());
-                }
-            }
-        }
-    }
-}
-
 /// Puts `data` in `slot`'s buffer, first making it larger if it does not
 /// fit; returns the buffer's address.
 fn put(device: &Arc<Device>, slot: &mut Option<HostBuffer>, data: Data) -> Result<u64, String> {
@@ -763,45 +722,6 @@ impl Drop for Semaphore {
 
 // MARK: Frames
 
-/// What the shaders' push constants hold: `Params` in kernel/gui.slang.
-struct Params {
-    rects: u64,
-    glyphs: u64,
-    curves: u64,
-    bands: u64,
-    pictures: u64,
-    pixels: u64,
-    cell: [f32; 2],
-    viewport: [f32; 2],
-    origin: [f32; 2],
-    linear: u32,
-}
-
-impl Params {
-    /// Six addresses, six floats, and two u32s (one of them padding).
-    const BYTES: usize = 6 * 8 + 6 * 4 + 2 * 4;
-
-    fn bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(Self::BYTES);
-        for a in [
-            self.rects,
-            self.glyphs,
-            self.curves,
-            self.bands,
-            self.pictures,
-            self.pixels,
-        ] {
-            out.extend_from_slice(&a.to_ne_bytes());
-        }
-        for f in self.cell.iter().chain(&self.viewport).chain(&self.origin) {
-            out.extend_from_slice(&f.to_ne_bytes());
-        }
-        out.extend_from_slice(&self.linear.to_ne_bytes());
-        out.extend_from_slice(&0u32.to_ne_bytes());
-        out
-    }
-}
-
 /// A frame's data on the GPU, refilled each time it is drawn.
 #[derive(Default)]
 struct Buffers {
@@ -939,10 +859,7 @@ impl Frame {
         let pixels = b.pixels.as_ref().map_or(0, |b| b.address);
 
         let linear = is_srgb(pipelines.format);
-        let [r, g, bl] = [16, 8, 0].map(|shift| {
-            let v = f32::from(((list.background >> shift) & 0xFF) as u8) / 255.0;
-            if linear { linearize(v) } else { v }
-        });
+        let [r, g, bl] = clear_color(list.background, linear);
         let extent = target.extent;
         let viewport = [extent.width as f32, extent.height as f32];
         let draws = [

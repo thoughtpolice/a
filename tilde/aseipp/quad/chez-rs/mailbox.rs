@@ -50,12 +50,37 @@ impl<T> Clone for Sender<T> {
     }
 }
 
+/// A pipe whose ends are non-blocking and close-on-exec: made so at once
+/// where the system can (Linux's pipe2), else just after (macOS).
+fn pipe() -> std::io::Result<[i32; 2]> {
+    let mut fds = [0i32; 2];
+    // SAFETY: room for the two descriptors.
+    #[cfg(target_os = "linux")]
+    let made = unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) };
+    // SAFETY: as for pipe2.
+    #[cfg(not(target_os = "linux"))]
+    let made = unsafe { libc::pipe(fds.as_mut_ptr()) };
+    if made != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    #[cfg(not(target_os = "linux"))]
+    for fd in fds {
+        // SAFETY: the descriptors just made, which are ours alone.
+        unsafe {
+            libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
+            libc::fcntl(
+                fd,
+                libc::F_SETFL,
+                libc::fcntl(fd, libc::F_GETFL) | libc::O_NONBLOCK,
+            );
+        }
+    }
+    Ok(fds)
+}
+
 impl<T> Mailbox<T> {
     pub fn new() -> std::io::Result<(Sender<T>, Mailbox<T>)> {
-        let mut fds = [0i32; 2];
-        if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0 {
-            return Err(std::io::Error::last_os_error());
-        }
+        let fds = pipe()?;
         let inner = Arc::new(Inner {
             queue: Mutex::new(VecDeque::new()),
             closed: AtomicBool::new(false),

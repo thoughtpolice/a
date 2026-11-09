@@ -20,10 +20,10 @@
 #   :quad                                              the standalone executable
 #   :quad-custom                                       one with extra code compiled in
 
-load("@root//buck/installers:defs.bzl", "installable")
+load("@root//buck/installers:defs.bzl", "installable", "macos_app")
 load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//chez:defs.bzl", "chez")
-load(":defs.bzl", "quad_executable", "slang_shader")
+load(":defs.bzl", "quad_executable", "slang_metal", "slang_shader")
 
 # The extensions in ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
@@ -72,7 +72,6 @@ KERNEL_RS_DEPS = [
     "root//src/crates/accept:accept",
     "root//src/crates/iroh-dial:iroh-dial",
     "root//src/crates/iroh-mesh:iroh-mesh",
-    "third-party//rust:ash",
     "third-party//rust:blake3",
     "third-party//rust:bytes",
     "third-party//rust:fontique",
@@ -82,14 +81,33 @@ KERNEL_RS_DEPS = [
     "third-party//rust:libc",
     "third-party//rust:png",
     "third-party//rust:skrifa",
-    "third-party//rust:smithay-clipboard",
     "third-party//rust:tokio",
     "third-party//rust:unicode-width",
     "third-party//rust:winit",
     # Voice's codec (kernel/voice/opus.rs).
     "third-party//by-name/op/opus:opus",
-]
+] + shims.select({
+    # Vulkan, and Wayland's clipboard.
+    "config//os:linux": [
+        "third-party//rust:ash",
+        "third-party//rust:smithay-clipboard",
+    ],
+    # Metal 4, Core Animation's layer, and AppKit's pasteboard and menus.
+    "config//os:macos": [
+        "third-party//rust:objc2",
+        "third-party//rust:objc2-app-kit",
+        "third-party//rust:objc2-core-foundation",
+        "third-party//rust:objc2-core-graphics",
+        "third-party//rust:objc2-foundation",
+        "third-party//rust:objc2-metal",
+        "third-party//rust:objc2-quartz-core",
+    ],
+})
 
+# Every platform's, each compiled where its cfg says: render/vulkan.rs and
+# the rest of the Vulkan renderer, and voice/pulse.rs, on Linux; the Metal
+# renderer (render/metal.rs, render/macos.rs), gui/macos.rs, main_thread.rs
+# and voice/coreaudio.rs on macOS.
 KERNEL_RS_SRCS = [
     "kernel/access.rs",
     "kernel/color.rs",
@@ -99,29 +117,36 @@ KERNEL_RS_SRCS = [
     "kernel/font/mod.rs",
     "kernel/font/sprites.rs",
     "kernel/gui/input.rs",
+    "kernel/gui/macos.rs",
     "kernel/gui/mod.rs",
     "kernel/gui/snapshots.rs",
     "kernel/gui/window.rs",
     "kernel/gui/windows.rs",
     "kernel/image.rs",
     "kernel/lib.rs",
+    "kernel/main_thread.rs",
     "kernel/mesh.rs",
     "kernel/render/gpu.rs",
     "kernel/render/headless.rs",
+    "kernel/render/macos.rs",
+    "kernel/render/metal.rs",
     "kernel/render/mod.rs",
     "kernel/render/vulkan.rs",
     "kernel/render/window.rs",
     "kernel/screen.rs",
     "kernel/slug.rs",
     "kernel/timing.rs",
+    "kernel/voice/coreaudio.rs",
     "kernel/voice/mix.rs",
     "kernel/voice/mod.rs",
     "kernel/voice/opus.rs",
     "kernel/voice/pulse.rs",
 ]
 
-# The GUI's shaders (kernel/gui.slang): a vertex and a fragment shader for
-# each of its pipelines, beside kernel/render/mod.rs, which includes them.
+# The GUI's shaders (kernel/gui.slang), beside kernel/render/mod.rs, which
+# includes them: for Vulkan, SPIR-V of a vertex and a fragment shader for
+# each of its pipelines; for Metal, the source of all of them, which Metal
+# compiles as the device is made.
 GUI_SHADERS = {
     "gui.glyph.frag.spv": ("glyphFragment", "fragment"),
     "gui.glyph.vert.spv": ("glyphVertex", "vertex"),
@@ -143,10 +168,15 @@ BUILT_IN_FONTS = {
     ]
 }
 
-KERNEL_RS_MAPPED_SRCS = {
-    ":" + out: "kernel/render/" + out
-    for out in GUI_SHADERS
-} | BUILT_IN_FONTS
+KERNEL_RS_MAPPED_SRCS = shims.select({
+    "config//os:linux": {
+        ":" + out: "kernel/render/" + out
+        for out in GUI_SHADERS
+    } | BUILT_IN_FONTS,
+    "config//os:macos": {
+        ":gui.metal": "kernel/render/gui.metal",
+    } | BUILT_IN_FONTS,
+})
 
 [
     slang_shader(
@@ -157,6 +187,12 @@ KERNEL_RS_MAPPED_SRCS = {
     )
     for out, (entry, stage) in GUI_SHADERS.items()
 ]
+
+slang_metal(
+    name = "gui.metal",
+    src = "kernel/gui.slang",
+    entries = sorted(GUI_SHADERS.values()),
+)
 
 shims.rust_library(
     name = "kernel-rs",
@@ -177,6 +213,26 @@ shims.rust_test(
     # Properties, checked over generated cases (hegel).
     deps = KERNEL_RS_DEPS + ["third-party//rust:hegeltest"],
 )
+
+# The macOS frameworks the Rust half's crates use: they name them in their
+# #[link]s, which reach the links rustc makes, but not :kernel's, which
+# clang++ makes. Quartz Core and AppKit also hold classes that are looked
+# up by name (CAMetalLayer, NSApplication), which only frameworks loaded
+# have.
+MACOS_FRAMEWORKS = [
+    "AppKit",  # winit's windows, AccessKit's adapter, the pasteboard
+    "AudioToolbox",  # voice's audio queues
+    "Carbon",  # winit's keyboard layouts
+    "CoreFoundation",
+    "CoreGraphics",
+    "CoreText",  # fontique's fonts
+    "CoreVideo",  # winit's display links
+    "Foundation",
+    "Metal",
+    "QuartzCore",  # CAMetalLayer
+    "Security",  # TLS, under iroh
+    "SystemConfiguration",  # network interfaces, under iroh
+]
 
 # (quad native): the Rust half's procedures, as kernel/lib.rs declares them.
 chez.rust_library(
@@ -203,12 +259,28 @@ shims.cxx_binary(
     # each (codegen-units=1), so whole crates come in for one function, and
     # this leaves the functions that are used (a quarter less code). The
     # dynamic symbol table leaves out the Rust and C++ names
-    # (kernel/exports.map). Debug info stays in the objects (split DWARF,
-    # toolchains//cxx), and :quad strips the rest into its [debug] file.
-    linker_flags = [
-        "-Wl,--version-script=$(location :kernel-exports)",
-        "-Wl,--gc-sections",
-    ],
+    # (kernel/exports.map, on Linux). Debug info stays in the objects (split
+    # DWARF, toolchains//cxx), and :quad strips the rest into its [debug]
+    # file. A Mach-O link (macOS) says the same in its own words.
+    linker_flags = shims.select({
+        "config//os:linux": [
+            "-Wl,--version-script=$(location :kernel-exports)",
+            "-Wl,--gc-sections",
+        ],
+        "config//os:macos": [
+            "-Wl,-dead_strip",
+            "-Wl,-unexported_symbol,__ZN*",
+            "-Wl,-unexported_symbol,__R*",
+            "-lobjc",
+        ] + [
+            flag
+            for framework in MACOS_FRAMEWORKS
+            for flag in [
+                "-framework",
+                framework,
+            ]
+        ],
+    }),
     deps = [
         ":kernel-rs",
         "toolchains//chez:embed",
@@ -313,6 +385,53 @@ installable(
     main = ":quad-exe",
 )
 
+# quad as a macOS app, for Finder, the Dock and Spotlight, which `buck2
+# install` puts in ~/Applications (the installer's --dir names another
+# place). It opens a window, on the running editor if one listens.
+#
+#   buck2 install -m release depot-tilde//aseipp/quad:quad.app
+macos_app(
+    name = "quad.app",
+    executable = ":quad-exe",
+    info_plist = "dist/Info.plist",
+    resources = {
+        "quad.icns": ":quad.icns",
+    },
+    target_compatible_with = ["config//os:macos"],
+)
+
+# The app's icon: dist/quad.svg at each size an icon has, drawn by macOS's
+# own sips and packed by iconutil, on Apple's grid for an app's icon: the
+# SVG's rounded square, 60 of its 64 units, is 824 pixels of 1024, 100 in
+# from each edge.
+shims.genrule(
+    name = "quad.icns",
+    srcs = ["dist/quad.svg"],
+    out = "quad.icns",
+    cmd = """
+        set -e
+        sed -e 's|width="64" height="64" viewBox="0 0 64 64"|width="1024" height="1024" viewBox="-5.28155 -5.28155 74.5631 74.5631"|' \
+            $SRCS > $TMP/icon.svg
+        if ! grep -q 'width="1024"' $TMP/icon.svg; then
+            echo "dist/quad.svg: not 64 units square, as the grid here takes it" >&2
+            exit 1
+        fi
+        /usr/bin/sips -s format png $TMP/icon.svg --out $TMP/icon.png > /dev/null
+        mkdir $TMP/quad.iconset
+        # Each size, and its double for Retina displays.
+        for sizes in 16:32 32:64 128:256 256:512 512:1024; do
+            size=${sizes%:*}
+            double=${sizes#*:}
+            /usr/bin/sips -z $size $size $TMP/icon.png \
+                --out $TMP/quad.iconset/icon_${size}x${size}.png > /dev/null
+            /usr/bin/sips -z $double $double $TMP/icon.png \
+                --out $TMP/quad.iconset/icon_${size}x${size}@2x.png > /dev/null
+        done
+        /usr/bin/iconutil -c icns -o $OUT $TMP/quad.iconset
+    """,
+    target_compatible_with = ["config//os:macos"],
+)
+
 # An example of a configured editor, built with quad itself.
 quad_executable(
     name = "quad-custom",
@@ -362,7 +481,7 @@ shims.filegroup(
 
 # What the window draws, drawn with no window and checked against the
 # cells (tests/gui-render.ss): on Mesa's lavapipe where it is installed,
-# skipped where nothing can draw.
+# else any device (Metal's, on macOS), skipped where nothing can draw.
 shims.export_file(
     name = "gui-render.sh",
     src = "tests/gui-render.sh",
@@ -383,7 +502,7 @@ shims.dynamic_test(
 )
 
 # Scenes drawn as tests/golden's images show them (tests/golden.ss), with
-# the built-in font on lavapipe; skipped where there is no lavapipe.
+# the built-in font on lavapipe, or Metal on macOS; skipped elsewhere.
 shims.dynamic_test(
     name = "test-golden",
     args = [
@@ -437,9 +556,18 @@ shims.command_test(
         test "`$quad -q --eval '(+ 1 2)'`" = 3
         # The editor's own libraries are in scope.
         test "`$quad -q --eval '(text-length (make-text "hello"))'`" = 5
+        # No display: none named, on Linux; on macOS, whose window server a
+        # test reaches as any program in the session does, none said to be.
+        if [ "`uname`" = Darwin ]; then
+            nodisplay="env QUAD_NO_DISPLAY=1"
+        else
+            nodisplay="env -u WAYLAND_DISPLAY -u DISPLAY"
+        fi
+        test "`$nodisplay $quad -q --eval '(gui-display?)'`" = '#f'
+        test "`QUAD_NO_DISPLAY=1 $quad -q --eval '(gui-display?)'`" = '#f'
         # Without a terminal (or a window: no display) the editor refuses to
         # start, rather than hang.
-        ! env -u WAYLAND_DISPLAY -u DISPLAY $quad -q < /dev/null > /dev/null 2>&1
+        ! $nodisplay $quad -q < /dev/null > /dev/null 2>&1
         ! $quad -q --tui < /dev/null > /dev/null 2>&1
         # A window is not a daemon.
         out=`$quad -q --gui --daemon 2>&1 || true`
@@ -447,7 +575,7 @@ shims.command_test(
         # Where no window can open (here, with no display; also wherever
         # this quad is on the toolchain's C library), the editor says so
         # and stops.
-        ! env -u WAYLAND_DISPLAY -u DISPLAY $quad -q --gui < /dev/null > /dev/null 2>&1
+        ! $nodisplay $quad -q --gui < /dev/null > /dev/null 2>&1
         # The example init file loads, and its definitions take effect.
         export QUAD_INIT=$(location :examples)/examples/init.ss
         test "`$quad --eval '(get-var (quote scroll-margin))'`" = 5
@@ -458,6 +586,37 @@ shims.command_test(
         $quad --help | grep -q -- --tutor
         $quad -q --eval '(display tutor-text)' | grep -q '^# Lesson 10'
     """,
+)
+
+# An app macOS starts (from Finder, the Dock or open) has launchd for its
+# parent, and starts in /: quad, so started, starts in the home directory,
+# and does not detach (kernel.c). A quad whose parent is gone before it
+# starts has launchd for its parent too, and stands in for one.
+shims.command_test(
+    name = "test-app-launch",
+    script = """
+        quad=$(exe :quad)
+        export QUAD_SOCKET=`mktemp -u /tmp/quad-test.XXXXXX`
+        home=`mktemp -d /tmp/quad-test.XXXXXX`
+        home=`cd $home && pwd -P`
+        trap 'rm -rf "$home"' EXIT
+        probe='(list (current-directory) (kernel-launched-as-app))'
+        # Started from a shell, in /, quad stays there.
+        test "`cd / && $quad -q --eval "$probe"`" = '("/" 0)'
+        # Started as an app is: in /, its parent gone, so launchd's child.
+        # (The subshell exits at once, leaving sh, which then runs quad.)
+        (
+            cd /
+            HOME=$home sh -c 'sleep 0.5; exec "$0" -q --eval "$1"' $quad "$probe" > $home/out &
+        )
+        n=0
+        until [ -s $home/out ] || [ $n -ge 100 ]; do
+            sleep 0.1
+            n=`expr $n + 1`
+        done
+        test "`cat $home/out`" = "(\\"$home\\" 1)"
+    """,
+    target_compatible_with = ["config//os:macos"],
 )
 
 # The agent extension, against a stand-in for Codex's app server

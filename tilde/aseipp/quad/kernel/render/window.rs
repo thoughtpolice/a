@@ -181,7 +181,7 @@ impl Renderer {
                 vk::Format::B8G8R8A8_UNORM | vk::Format::B8G8R8A8_SRGB
             );
             let path = self.snapshot.as_ref().expect("checked by the caller");
-            write_ppm(path, extent, pixels, bgra)?;
+            write_ppm(path, [extent.width, extent.height], pixels, bgra)?;
             return Ok(());
         }
         self.snapshot_buffer = None;

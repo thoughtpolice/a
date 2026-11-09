@@ -13,7 +13,7 @@
           kernel-read-some kernel-write kernel-take-winch kernel-suspend
           kernel-poll kernel-unix-listen kernel-unix-connect kernel-accept kernel-close
           kernel-fork-detached
-          quad-self-path)
+          quad-self-path kernel-hostname kernel-launched-as-app)
   (import (chezscheme))
 
   (define-syntax define-kernel
@@ -37,6 +37,10 @@
   (define-kernel kernel-take-winch "quad_take_winch" () int)
   (define-kernel kernel-suspend "quad_suspend" () void)
   (define-kernel quad-self-path "quad_self_path" () string)
+  (define-kernel kernel-hostname "quad_hostname" () string)
+  ;; 1 if macOS started this quad as an app (from Finder, the Dock or open),
+  ;; which has no terminal, else 0.
+  (define-kernel kernel-launched-as-app "quad_launched_as_app" () int)
 
   ;; What is readable on fd within timeout-ms (-1: however long it takes),
   ;; as a bytevector: empty when nothing came in time, or a signal came

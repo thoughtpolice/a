@@ -151,7 +151,7 @@ impl Win {
 
     pub(super) fn resized(&mut self, size: PhysicalSize<u32>) {
         self.damage = None;
-        if self.fonts.set_scale(self.window.scale_factor() as f32) {
+        if self.fonts.set_scale(font_scale(self.window.scale_factor())) {
             self.window.request_redraw();
         }
         let (w, h) = self.cell();
@@ -189,13 +189,26 @@ impl Win {
         // What a key types, where it types something: a composed
         // character after a dead key or the compose key, or the key's own.
         // Keys with ctrl, alt or super are commands, named by the key.
+        let text = event
+            .text
+            .as_deref()
+            .filter(|t| !t.chars().any(char::is_control));
         if mods & !SHIFT == 0 {
-            if let Some(text) = event
-                .text
-                .as_deref()
-                .filter(|t| !t.chars().any(char::is_control))
-            {
+            if let Some(text) = text {
                 self.type_text(text, mods, kind);
+                return;
+            }
+        }
+        // But on macOS, option types the characters the keyboard's layout
+        // gives it (option-5 is '[' on a German Mac's), as terminals there
+        // take it: what it types is typed, without alt. A key it changes
+        // nothing of is alt and the key.
+        if cfg!(target_os = "macos") && mods & !(SHIFT | ALT) == 0 {
+            let composed = text.filter(
+                |t| !matches!(event.key_without_modifiers(), Key::Character(plain) if plain == *t),
+            );
+            if let Some(text) = composed {
+                self.type_text(text, mods & !ALT, kind);
                 return;
             }
         }
@@ -373,6 +386,19 @@ impl Win {
             Err(error) => self.send(Event::Error(error)),
         }
     }
+}
+
+/// The scale a window of `scale_factor` lays its fonts out at. Their sizes
+/// are in points, taken at 96 dots an inch, as Linux desktops (and ghostty
+/// there) take them; on macOS, where a point is a logical pixel, as all of
+/// macOS takes them, at 72.
+pub(super) fn font_scale(scale_factor: f64) -> f32 {
+    let dots_per_inch = if cfg!(target_os = "macos") {
+        72.0
+    } else {
+        96.0
+    };
+    (scale_factor * dots_per_inch / 96.0) as f32
 }
 
 /// What the screen shows, for screen readers.

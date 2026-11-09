@@ -9,7 +9,7 @@
 # host-linked quad does not start), or with no Vulkan device or fonts.
 # Frames are drawn with Mesa's lavapipe, a software renderer, where it is
 # installed, so that they do not depend on the GPU; else on any device the
-# script takes (golden.ss takes none other).
+# script takes (golden.ss takes none other but Metal's, on macOS).
 #
 # gui-render.sh [-list-tests | -run-test] QUAD TESTS-DIR [SCRIPT] [FILTER]
 

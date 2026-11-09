@@ -10,8 +10,10 @@ pkg.info(
     copyright = [
         "2024-2026 Austin Seipp",
     ],
-    # The kernel finds its own executable through /proc/self/exe.
-    target_compatible_with = [
+    # Linux, with Vulkan, Wayland and X11; and macOS, with Metal 4 and
+    # AppKit.
+    compatible_with = [
         "config//os:linux",
+        "config//os:macos",
     ],
 )

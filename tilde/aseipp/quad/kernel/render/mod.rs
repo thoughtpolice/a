@@ -1,23 +1,27 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Drawing the GUI's frames with Vulkan: in a window ([`Renderer`]), or
-//! into an image with no window at all ([`Headless`]), for tests and
-//! snapshots, on a GPU or on a software renderer (Mesa's lavapipe).
+//! Drawing the GUI's frames: in a window ([`Renderer`]), or into an image
+//! with no window at all ([`Headless`]), for tests and snapshots. On Linux
+//! with Vulkan, on a GPU or on a software renderer (Mesa's lavapipe); on
+//! macOS with Metal 4.
 //!
-//! Vulkan 1.3 with no render passes, descriptor sets or vertex buffers:
-//! dynamic rendering, and three pipelines (kernel/gui.slang) whose push
-//! constants point at a frame's data by buffer device address. A frame
-//! ([`DrawList`]) is rectangles (backgrounds and the cursor), then images
-//! (image.rs), then glyphs (font/ lays them out; slug.rs makes their
-//! curves), then more rectangles (underlines).
+//! The same three pipelines (kernel/gui.slang) draw either way, with no
+//! vertex buffers or descriptor sets: what they are given ([`Params`])
+//! points at a frame's data by address, a buffer device address in Vulkan
+//! and a GPU address in Metal. A frame ([`DrawList`]) is rectangles
+//! (backgrounds and the cursor), then images (image.rs), then glyphs (font/
+//! lays them out; slug.rs makes their curves), then more rectangles
+//! (underlines).
 //!
-//! Nothing links against Vulkan: ash loads the host's `libvulkan.so.1` when
-//! a renderer is made ([`ash::Entry::load`]). The host's driver loads into
-//! this process, so the executable must run on the host's C library
-//! (`:quad`). `QUAD_GUI_DEVICE=NAME` picks the device whose name has
-//! NAME in it (`llvmpipe` for lavapipe); `QUAD_VULKAN_VALIDATION=1` turns
-//! on the Khronos validation layer, where it is installed.
+//! On Linux: Vulkan 1.3 with no render passes: dynamic rendering, and the
+//! pipelines' push constants are the [`Params`]. Nothing links against
+//! Vulkan: ash loads the host's `libvulkan.so.1` when a renderer is made
+//! ([`ash::Entry::load`]). The host's driver loads into this process, so
+//! the executable must run on the host's C library (`:quad`).
+//! `QUAD_GUI_DEVICE=NAME` picks the device whose name has NAME in it
+//! (`llvmpipe` for lavapipe); `QUAD_VULKAN_VALIDATION=1` turns on the
+//! Khronos validation layer, where it is installed.
 //!
 //! Loading Vulkan and making a device take most of the time a window takes
 //! to open (about 130 ms of 200, on NVIDIA's driver), so the device can be
@@ -25,51 +29,89 @@
 //! and the window is made. Pipelines take under a millisecond to make
 //! (drivers keep their own shader caches), so none is cached here.
 //!
-//! Vulkan is called in one module alone ([`vulkan`]), whose types own its
-//! objects and keep the conditions its calls need; the rest is safe code.
+//! On macOS: Metal 4 (macos.rs), drawing into a window's `CAMetalLayer`,
+//! with the shaders as Metal source that Metal compiles when the device is
+//! made, made ahead as Vulkan's is.
+//!
+//! Each API is called in one module alone (vulkan.rs, metal.rs), whose
+//! types own its objects and keep the conditions its calls need; the rest
+//! is safe code.
 
-use std::ffi::CStr;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use ash::vk;
 use winit::dpi::PhysicalSize;
-use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::Window;
 
 use crate::font::{GLYPH_BYTES, RECT_BYTES};
 use crate::image::PICTURE_BYTES;
 use crate::slug::Atlas;
-use crate::timing;
 
+#[cfg(target_os = "linux")]
+use crate::timing;
+#[cfg(target_os = "linux")]
+use ash::vk;
+#[cfg(target_os = "linux")]
+use std::ffi::CStr;
+#[cfg(target_os = "linux")]
+use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
+
+#[cfg(target_os = "linux")]
 mod gpu;
+#[cfg(target_os = "linux")]
 mod headless;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+mod metal;
+#[cfg(target_os = "linux")]
 mod vulkan;
+#[cfg(target_os = "linux")]
 mod window;
 
+#[cfg(target_os = "linux")]
 pub use gpu::Gpu;
+#[cfg(target_os = "linux")]
 use gpu::*;
-pub use headless::{Headless, write_ppm};
+#[cfg(target_os = "linux")]
+pub use headless::Headless;
+#[cfg(target_os = "macos")]
+pub use macos::{Gpu, Headless, Renderer, prepare};
+#[cfg(target_os = "linux")]
 use vulkan::*;
+#[cfg(target_os = "linux")]
 pub use window::{Renderer, prepare};
 
 /// The shaders, compiled by slangc (BUILD: `:gui.*.spv`).
+#[cfg(target_os = "linux")]
 const RECT_VERTEX: &[u8] = include_bytes!("gui.rect.vert.spv");
+#[cfg(target_os = "linux")]
 const RECT_FRAGMENT: &[u8] = include_bytes!("gui.rect.frag.spv");
+#[cfg(target_os = "linux")]
 const GLYPH_VERTEX: &[u8] = include_bytes!("gui.glyph.vert.spv");
+#[cfg(target_os = "linux")]
 const GLYPH_FRAGMENT: &[u8] = include_bytes!("gui.glyph.frag.spv");
+#[cfg(target_os = "linux")]
 const IMAGE_VERTEX: &[u8] = include_bytes!("gui.image.vert.spv");
+#[cfg(target_os = "linux")]
 const IMAGE_FRAGMENT: &[u8] = include_bytes!("gui.image.frag.spv");
+
+/// The shaders, all six entry points of them, as Metal source written by
+/// slangc (BUILD: `:gui.metal`), which Metal compiles as the device is made.
+#[cfg(target_os = "macos")]
+const SHADERS: &str = include_str!("gui.metal");
 
 /// Frames the CPU may record while the GPU draws earlier ones.
 const FRAMES_IN_FLIGHT: usize = 2;
 
 /// How long to wait for a swapchain image before trying again later.
+#[cfg(target_os = "linux")]
 const ACQUIRE_TIMEOUT_NS: u64 = 50_000_000;
 
 /// The color format frames are drawn in, without a window: sRGB, so that
 /// they blend in linear light (see kernel/gui.slang).
+#[cfg(target_os = "linux")]
 const HEADLESS_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 
 /// What a frame draws, in order: `rects`, then `pictures` (images, from
@@ -92,8 +134,90 @@ pub struct DrawList<'a> {
     pub origin: [f32; 2],
 }
 
+/// What the shaders are given for each draw: `Params` in kernel/gui.slang,
+/// Vulkan's push constants and Metal's buffer 0.
+struct Params {
+    rects: u64,
+    glyphs: u64,
+    curves: u64,
+    bands: u64,
+    pictures: u64,
+    pixels: u64,
+    cell: [f32; 2],
+    viewport: [f32; 2],
+    origin: [f32; 2],
+    linear: u32,
+}
+
+impl Params {
+    /// Six addresses, six floats, and two u32s (one of them padding).
+    const BYTES: usize = 6 * 8 + 6 * 4 + 2 * 4;
+
+    fn bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(Self::BYTES);
+        for a in [
+            self.rects,
+            self.glyphs,
+            self.curves,
+            self.bands,
+            self.pictures,
+            self.pixels,
+        ] {
+            out.extend_from_slice(&a.to_ne_bytes());
+        }
+        for f in self.cell.iter().chain(&self.viewport).chain(&self.origin) {
+            out.extend_from_slice(&f.to_ne_bytes());
+        }
+        out.extend_from_slice(&self.linear.to_ne_bytes());
+        out.extend_from_slice(&0u32.to_ne_bytes());
+        out
+    }
+}
+
+/// Data a frame puts in a buffer: written into its mapped memory.
+enum Data<'a> {
+    Bytes(&'a [u8]),
+    Words(&'a [u32]),
+    /// Each item's floats, in order.
+    Floats4(&'a [[f32; 4]]),
+    Words2(&'a [[u32; 2]]),
+}
+
+impl Data<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Data::Bytes(b) => b.len(),
+            Data::Words(w) => w.len() * 4,
+            Data::Floats4(f) => f.len() * 16,
+            Data::Words2(w) => w.len() * 8,
+        }
+    }
+
+    fn write(&self, out: &mut [u8]) {
+        match self {
+            Data::Bytes(b) => out.copy_from_slice(b),
+            Data::Words(w) => {
+                for (o, v) in out.chunks_exact_mut(4).zip(w.iter()) {
+                    o.copy_from_slice(&v.to_ne_bytes());
+                }
+            }
+            Data::Floats4(f) => {
+                for (o, v) in out.chunks_exact_mut(4).zip(f.iter().flatten()) {
+                    o.copy_from_slice(&v.to_ne_bytes());
+                }
+            }
+            Data::Words2(w) => {
+                for (o, v) in out.chunks_exact_mut(4).zip(w.iter().flatten()) {
+                    o.copy_from_slice(&v.to_ne_bytes());
+                }
+            }
+        }
+    }
+}
+
 /// Whether frames drawn in `format` blend in linear light: whether it
 /// encodes sRGB itself.
+#[cfg(target_os = "linux")]
 fn is_srgb(format: vk::Format) -> bool {
     matches!(
         format,
@@ -111,6 +235,72 @@ fn linearize(v: f32) -> f32 {
     }
 }
 
+/// 0xRRGGBB as the color an image in an sRGB format (`linear`) or a UNORM
+/// one is cleared to: red, green and blue from 0 to 1.
+fn clear_color(rgb: u32, linear: bool) -> [f32; 3] {
+    [16, 8, 0].map(|shift| {
+        let v = f32::from(((rgb >> shift) & 0xFF) as u8) / 255.0;
+        if linear { linearize(v) } else { v }
+    })
+}
+
+#[cfg(target_os = "linux")]
 fn vk_error(what: &str) -> impl Fn(vk::Result) -> String + '_ {
     move |e| format!("vulkan: {what}: {e}")
+}
+
+/// Writes RGBA (or BGRA) pixels, `width` by `height`, as a PPM image.
+fn write_ppm(
+    path: &std::path::Path,
+    [width, height]: [u32; 2],
+    pixels: &[u8],
+    bgra: bool,
+) -> Result<(), String> {
+    let mut ppm = format!("P6\n{width} {height}\n255\n").into_bytes();
+    ppm.reserve(pixels.len() / 4 * 3);
+    for p in pixels.chunks_exact(4) {
+        ppm.extend_from_slice(&if bgra {
+            [p[2], p[1], p[0]]
+        } else {
+            [p[0], p[1], p[2]]
+        });
+    }
+    std::fs::write(path, ppm).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn params_are_laid_out_as_the_shaders_read_them() {
+        let params = Params {
+            rects: 1,
+            glyphs: 2,
+            curves: 3,
+            bands: 4,
+            pictures: 5,
+            pixels: 6,
+            cell: [7.0, 8.0],
+            viewport: [9.0, 10.0],
+            origin: [11.0, 12.0],
+            linear: 1,
+        };
+        let bytes = params.bytes();
+        assert_eq!(bytes.len(), Params::BYTES);
+        assert_eq!(bytes.len(), 80);
+        let word = |at: usize| u64::from_ne_bytes(bytes[at..at + 8].try_into().unwrap());
+        assert_eq!((word(0), word(40)), (1, 6));
+        let float = |at: usize| f32::from_ne_bytes(bytes[at..at + 4].try_into().unwrap());
+        assert_eq!((float(48), float(68)), (7.0, 12.0));
+        assert_eq!(u32::from_ne_bytes(bytes[72..76].try_into().unwrap()), 1);
+    }
+
+    #[test]
+    fn clear_colors_are_linear_for_srgb_images() {
+        assert_eq!(clear_color(0xff8000, false), [1.0, 128.0 / 255.0, 0.0]);
+        let [r, g, b] = clear_color(0xff8000, true);
+        assert_eq!((r, b), (1.0, 0.0));
+        assert!((g - 0.2158605).abs() < 1e-6);
+    }
 }

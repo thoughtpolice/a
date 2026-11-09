@@ -8,13 +8,15 @@
 ;; machine's fonts change them) on Mesa's lavapipe, and compared with the
 ;; images in tests/golden: any change to how something is drawn shows. A
 ;; pixel differs when a channel is more than `tolerance` off, as lavapipe's
-;; antialiasing may be from version to version, and a few may. Where a
-;; scene differs, what was drawn and where it differs (in red) are written
-;; to $TMPDIR as PNGs, to look at.
+;; antialiasing may be from version to version, and a few may. On macOS
+;; the scenes are drawn with Metal instead, on the Mac's GPU, and come out
+;; within a level or two of lavapipe's. Where a scene differs, what was
+;; drawn and where it differs (in red) are written to $TMPDIR as PNGs, to
+;; look at.
 ;;
 ;; QUAD_GOLDEN names the directory of golden images (tests/gui-render.sh
 ;; sets it). After a change meant to change them, draw them again, from
-;; tilde/aseipp/quad:
+;; tilde/aseipp/quad, on Linux:
 ;;
 ;;   QUAD_GUI_DEVICE=llvmpipe QUAD_GOLDEN=tests/golden QUAD_GOLDEN_UPDATE=1 \
 ;;     $(buck2 build --show-full-simple-output :quad) -q --batch tests/golden.ss
@@ -26,8 +28,8 @@
 
 (define h (headless-gpu "JetBrains Mono" 12 #f))
 (define device (caddr (gui-headless-info h)))
-(unless (string-contains device "llvmpipe")
-  (printf "SKIP: golden images are drawn with lavapipe, not ~a\n" device)
+(unless (or (string-contains device "llvmpipe") macos?)
+  (printf "SKIP: golden images are drawn with lavapipe (or Metal), not ~a\n" device)
   (exit 0))
 (printf "drawing with ~a\n" device)
 

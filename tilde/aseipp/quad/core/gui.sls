@@ -1,4 +1,4 @@
-;; gui.sls -- the graphical client: a window, drawn with Vulkan
+;; gui.sls -- the graphical client: a window, drawn with Vulkan or Metal
 ;;
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
@@ -10,8 +10,9 @@
 ;; an editor elsewhere, over a socket or iroh; either way it keeps the
 ;; cells in a grid model (grid.sls) and paints each frame as it is
 ;; flushed. The window itself is the Rust half's
-;; (kernel/gui/): it has a thread of its own, and its events -- keys, the
-;; mouse, a new size -- come back through a mailbox the event loop polls.
+;; (kernel/gui/): it has a thread of its own (on macOS, the main thread,
+;; and Scheme has another), and its events -- keys, the mouse, a new size
+;; -- come back through a mailbox the event loop polls.
 ;;
 ;; A frame is painted as rectangles -- each cell's background, and the
 ;; cursor -- then the cells' text, which the Rust half shapes and draws
@@ -27,7 +28,9 @@
 
   (define-variable gui-font-family "JetBrains Mono"
     "The font family a window draws text in: JetBrains Mono is built in; another that is not installed falls back to the system's monospace font.")
-  (define-variable gui-font-size 12 "The size of a window's text, in points.")
+  ;; ghostty's sizes: 12 points on Linux, and 13 on macOS, whose point is
+  ;; a logical pixel, smaller than Linux's (taken at 96 to the inch).
+  (define-variable gui-font-size (if macos? 13 12) "The size of a window's text, in points.")
   (define-variable gui-font-features ""
     "OpenType features for a window's text, as HarfBuzz spells them, separated by spaces or commas: \"-calt\" turns off contextual alternates (and so the ligatures of fonts that make them so, as JetBrains Mono does), \"ss01\" turns on a stylistic set, \"cv05=2\" picks a character variant.")
   (define-variable gui-font-fallbacks '()
@@ -315,14 +318,15 @@
   ;; The window
 
   ;; A window to edit in, for gui-attach! or gui-connect!: an error where
-  ;; none can open (no display, no Vulkan, no fonts).
+  ;; none can open (no display, no Vulkan or Metal 4, no fonts).
   (define (gui-window)
     (apply gui-open "quad" initial-cols initial-rows (client-font #f)))
 
   ;; What a window can do, for the server: the protocol's capabilities.
   (define (gui-capabilities win)
     (append '("title" "font" "pointer-shape" "scroll" "images" "hidden-cursor" "voice")
-            (if (gui-clipboard? win) '("clipboard" "primary-selection") '())
+            (if (gui-clipboard? win) '("clipboard") '())
+            (if (gui-primary-selection? win) '("primary-selection") '())
             (if (can-open-urls?) '("open-url") '())))
 
   ;; Handle a message from the server: the screen's go into the model,

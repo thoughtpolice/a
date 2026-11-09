@@ -11,6 +11,11 @@
 //
 // quad --build-exe writes new executables the same way the build does: this
 // kernel, then boot files (see toolchains//chez's embed.sls).
+//
+// On macOS a process's windows must run on its main thread, AppKit's, so
+// there Scheme runs on a thread of its own, and the main thread is the Rust
+// half's (main_thread.rs): it runs the windows' event loop, once a window
+// opens.
 #define _GNU_SOURCE
 #include "scheme.h"
 
@@ -18,6 +23,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdint.h>
@@ -30,6 +36,13 @@
 #include <termios.h>
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <pthread.h>
+#include <spawn.h>
+#include <sys/resource.h>
+extern char** environ;
+#endif
+
 static void
 fatal(const char* msg)
 {
@@ -40,9 +53,43 @@ fatal(const char* msg)
 // The path of the running executable, which quad --build-exe copies.
 static const char* g_self_path;
 
+#if defined(__APPLE__)
+// The command line, for Scheme's thread, which runs the editor.
+static int g_ac;
+static const char** g_argv;
+#endif
+
 // The Rust half's procedures (lib.rs).
 void quad_native_register(void);
 void quad_gui_settle(void);
+
+#if defined(__APPLE__)
+// Runs scheme on a thread with a stack of stack bytes, and gives the
+// calling thread, the main one, to the windows (main_thread.rs).
+_Noreturn void quad_main_thread_run(int (*scheme)(void), size_t stack);
+#endif
+
+// Descriptors the kernel makes are close-on-exec, so that the programs the
+// editor runs inherit none of them: atomically on Linux, else as soon as
+// they are made (macOS, which has no accept4, pipe2 or SOCK_CLOEXEC).
+#if !defined(__linux__)
+static int
+cloexec(int fd)
+{
+  if (fd >= 0) fcntl(fd, F_SETFD, FD_CLOEXEC);
+  return fd;
+}
+#endif
+
+static int
+unix_socket(void)
+{
+#if defined(__linux__)
+  return socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#else
+  return cloexec(socket(AF_UNIX, SOCK_STREAM, 0));
+#endif
+}
 
 /* -------------------------------------------------------------------------- */
 /* -- Terminal primitives --------------------------------------------------- */
@@ -228,7 +275,7 @@ quad_unix_listen(const char* path)
 {
   struct sockaddr_un addr;
   if (unix_address(path, &addr) != 0) return -1;
-  int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  int fd = unix_socket();
   if (fd < 0) return -1;
   if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) != 0 || listen(fd, 16) != 0) {
     close(fd);
@@ -243,7 +290,7 @@ quad_unix_connect(const char* path)
 {
   struct sockaddr_un addr;
   if (unix_address(path, &addr) != 0) return -1;
-  int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  int fd = unix_socket();
   if (fd < 0) return -1;
   if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
     close(fd);
@@ -255,7 +302,11 @@ quad_unix_connect(const char* path)
 int
 quad_accept(int fd)
 {
+#if defined(__linux__)
   return accept4(fd, NULL, NULL, SOCK_CLOEXEC);
+#else
+  return cloexec(accept(fd, NULL, NULL));
+#endif
 }
 
 int
@@ -270,6 +321,83 @@ quad_close(int fd)
 // of a pipe to tell the parent how opening its window went; the parent
 // keeps the read end. Returns the child's pid in the parent, 0 in the
 // child, or -1; *fd is the end of the pipe each keeps.
+//
+// On macOS the child is not a fork but a new quad, with the same arguments:
+// the frameworks a window needs refuse to run in the child of a process
+// that had threads, as every quad there does (Scheme's and the main one).
+// It is told the pipe's write end in QUAD_DETACHED_FD, and its first call
+// here returns 0 and that end, so that it goes on as a forked child would,
+// from the same place.
+#if defined(__APPLE__)
+static int g_detached_fd = -1;
+
+// The pipe to the parent of a process quad_fork_detached started, from
+// QUAD_DETACHED_FD, which goes no further (to the programs the editor runs).
+static void
+take_detached_fd(void)
+{
+  const char* var = getenv("QUAD_DETACHED_FD");
+  if (!var) return;
+  char* end;
+  long fd = strtol(var, &end, 10);
+  if (*var && *end == '\0' && fd >= 0 && fd < INT_MAX && fcntl((int)fd, F_GETFD) >= 0)
+    g_detached_fd = cloexec((int)fd);
+  unsetenv("QUAD_DETACHED_FD");
+}
+
+int
+quad_fork_detached(int* fd)
+{
+  if (g_detached_fd >= 0) {
+    *fd = g_detached_fd;
+    g_detached_fd = -1;
+    return 0;
+  }
+  int p[2];
+  if (pipe(p) != 0) return -1;
+  cloexec(p[0]);
+  cloexec(p[1]);
+  // The environment, naming the child's end of the pipe.
+  size_t n = 0;
+  while (environ[n]) n++;
+  char** env = calloc(n + 2, sizeof(char*));
+  if (!env) {
+    close(p[0]);
+    close(p[1]);
+    return -1;
+  }
+  char var[32];
+  snprintf(var, sizeof(var), "QUAD_DETACHED_FD=%d", p[1]);
+  size_t m = 0;
+  for (size_t i = 0; i < n; i++)
+    if (strncmp(environ[i], "QUAD_DETACHED_FD=", 17) != 0) env[m++] = environ[i];
+  env[m++] = var;
+  env[m] = NULL;
+  // In a session of its own, its standard streams on /dev/null, and no
+  // other descriptor of this process's but its end of the pipe.
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDWR, 0);
+  posix_spawn_file_actions_adddup2(&actions, 0, 1);
+  posix_spawn_file_actions_adddup2(&actions, 0, 2);
+  posix_spawn_file_actions_addinherit_np(&actions, p[1]);
+  posix_spawnattr_t attrs;
+  posix_spawnattr_init(&attrs);
+  posix_spawnattr_setflags(&attrs, POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT);
+  pid_t pid;
+  int spawned = posix_spawn(&pid, g_self_path, &actions, &attrs, (char* const*)g_argv, env);
+  posix_spawnattr_destroy(&attrs);
+  posix_spawn_file_actions_destroy(&actions);
+  free(env);
+  close(p[1]);
+  if (spawned != 0) {
+    close(p[0]);
+    return -1;
+  }
+  *fd = p[0];
+  return pid;
+}
+#else
 int
 quad_fork_detached(int* fd)
 {
@@ -298,11 +426,51 @@ quad_fork_detached(int* fd)
   *fd = p[0];
   return pid;
 }
+#endif
 
 const char*
 quad_self_path(void)
 {
   return g_self_path ? g_self_path : "";
+}
+
+// The machine's name, or "" if it has none.
+const char*
+quad_hostname(void)
+{
+  static char name[256];
+  if (gethostname(name, sizeof(name)) != 0) name[0] = '\0';
+  name[sizeof(name) - 1] = '\0';
+  return name;
+}
+
+#if defined(__APPLE__)
+// Whether macOS started this quad as an app, from Finder, the Dock or open:
+// launchd, which starts every app, is then its parent.
+static int g_app;
+
+// macOS starts an app in /, wherever it was opened from: it starts in the
+// home directory instead, as a terminal's shell does.
+static void
+start_at_home(void)
+{
+  char cwd[PATH_MAX];
+  const char* home = getenv("HOME");
+  if (home && *home && getcwd(cwd, sizeof(cwd)) && strcmp(cwd, "/") == 0)
+    (void)chdir(home);
+}
+#endif
+
+// 1 if macOS started this quad as an app, which has no terminal to detach
+// from (core/main.sls), else 0.
+int
+quad_launched_as_app(void)
+{
+#if defined(__APPLE__)
+  return g_app;
+#else
+  return 0;
+#endif
 }
 
 #define ALLPRIMS(_) \
@@ -316,6 +484,8 @@ quad_self_path(void)
   _(quad_take_winch) \
   _(quad_suspend)   \
   _(quad_self_path)   \
+  _(quad_hostname)    \
+  _(quad_launched_as_app) \
   _(quad_poll)        \
   _(quad_unix_listen) \
   _(quad_unix_connect) \
@@ -326,22 +496,11 @@ quad_self_path(void)
 /* -------------------------------------------------------------------------- */
 /* -- Entry point ----------------------------------------------------------- */
 
-int
-main(int ac, const char* av[])
+// Boots Chez Scheme from the boot files appended to the executable, and runs
+// the editor; returns its exit status.
+static int
+run_scheme(int ac, const char* av[])
 {
-  g_self_path = chez_embed_self_path(av[0]);
-  if (!g_self_path) fatal("cannot locate the executable");
-
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = on_winch;
-  sigemptyset(&sa.sa_mask);
-  sigaction(SIGWINCH, &sa, NULL);
-  sa.sa_handler = on_cont;
-  sigaction(SIGCONT, &sa, NULL);
-  // A client that goes away makes writes to it fail, rather than kill us.
-  signal(SIGPIPE, SIG_IGN);
-
   Sscheme_init(NULL);
   if (chez_embed_register(g_self_path) < 0)
     fatal("no boot files are appended to this executable");
@@ -359,4 +518,69 @@ main(int ac, const char* av[])
   restore_at_exit();
   Sscheme_deinit();
   return result;
+}
+
+#if defined(__APPLE__)
+// The signals as the main thread had them, before it blocked them.
+static sigset_t g_signals;
+
+// Scheme's thread. Signals for the process (a resize, a stop, ^C) come to
+// it, as they do to the main thread where that is Scheme's: the main thread
+// blocks them.
+static int
+scheme_thread(void)
+{
+  pthread_sigmask(SIG_SETMASK, &g_signals, NULL);
+  return run_scheme(g_ac, g_argv);
+}
+
+// The stack the main thread would have, as Scheme's thread runs the C and
+// Rust that Scheme calls, and the threads it starts: the stack limit, and
+// at least 8 MiB (the limit's default), where a thread's is otherwise
+// 512 KiB.
+static size_t
+scheme_stack_size(void)
+{
+  struct rlimit limit;
+  size_t size = 8 << 20;
+  if (getrlimit(RLIMIT_STACK, &limit) == 0 && limit.rlim_cur != RLIM_INFINITY
+      && limit.rlim_cur > size)
+    size = limit.rlim_cur;
+  return size;
+}
+#endif
+
+int
+main(int ac, const char* av[])
+{
+  g_self_path = chez_embed_self_path(av[0]);
+  if (!g_self_path) fatal("cannot locate the executable");
+
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = on_winch;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGWINCH, &sa, NULL);
+  sa.sa_handler = on_cont;
+  sigaction(SIGCONT, &sa, NULL);
+  // A client that goes away makes writes to it fail, rather than kill us.
+  signal(SIGPIPE, SIG_IGN);
+
+#if defined(__APPLE__)
+  g_ac = ac;
+  g_argv = av;
+  take_detached_fd();
+  g_app = getppid() == 1;
+  if (g_app) start_at_home();
+  // Every signal for the process but those a fault raises in the thread
+  // that faults.
+  sigset_t blocked;
+  sigfillset(&blocked);
+  int faults[] = {SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGTRAP, SIGABRT, SIGSYS};
+  for (size_t i = 0; i < sizeof(faults) / sizeof(faults[0]); i++) sigdelset(&blocked, faults[i]);
+  pthread_sigmask(SIG_BLOCK, &blocked, &g_signals);
+  quad_main_thread_run(scheme_thread, scheme_stack_size());
+#else
+  return run_scheme(ac, av);
+#endif
 }

@@ -10,7 +10,7 @@
           list-index take drop last-pair* filter-map delete-duplicates*
           bytevector-append bytevector->hex
           path-join path-basename path-dirname expand-home
-          sort-strings)
+          sort-strings macos?)
   (import (chezscheme))
 
   ;; Chez Scheme allows no definitions after an expression in a library
@@ -29,6 +29,10 @@
   (define (string-suffix? p s)
     (let ([n (string-length p)] [m (string-length s)])
       (and (<= n m) (string=? p (substring s (- m n) m)))))
+
+  ;; Whether this is macOS: Chez Scheme's machine types for it end so
+  ;; (tarm64osx, ta6osx).
+  (define macos? (string-suffix? "osx" (symbol->string (machine-type))))
 
   (define string-index
     (case-lambda

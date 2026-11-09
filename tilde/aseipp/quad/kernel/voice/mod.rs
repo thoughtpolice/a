@@ -18,14 +18,24 @@
 //! frame, big-endian), then the Opus packet. In silence nothing is sent.
 //!
 //! The microphone is open only while this process's person is in voice
-//! and not muted. Sound goes through the desktop's sound server
-//! ([`pulse`]); `QUAD_VOICE_INPUT=FILE` and `QUAD_VOICE_OUTPUT=FILE` read
-//! and write raw samples (16-bit, little-endian, mono, 48 kHz) instead,
-//! in real time, for tests.
+//! and not muted. Sound goes through the desktop's sound server on Linux
+//! (pulse.rs), and Core Audio on macOS (coreaudio.rs);
+//! `QUAD_VOICE_INPUT=FILE` and `QUAD_VOICE_OUTPUT=FILE` read and write raw
+//! samples (16-bit, little-endian, mono, 48 kHz) instead, in real time, for
+//! tests.
 
+#[cfg(target_os = "macos")]
+mod coreaudio;
 mod mix;
 pub mod opus;
+#[cfg(target_os = "linux")]
 mod pulse;
+
+// The system's microphone and speakers.
+#[cfg(target_os = "macos")]
+use coreaudio as sound;
+#[cfg(target_os = "linux")]
+use pulse as sound;
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write as _;
@@ -281,7 +291,7 @@ async fn receive(fd: i32, conn: Connection) {
 
 /// Where this process's person's speech comes from.
 enum Input {
-    Device(pulse::Stream),
+    Device(sound::Stream),
     File {
         samples: Vec<i16>,
         at: usize,
@@ -291,7 +301,7 @@ enum Input {
 
 /// Where what this process hears goes.
 enum Output {
-    Device(pulse::Stream),
+    Device(sound::Stream),
     File { file: std::fs::File, clock: Clock },
 }
 
@@ -336,7 +346,7 @@ impl Input {
                     clock: Clock::new(),
                 })
             }
-            None => Ok(Input::Device(pulse::Stream::open(true, None)?)),
+            None => Ok(Input::Device(sound::Stream::open(true, None)?)),
         }
     }
 
@@ -367,7 +377,7 @@ impl Output {
                     clock: Clock::new(),
                 })
             }
-            None => Ok(Output::Device(pulse::Stream::open(false, None)?)),
+            None => Ok(Output::Device(sound::Stream::open(false, None)?)),
         }
     }
 

@@ -25,7 +25,7 @@
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
           (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad project) (quad mesh)
-          (quad relay) (only (quad native) timing-mark gui-prepare gui-headless))
+          (quad relay) (only (quad native) timing-mark gui-prepare gui-headless gui-display?))
 
   (define quad-version "0.1.0")
 
@@ -37,10 +37,11 @@
     "usage: quad [options] [+LINE] [file ...]
 
   -q, --no-init        don't load the init file, or any project's
-  --gui                edit in a window, never the terminal (needs Vulkan,
-                       and a quad on the host's C library); otherwise quad
-                       opens a window where there is a display and one can
-                       open, and uses the terminal where not
+  --gui                edit in a window, never the terminal (needs Vulkan
+                       and a quad on the host's C library on Linux, Metal 4
+                       on macOS); otherwise quad opens a window where there
+                       is a display and one can open, and uses the terminal
+                       where not
   --tui                edit in the terminal, never a window
   --wait               with a window, stay in the terminal until it closes
                        (for $EDITOR); otherwise the window goes on alone
@@ -64,9 +65,9 @@
   --version            print the version
   -h, --help           this message
 
-PATH defaults to $QUAD_SOCKET, or quad.sock in $XDG_RUNTIME_DIR/quad. The
-init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
-~/.config/quad/init.ss.
+PATH defaults to $QUAD_SOCKET, or quad.sock in $XDG_RUNTIME_DIR/quad, or
+in /tmp/quad-$USER. The init file is $QUAD_INIT, or
+$XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
 ")
 
   ;; ---------------------------------------------------------------------------
@@ -108,10 +109,10 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
       (for-each remove-client! (clients))
       0))
 
-  ;; Whether a window could be shown here at all: a display to show it on.
-  (define (display-available?)
-    (exists (lambda (v) (let ([s (getenv v)]) (and s (not (string=? s "")))))
-            '("WAYLAND_DISPLAY" "DISPLAY")))
+  ;; Whether a window could be shown here at all: a display to show it on
+  ;; (Wayland's or X11's; on macOS, the window server's), unless
+  ;; QUAD_NO_DISPLAY=1.
+  (define (display-available?) (gui-display?))
 
   ;; What to edit in, as ui asks -- 'gui, a window (an error where none can
   ;; open); 'tui, this terminal; 'auto, a window where there is a display
@@ -142,7 +143,9 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; the device made ahead of it), so it forks before it knows a window will
   ;; open: the child tries, and says over a pipe how it went -- "W", it
   ;; opened; "T" and why not, so the parent goes on in the terminal; "E" and
-  ;; an error, which the parent reports.
+  ;; an error, which the parent reports. On macOS the child is a new quad
+  ;; with the same arguments instead (kernel.c), which gets here too and
+  ;; takes the forked child's part.
 
   ;; In the detached child, the pipe to its parent.
   (define report-fd #f)
@@ -153,9 +156,12 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
       (kernel-close report-fd)
       (set! report-fd #f)))
 
-  ;; Whether a window may open, and should go on without the terminal.
+  ;; Whether a window may open, and should go on without the terminal: not
+  ;; in an app macOS started, which has no terminal, and whose window is its
+  ;; own process's.
   (define (detaches? o)
-    (and (not (options-wait? o)) (not (eq? (options-ui o) 'tui)) (display-available?)))
+    (and (not (options-wait? o)) (not (eq? (options-ui o) 'tui)) (display-available?)
+         (zero? (kernel-launched-as-app))))
 
   ;; Forks, if o says to: returns the ui this process goes on with (the
   ;; terminal's, in a parent whose child had no window), or exits (the

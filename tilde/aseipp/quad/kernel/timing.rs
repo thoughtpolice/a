@@ -22,6 +22,7 @@ fn origin() -> Option<&'static (Instant, Duration)> {
 }
 
 /// How long ago the process started, from /proc: to clock ticks (10 ms).
+#[cfg(target_os = "linux")]
 fn process_age() -> Option<Duration> {
     let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
     // The fields after the command's closing parenthesis; the start time
@@ -36,6 +37,32 @@ fn process_age() -> Option<Duration> {
         .ok()?;
     // Clock ticks are USER_HZ, 100 a second on every Linux.
     Some(Duration::from_secs_f64((uptime - started / 100.0).max(0.0)))
+}
+
+/// How long ago the process started, from the kernel's record of it: to
+/// the microsecond.
+#[cfg(target_os = "macos")]
+fn process_age() -> Option<Duration> {
+    let size = std::mem::size_of::<libc::proc_bsdinfo>() as libc::c_int;
+    // SAFETY: plain C data, for which all zeroes is a value.
+    let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    // SAFETY: room for the one record asked for, this process's.
+    let got = unsafe {
+        libc::proc_pidinfo(
+            std::process::id() as libc::c_int,
+            libc::PROC_PIDTBSDINFO,
+            0,
+            (&raw mut info).cast(),
+            size,
+        )
+    };
+    if got != size {
+        return None;
+    }
+    let started = std::time::UNIX_EPOCH
+        + Duration::from_secs(info.pbi_start_tvsec)
+        + Duration::from_micros(info.pbi_start_tvusec);
+    std::time::SystemTime::now().duration_since(started).ok()
 }
 
 /// Notes that `step` is done, when timing.

@@ -60,22 +60,3 @@ impl Headless {
         Ok(readback.read(bytes)?.to_vec())
     }
 }
-
-/// Writes RGBA (or BGRA) pixels as a PPM image.
-pub fn write_ppm(
-    path: &std::path::Path,
-    extent: vk::Extent2D,
-    pixels: &[u8],
-    bgra: bool,
-) -> Result<(), String> {
-    let mut ppm = format!("P6\n{} {}\n255\n", extent.width, extent.height).into_bytes();
-    ppm.reserve(pixels.len() / 4 * 3);
-    for p in pixels.chunks_exact(4) {
-        ppm.extend_from_slice(&if bgra {
-            [p[2], p[1], p[0]]
-        } else {
-            [p[0], p[1], p[2]]
-        });
-    }
-    std::fs::write(path, ppm).map_err(|e| format!("{}: {e}", path.display()))
-}

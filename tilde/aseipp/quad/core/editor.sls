@@ -79,7 +79,7 @@
    ;; batch / eval
    quad-environment quad-libraries eval-string condition->string)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
-          (quad syntax) (quad buffer) (quad selection))
+          (quad syntax) (quad buffer) (quad selection) (only (quad kernel) kernel-hostname))
 
   ;; ---------------------------------------------------------------------------
   ;; Clients
@@ -146,8 +146,8 @@
         (let ([user (or (getenv "USER") "someone")]
               [host (or (getenv "HOSTNAME")
                         (guard (e [#t #f])
-                          (let ([h (call-with-input-file "/proc/sys/kernel/hostname" get-line)])
-                            (and (string? h) h))))])
+                          (let ([h (kernel-hostname)])
+                            (and (not (string=? h "")) h))))])
           (if host (format "~a@~a" user (car (string-split host #\.))) user))))
 
   (define next-client-id 0)

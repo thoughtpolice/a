@@ -98,10 +98,23 @@ float luminance(float3 linearColor)
     return dot(linearColor, float3(0.2126, 0.7152, 0.0722));
 }
 
+// Clip space's y, from one running top to bottom, as pixels do: Vulkan's
+// does too, and Metal's runs bottom to top.
+float clipY(float y)
+{
+    __target_switch
+    {
+    case metal:
+        return -y;
+    default:
+        return y;
+    }
+}
+
 float4 clipPosition(float2 pixel)
 {
-    // Vulkan's clip space runs top to bottom, as pixels do.
-    return float4((pixel + params.origin) / params.viewport * 2.0 - 1.0, 0.0, 1.0);
+    float2 clip = (pixel + params.origin) / params.viewport * 2.0 - 1.0;
+    return float4(clip.x, clipY(clip.y), 0.0, 1.0);
 }
 
 float2 corner(uint vertex)
