@@ -31746,6 +31746,47 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "smithay-clipboard",
+    actual = ":smithay-clipboard-0.7",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "smithay-clipboard-0.7.2.crate",
+    sha256 = "cc8216eec463674a0e90f29e0ae41a4db573ec5b56b1c6c1c71615d249b6d846",
+    strip_prefix = "smithay-clipboard-0.7.2",
+    urls = ["https://static.crates.io/crates/smithay-clipboard/0.7.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "smithay-clipboard-0.7",
+    srcs = [":smithay-clipboard-0.7.2.crate"],
+    crate = "smithay_clipboard",
+    crate_root = "smithay-clipboard-0.7.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "dlopen",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "smithay-clipboard",
+            "version": "0.7.2",
+            "licenses": ["MIT"],
+        },
+    },
+    named_deps = {
+        "sctk": ":smithay-client-toolkit-0.19",
+    },
+    visibility = [],
+    deps = [
+        ":libc-0.2",
+        ":wayland-backend-0.3",
+    ],
+)
+
 shims.http_archive(
     name = "smol_str-0.1.24.crate",
     sha256 = "fad6c857cbab2627dcf01ec85a623ca4e7dcb5691cbaa3d7fb7653671f0d09c9",

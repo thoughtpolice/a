@@ -316,6 +316,11 @@ starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "46
 [target.'cfg(unix)'.dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
+# The Wayland clipboard and primary selection for quad's GUI, which winit
+# has no API for. NOTE: pinned to 0.7.2, whose smithay-client-toolkit (0.19)
+# is winit 0.30's; 0.7.3 moves to 0.20, a second copy of it. It loads
+# libwayland-client at run time ("dlopen", its default), as winit does.
+smithay-clipboard = "=0.7.2"
 # The system's fonts and their fallbacks for quad's GUI, from fontconfig,
 # which it loads at run time ("fontconfig-dlopen"), as ash loads Vulkan.
 fontique = { version = "0.12.0", features = ["fontconfig-dlopen"] }
