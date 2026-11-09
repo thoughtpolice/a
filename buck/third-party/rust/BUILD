@@ -33289,18 +33289,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tokio-rustls-0.26.5.crate",
-    sha256 = "b0c85f2c3ef0b1cd58b36682f4b17aaa995f0e5db534d85692b4903abce21f67",
-    strip_prefix = "tokio-rustls-0.26.5",
-    urls = ["https://static.crates.io/crates/tokio-rustls/0.26.5/download"],
+    name = "tokio-rustls-0.26.6.crate",
+    sha256 = "c9cc2678c2cdd569ef8215e2afd7954ada2ae20b4fdd2c5fe6139a3b02d105db",
+    strip_prefix = "tokio-rustls-0.26.6",
+    urls = ["https://static.crates.io/crates/tokio-rustls/0.26.6/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tokio-rustls-0.26",
-    srcs = [":tokio-rustls-0.26.5.crate"],
+    srcs = [":tokio-rustls-0.26.6.crate"],
     crate = "tokio_rustls",
-    crate_root = "tokio-rustls-0.26.5.crate/src/lib.rs",
+    crate_root = "tokio-rustls-0.26.6.crate/src/lib.rs",
     edition = "2021",
     features = [
         "logging",
@@ -33309,7 +33309,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tokio-rustls",
-            "version": "0.26.5",
+            "version": "0.26.6",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
