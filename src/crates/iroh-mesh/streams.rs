@@ -74,6 +74,11 @@ pub struct Transport {
     /// How often an idle connection says something, so neither end, nor
     /// a NAT between them, forgets it.
     pub keep_alive: Duration,
+    /// How long a connection that hears nothing from the other end lives:
+    /// how soon an end that went away without a word (killed, or off the
+    /// network) is noticed. Longer than `keep_alive`; the shorter of the
+    /// two ends' applies.
+    pub idle_timeout: Duration,
 }
 
 impl Default for Transport {
@@ -86,6 +91,7 @@ impl Default for Transport {
             stream_window: 16 * 1024 * 1024,
             connection_window: 64 * 1024 * 1024,
             keep_alive: Duration::from_secs(10),
+            idle_timeout: Duration::from_secs(30),
         }
     }
 }
@@ -99,6 +105,7 @@ impl Transport {
             .receive_window(VarInt::from_u32(self.connection_window))
             .send_window(u64::from(self.connection_window))
             .keep_alive_interval(self.keep_alive)
+            .max_idle_timeout(self.idle_timeout.try_into().ok())
             .build()
     }
 }
