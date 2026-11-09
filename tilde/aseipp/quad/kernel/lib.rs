@@ -9,9 +9,9 @@
 //! errors and panics become Scheme errors. The kernel registers them at boot
 //! by calling [`quad_native_register`].
 //!
-//! Components that run threads of their own -- the network, later -- hand
-//! Scheme an object holding a [`Mailbox`], whose file descriptor the editor's
-//! event loop polls; the ticker below is the smallest such component.
+//! Components that run threads of their own -- iroh (mesh.rs) -- hand Scheme
+//! an object holding a [`Mailbox`], whose file descriptor the editor's event
+//! loop polls; the ticker below is the smallest such component.
 //! Subprocesses ([`Process`]) need no thread: Scheme polls and reads their
 //! output's descriptor, and writes to their input's, directly.
 //!
@@ -25,6 +25,8 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use chez::{ByteVec, Bytes, Mailbox, Object, Ref, RefMut};
+
+mod mesh;
 
 /// The BLAKE3 hash of a bytevector: a 32-byte bytevector.
 #[chez::procedure]
@@ -183,12 +185,80 @@ fn process_stop(mut p: RefMut<Process>, grace_ms: u64) {
     p.stop(Duration::from_millis(grace_ms));
 }
 
+// ---------------------------------------------------------------------------
+// Editors and clients over iroh (mesh.rs)
+
+/// An editor accepting clients over iroh, with a new identity and join
+/// key, and (with `code?`) a new join code it announces itself under, all
+/// made up now and kept nowhere. `local` uses no relays or address lookup,
+/// so that only the addresses a ticket carries reach it. Clients' streams
+/// arrive through mesh-host-take!, once mesh-host-fd is readable.
+#[chez::procedure(name = "mesh-host-start")]
+fn mesh_host_start(code: bool, local: bool) -> Result<Object<mesh::Host>, String> {
+    mesh::host(code, local)
+        .map(Object)
+        .map_err(|e| e.to_string())
+}
+
+/// Readable while client streams, or news, wait.
+#[chez::procedure]
+fn mesh_host_fd(h: Ref<mesh::Host>) -> i32 {
+    h.streams.fd()
+}
+
+/// The descriptors of the client streams waiting; -1 for each change to
+/// the editor's info.
+#[chez::procedure(name = "mesh-host-take!")]
+fn mesh_host_take(h: Ref<mesh::Host>) -> Vec<i32> {
+    h.streams.take()
+}
+
+/// What the editor's endpoint has made known: its ID, its ticket, its join
+/// code and what failed, each #f until known.
+#[chez::procedure]
+fn mesh_host_info(h: Ref<mesh::Host>) -> Vec<Option<String>> {
+    let i = h.info.lock().unwrap();
+    vec![
+        i.id.clone(),
+        i.ticket.clone(),
+        i.code.clone(),
+        i.error.clone(),
+    ]
+}
+
+/// "code", "ticket" or #f: what `target` is to mesh-connect.
+#[chez::procedure(name = "mesh-target-kind")]
+fn mesh_target_kind(target: String) -> Option<String> {
+    mesh::target_kind(&target).map(str::to_string)
+}
+
+/// A connection to the editor that `target`, a join code or ticket, names.
+/// It waits until connected, or fails.
+#[chez::procedure(name = "mesh-connect")]
+fn mesh_connect(target: String, local: bool) -> Result<Object<mesh::Session>, String> {
+    mesh::connect(&target, local).map(Object)
+}
+
+/// The descriptor of a connection's stream, to speak the protocol on.
+#[chez::procedure]
+fn mesh_session_fd(s: Ref<mesh::Session>) -> i32 {
+    s.fd
+}
+
+/// The ID of the editor a connection reached.
+#[chez::procedure]
+fn mesh_session_editor(s: Ref<mesh::Session>) -> String {
+    s.editor.clone()
+}
+
 chez::library! {
     /// `(quad native)`.
     pub fn native() -> "quad native" {
         blake3, version, make_ticker, ticker_fd, ticker_take,
         spawn_process, process_pid, process_input_fd, process_output_fd,
         process_close_input, process_status, process_stop,
+        mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
+        mesh_target_kind, mesh_connect, mesh_session_fd, mesh_session_editor,
     }
 }
 

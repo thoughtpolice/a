@@ -35,12 +35,27 @@ quad --listen FILE         # ... that other clients can attach to as well
 quad --daemon FILE         # an editor with no terminal, for clients
 quad --connect             # a terminal client of a running editor
 quad --connect --eval '(map client-name (clients))'
+quad --daemon --mesh       # ... joinable over iroh, from anywhere
+quad --connect=rock-stir-duct-feed-slick-showy   # by the code it printed
 ```
 
 The socket is `$QUAD_SOCKET`, else `quad.sock` in `$XDG_RUNTIME_DIR/quad`;
 `--listen=PATH` and `--connect=PATH` name another. Quitting (`space j v`)
 detaches a client; the editor stops with its last client, unless it is a
 daemon (`space j k` stops it for everyone).
+
+With `--mesh` (or the command `mesh-listen`, in a running editor) an
+editor also accepts clients over [iroh](https://iroh.computer), through
+NATs and from anywhere, using the repository's `iroh-mesh`. It prints a
+six-word join code and a ticket, and announces itself under the code on
+the mainline DHT, so `quad --connect=CODE` finds it with no address at
+all. The code and the ticket are credentials: a client proves it knows
+the key they carry before it can attach. So they are made up afresh, with
+a fresh identity, each time the editor starts listening, and written
+nowhere: once it stops they mean nothing. By ticket, a client connects in
+tens of milliseconds; by code, in a second or two, most of it Argon2
+making each guess at a code expensive, and the DHT lookup. `mesh-info`
+shows the code and copies a ticket.
 
 ## Distribution
 
@@ -314,6 +329,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/json.sls`, `core/jsonrpc.sls` | JSON, and JSON-RPC with a subprocess |
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
+| `core/mesh.sls`, `kernel/mesh.rs` | editors and clients over iroh (`iroh-mesh`) |
 | `core/project.sls` | projects: `.quad/` configuration, trust, review |
 | `core/main.sls` | the command line, `--build-exe`, headless clients for testing |
 | `ext/*.sls` | the built-in extensions |

@@ -56,12 +56,20 @@ EXTENSION_ORDER = [
 
 KERNEL_RS_DEPS = [
     "//aseipp/quad/chez-rs:chez",
+    "root//src/crates/accept:accept",
+    "root//src/crates/iroh-dial:iroh-dial",
+    "root//src/crates/iroh-mesh:iroh-mesh",
     "third-party//rust:blake3",
+    "third-party//rust:futures",
+    "third-party//rust:tokio",
 ]
 
 shims.rust_library(
     name = "kernel-rs",
-    srcs = ["kernel/lib.rs"],
+    srcs = [
+        "kernel/lib.rs",
+        "kernel/mesh.rs",
+    ],
     crate = "quad_kernel",
     crate_root = "kernel/lib.rs",
     tests = [":kernel-rs-test"],
@@ -70,7 +78,10 @@ shims.rust_library(
 
 shims.rust_test(
     name = "kernel-rs-test",
-    srcs = ["kernel/lib.rs"],
+    srcs = [
+        "kernel/lib.rs",
+        "kernel/mesh.rs",
+    ],
     crate = "quad_kernel",
     crate_root = "kernel/lib.rs",
     deps = KERNEL_RS_DEPS,
@@ -98,8 +109,12 @@ shims.cxx_binary(
     # which Buck builds non-PIC for plain static linking.
     link_style = "static_pic",
     # The executable is what quad distributes: without DWARF (mostly Rust's
-    # std) it is a third of the size. The symbol table stays.
-    linker_flags = ["-Wl,--strip-debug"],
+    # std) it is a third of the size. The symbol table stays. The dynamic
+    # one leaves out the Rust and C++ names (kernel/exports.map).
+    linker_flags = [
+        "-Wl,--strip-debug",
+        "-Wl,--version-script=$(location :kernel-exports)",
+    ],
     deps = [
         ":kernel-rs",
         "toolchains//chez:embed",
@@ -107,6 +122,11 @@ shims.cxx_binary(
         # malloc and free, for C, Chez Scheme and Rust alike.
         "third-party//by-name/mi/mimalloc:mimalloc-override",
     ],
+)
+
+shims.export_file(
+    name = "kernel-exports",
+    src = "kernel/exports.map",
 )
 
 # MARK: Scheme
@@ -300,6 +320,45 @@ shims.command_test(
         trap 'rm -rf "$dir"' EXIT
         export QUAD_TEST_DIR=$(location :tests)/tests QUAD_PROJECT_DIR=$dir QUAD_INIT=$dir/init.ss
         $(exe :quad) -q --batch $QUAD_TEST_DIR/project.ss
+    """,
+)
+
+# Clients over iroh: a daemon accepting them (local: no relays or lookup,
+# so the ticket's addresses reach it), a client by its ticket, and one
+# with the wrong join key, refused.
+shims.command_test(
+    name = "test-mesh",
+    script = """
+        quad=$(exe :quad)
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'kill $daemon 2>/dev/null || true; rm -rf "$dir"' EXIT
+        export QUAD_SOCKET=$dir/quad.sock QUAD_MESH_LOCAL=1 HOME=$dir XDG_CONFIG_HOME=$dir/config XDG_STATE_HOME=$dir/state
+        test "`$quad -q --eval '(map mesh-target? (list "rock-stir-duct-feed-slick-showy" "/tmp/quad.sock" "a-b"))'`" = "(#t #f #f)"
+        $quad -q --daemon --mesh > $dir/daemon.log 2>&1 &
+        daemon=$!
+        for i in `seq 200`; do grep -q "the ticket" $dir/daemon.log && break; sleep 0.05; done
+        ticket=`sed -n 's/.*the ticket: quad --connect=//p' $dir/daemon.log`
+        test -n "$ticket"
+        # Only iroh reaches it: there is no socket where this client looks.
+        test "`QUAD_SOCKET=$dir/none $quad --connect=$ticket --eval '(+ 1 2)'`" = 3
+        test "`QUAD_SOCKET=$dir/none $quad --connect=$ticket --eval '(and (member "eval" (map client-name (clients))) #t)'`" = "#t"
+        # Its credentials are kept nowhere.
+        test ! -e $dir/config/quad && test ! -e $dir/state/quad
+        # Another key is refused.
+        bad="${ticket%.*}.0000000000000000000000000000000000000000000000000000000000000000"
+        ! QUAD_SOCKET=$dir/none $quad --connect=$bad --eval 1 > $dir/bad.log 2>&1
+        grep -q "join key" $dir/bad.log
+        $quad --connect --eval '(editor-quit!)' > /dev/null
+        wait $daemon
+        # Listening again makes up new credentials.
+        $quad -q --daemon --mesh > $dir/daemon2.log 2>&1 &
+        daemon=$!
+        for i in `seq 200`; do grep -q "the ticket" $dir/daemon2.log && break; sleep 0.05; done
+        again=`sed -n 's/.*the ticket: quad --connect=//p' $dir/daemon2.log`
+        test -n "$again" && test "$again" != "$ticket"
+        test "`QUAD_SOCKET=$dir/none $quad --connect=$again --eval '(+ 2 2)'`" = 4
+        $quad --connect --eval '(editor-quit!)' > /dev/null
+        wait $daemon
     """,
 )
 

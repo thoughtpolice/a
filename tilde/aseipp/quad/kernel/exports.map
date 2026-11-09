@@ -1,0 +1,13 @@
+/* SPDX-FileCopyrightText: © 2024-2026 Austin Seipp */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* The kernel's dynamic symbols: everything the link exports as before
+   (mimalloc's malloc and free above all, which glibc's own allocations
+   must find), but not the mangled names of the Rust half and the C++
+   it links (BoringSSL, under iroh): well over a hundred thousand, which
+   nothing looks up. */
+{
+  local:
+    _ZN*;
+    _R*;
+};

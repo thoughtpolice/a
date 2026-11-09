@@ -74,11 +74,12 @@
   ;; ---------------------------------------------------------------------------
   ;; In a process of its own
 
-  ;; Connect the terminal to the server listening at socket `path`, open
-  ;; `files` there, and run until the server says goodbye or the terminal
-  ;; closes. Returns the exit status.
+  ;; Connect the terminal to the server listening at socket `path` (or on
+  ;; descriptor `path`, connected already), open `files` there, and run
+  ;; until the server says goodbye or the terminal closes. Returns the exit
+  ;; status.
   (define (tui-connect! path files line)
-    (let ([fd (kernel-unix-connect path)])
+    (let ([fd (if (fixnum? path) path (kernel-unix-connect path))])
       (when (< fd 0) (errorf 'quad "no server is listening at ~a" path))
       (let* ([tty (open-tty)]
              [send (frame-sender fd)]

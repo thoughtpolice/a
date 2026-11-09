@@ -6,7 +6,9 @@
 ;; quad runs as an editor with its terminal attached (the default), as a
 ;; daemon that clients connect to (--daemon), or as a client of a running
 ;; editor (--connect). Each editor can also listen for more clients
-;; (--listen). Headless clients drive the editor for tests and --batch.
+;; (--listen), and for clients anywhere over iroh (--mesh), who find it
+;; by its join code. Headless clients drive the editor for tests and
+;; --batch.
 (library (quad main)
   (export quad-main quad-version editor-init! build-exe!
           ;; headless driving, for tests and --batch scripts
@@ -17,9 +19,13 @@
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
-          (quad protocol) (quad grid) (quad server) (quad tui) (quad project))
+          (quad protocol) (quad grid) (quad server) (quad tui) (quad project) (quad mesh))
 
   (define quad-version "0.1.0")
+
+  ;; Sessions over iroh, held while their connections are used: one that
+  ;; is collected closes its endpoint.
+  (define sessions '())
 
   (define usage
     "usage: quad [options] [+LINE] [file ...]
@@ -27,7 +33,11 @@
   -q, --no-init        don't load the init file, or any project's
   --listen[=PATH]      also accept clients on the Unix socket PATH
   --daemon             run without a terminal, for clients; implies --listen
-  --connect[=PATH]     be a client of the editor listening at PATH
+  --mesh               also accept clients over iroh, from anywhere: they
+                       join with the code this prints, or its ticket, made
+                       up for this run alone
+  --connect[=PATH]     be a client of the editor listening at PATH, or
+                       reached over iroh with a join code or ticket
   --eval EXPR          evaluate EXPR (in that editor, with --connect), print
                        the result, exit
   --batch FILE         run FILE headless, as a script (tests use this)
@@ -92,9 +102,10 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
           (begin (load-init-file! (init-file-path)) (project-visit! (current-directory)))
           (set-var! 'project-config #f))))
 
-  (define (interactive! files line init? listen tutor?)
+  (define (interactive! files line init? listen tutor? mesh?)
     (editor-init! files (configure! init?))
     (when listen (server-listen! listen))
+    (when mesh? (mesh-listen! #t (mesh-announcer (lambda (fmt . args) (apply message fmt args)))))
     (let ([c (tui-attach!)])
       (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
       (when tutor?
@@ -106,19 +117,53 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
       (serve!)))
 
   ;; The editor with no terminal, for clients to connect to.
-  (define (daemon! files init? listen)
+  (define (daemon! files init? listen mesh?)
     (editor-daemon?-set! #t)
     (editor-init! files (configure! init?))
     (server-listen! listen)
     (printf "quad: listening at ~a\n" listen)
     (flush-output-port (current-output-port))
+    (when mesh?
+      (mesh-listen! #t (mesh-announcer (lambda (fmt . args)
+                                         (apply printf (string-append "quad: " fmt "\n") args)
+                                         (flush-output-port (current-output-port))))))
     (serve!))
+
+  ;; Says how clients join, once the endpoint knows, or what failed.
+  (define (mesh-announcer say)
+    (let ([said '()])
+      (lambda (info)
+        (for-each (lambda (key what)
+                    (let ([v (cdr (assq key info))])
+                      (when (and v (not (member (cons key v) said)))
+                        (set! said (cons (cons key v) said))
+                        (say what v))))
+                  '(code ticket error)
+                  '("clients anywhere join with the code: quad --connect=~a"
+                    "clients join with the ticket: quad --connect=~a"
+                    "iroh: ~a")))))
+
+  ;; Where --connect goes: a socket path, a join code or a ticket; bare,
+  ;; the local editor's socket.
+  (define (connect-target spec)
+    (if (eq? spec 'local) (default-socket-path) spec))
+
+  ;; A descriptor connected to target, and what keeps it open.
+  (define (connect-fd target)
+    (if (mesh-target? target)
+        (begin
+          (display "quad: connecting over iroh...\n" (current-error-port))
+          (let-values ([(fd session editor) (mesh-connect-fd! target)])
+            (set! sessions (cons session sessions))
+            (values fd session)))
+        (let ([fd (kernel-unix-connect target)])
+          (when (< fd 0) (errorf 'quad "no server is listening at ~a" target))
+          (values fd #f))))
 
   ;; Evaluate expr in the editor listening at path, as a client: print the
   ;; result. Returns the exit status.
-  (define (remote-eval! path expr)
-    (let ([fd (kernel-unix-connect path)])
-      (when (< fd 0) (errorf 'quad "no server is listening at ~a" path))
+  (define (remote-eval! target expr)
+    (let-values ([(fd session) (connect-fd target)])
       (let ([send (frame-sender fd)] [reader (make-frame-reader)] [buf (make-bytevector 65536)])
         (send (list "hello" protocol-version "eval" 3 10 '()))
         (send (list "eval" 1 expr))
@@ -301,6 +346,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
 
   (define (quad-main args)
     (define tutor? #f)
+    (define mesh? #f)
     (let loop ([args args] [files '()] [line #f] [init? #t] [listen #f] [daemon? #f] [connect #f] [expr #f])
       ;; --opt, or --opt=PATH.
       (define (path-option opt)
@@ -312,15 +358,16 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
        [(null? args)
         (let ([files (reverse files)])
           (cond
-           [(and expr connect) (remote-eval! connect expr)]
+           [(and expr connect) (remote-eval! (connect-target connect) expr)]
            [expr
             (editor-init! files (configure! init?))
             (let ([v (eval-string expr)])
               (unless (eq? v (void)) (write v) (newline))
               0)]
-           [connect (tui-connect! connect files line)]
-           [daemon? (daemon! files init? (or listen (default-socket-path)))]
-           [else (interactive! files line init? listen tutor?)]))]
+           [connect (let-values ([(fd session) (connect-fd (connect-target connect))])
+                      (tui-connect! fd files line))]
+           [daemon? (daemon! files init? (or listen (default-socket-path)) mesh?)]
+           [else (interactive! files line init? listen tutor? mesh?)]))]
        [(member (car args) '("-h" "--help")) (display usage) 0]
        [(string=? (car args) "--version")
         (let-values ([(major minor patch) (scheme-version-number)])
@@ -330,7 +377,9 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
        [(member (car args) '("-q" "--no-init")) (loop (cdr args) files line #f listen daemon? connect expr)]
        [(path-option "--listen") => (lambda (p) (loop (cdr args) files line init? p daemon? connect expr))]
        [(string=? (car args) "--daemon") (loop (cdr args) files line init? listen #t connect expr)]
+       [(string=? (car args) "--connect") (loop (cdr args) files line init? listen daemon? 'local expr)]
        [(path-option "--connect") => (lambda (p) (loop (cdr args) files line init? listen daemon? p expr))]
+       [(string=? (car args) "--mesh") (set! mesh? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
        [(and (string=? (car args) "--eval") (pair? (cdr args)))
         (loop (cddr args) files line init? listen daemon? connect (cadr args))]
        [(and (string=? (car args) "--batch") (pair? (cdr args)))

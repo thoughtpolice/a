@@ -78,11 +78,16 @@ The server's loop (`core/server.sls`) polls descriptors through the kernel
 - **Unix sockets**: `--listen[=PATH]` and `--daemon` accept clients on a
   socket; `--connect[=PATH]` is a terminal client over one; `--connect
   --eval EXPR` evaluates in a running editor;
-- **others, such as Iroh**: the kernel's Rust half (written with the `chez`
-  crate) can run an endpoint on threads of its own, as an `Object` Scheme
-  holds, and bridge each QUIC stream to one end of a `socketpair`, handing
-  the other end to Scheme (through a `Mailbox`, polled with `watch-fd!`)
-  for `serve-stream!`. Nothing else in Scheme changes.
+- **iroh**: `--mesh` (or the command `mesh-listen`) makes the editor an
+  `iroh-mesh` host. The kernel's Rust half (`kernel/mesh.rs`) runs its
+  endpoint on threads of its own, as an `Object` Scheme holds, and bridges
+  each QUIC stream a client opens to one end of a `socketpair`, handing the
+  other end to Scheme (through a `Mailbox`, polled with `watch-fd!`) for
+  `serve-stream!`. A client (`--connect=CODE` or `=TICKET`) does the same
+  the other way round. Clients prove they know the editor's join key, the
+  ticket's or the one its six-word join code derives, before any stream;
+  the editor announces itself on the mainline DHT under its code, so the
+  code alone finds it. Nothing else in Scheme changes.
 
 ## The protocol
 
@@ -139,7 +144,7 @@ encodings.
 
 A Vulkan client, or one on any other API, needs to:
 
-1. connect (a Unix socket now; an Iroh stream later) and send `hello` with
+1. connect (a Unix socket, or an iroh stream) and send `hello` with
    its size in cells and its capabilities (`release-events` comes free with
    window-system key events);
 2. keep a grid model (`core/grid.sls` is the reference): apply `grid`,
