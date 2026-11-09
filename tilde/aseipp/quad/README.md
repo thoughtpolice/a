@@ -94,7 +94,7 @@ style: lessons, each with lines to practise on.
 | `w` `W` | SUBWORD (`fooBar_baz`), CHAR |
 | `d` | NODE: s-expressions in Lisps, bracket structure elsewhere |
 | `E` | PARAGRAPH |
-| `n` | local menu: `n d` search, `n f` search the selection, `n n` all occurrences |
+| `n` | local menu: `n d` search, `n f` search the selection, `n n` all occurrences; with a language server, `n x` definition, `n v` references, `n a` diagnostics (below) |
 | `f` | extend: following movements grow the selection; `f f` selects all |
 | `h` `;` | insert before/after |
 | `g` | change (layer: `g k`/`g i` open a line, `g l`/`g j` open a gap) |
@@ -167,6 +167,37 @@ back. The variables `codex-command`, `codex-model`, `codex-sandbox`,
 runs, and `define-codex-tool!` gives it more tools: the agent can write
 those too.
 
+## Language servers
+
+The `lsp` extension makes quad a Language Server Protocol client. Opening a
+file starts the server for its extension, if its command is on `PATH`:
+clangd, rust-analyzer, gopls, pyright or pylsp, typescript-language-server,
+zls, bash-language-server, nixd, and Lean's `lake serve`. One runs per
+project, rooted at the nearest directory up from the file with a marker
+(`.git`, `Cargo.toml`, `compile_commands.json`...). The buffer is kept in
+step change by change, and diagnostics underline the text, with their
+count in the status line; landing on one shows its message.
+
+| Keys | |
+| --- | --- |
+| `n x` `n X` `n b` `n c` | definition, declaration, implementation, type definition |
+| `n v` `n V` | references, without and with the declaration |
+| `n a` `n s` `n w` `n q` `n Q` | diagnostics as a selection mode (all, errors, warnings, hints, information): `l` and `j` go between them |
+| `space l s` | hover |
+| `space l f` | rename, in every file |
+| `space l d` | code actions |
+| `space l =` | format the buffer |
+| `space k y` `space k Y` | symbols in the buffer, in the workspace |
+| `space k e` | every diagnostic, in every file |
+| `ctrl+space` | (insert mode) complete: a menu at the cursor, narrowed as you type |
+
+`lsp-restart`, `lsp-stop`, `lsp-info` and `lsp-log` are in the command
+palette. Another server is a line in the init file:
+
+```scheme
+(define-lsp-server! 'ocamllsp '("ocamllsp") '("ml" "mli") '("dune-project" ".git"))
+```
+
 ## The kernel
 
 `kernel/kernel.c` boots Chez Scheme from the boot files appended to its
@@ -202,8 +233,9 @@ registered by hand, and there are no pointers in sight.
 
 Subprocesses are a component too, `spawn-process`, with pipes to and from
 the program; Scheme polls and reads its output's descriptor like any other.
-`core/jsonrpc.sls` speaks JSON-RPC to such programs, a message per line, as
-Codex's app server and MCP servers do.
+`core/jsonrpc.sls` speaks JSON-RPC to such programs: a message per line, as
+Codex's app server and MCP servers do, or after a `Content-Length` header,
+as language servers do.
 
 ## Extensions
 
@@ -212,7 +244,8 @@ target of its own; `EXTENSIONS` in `BUILD` picks the ones the editor is built
 with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
-(`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, and
+(`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
+language servers, and
 `tutor`, whose lessons are `ext/tutor.md`, compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).
 

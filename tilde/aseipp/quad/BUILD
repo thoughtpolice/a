@@ -30,6 +30,7 @@ EXTENSIONS = {
     "c": [],
     "codex": [],
     "lisp": [],
+    "lsp": [],
     "markdown": [],
     "shell": [],
     "tutor": [],
@@ -47,6 +48,7 @@ EXTENSION_ORDER = [
     "markdown",
     "blake3",
     "codex",
+    "lsp",
     "tutor",
 ]
 
@@ -274,6 +276,18 @@ shims.command_test(
         trap 'rm -rf "$dir"' EXIT
         export QUAD_TEST_DIR=$(location :tests)/tests QUAD_INIT=$dir/init.ss
         $(exe :quad) -q --batch $QUAD_TEST_DIR/codex.ss
+    """,
+)
+
+# The language server client, against a stand-in server
+# (tests/lsp-server.ss, run by quad itself), in a project of its own.
+shims.command_test(
+    name = "test-lsp",
+    script = """
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'rm -rf "$dir"' EXIT
+        export QUAD_TEST_DIR=$(location :tests)/tests QUAD_LSP_DIR=$dir
+        $(exe :quad) -q --batch $QUAD_TEST_DIR/lsp.ss
     """,
 )
 
