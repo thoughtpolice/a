@@ -19129,23 +19129,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "memmap2-0.9.11.crate",
-    sha256 = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0",
-    strip_prefix = "memmap2-0.9.11",
-    urls = ["https://static.crates.io/crates/memmap2/0.9.11/download"],
+    name = "memmap2-0.9.12.crate",
+    sha256 = "6b0ca1155a9ecc25aa12e8313a119f32edf0255fea2f44839c4ac0a12b2ac157",
+    strip_prefix = "memmap2-0.9.12",
+    urls = ["https://static.crates.io/crates/memmap2/0.9.12/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "memmap2-0.9",
-    srcs = [":memmap2-0.9.11.crate"],
+    srcs = [":memmap2-0.9.12.crate"],
     crate = "memmap2",
-    crate_root = "memmap2-0.9.11.crate/src/lib.rs",
+    crate_root = "memmap2-0.9.12.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "memmap2",
-            "version": "0.9.11",
+            "version": "0.9.12",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
