@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.47.1",
+    description = """
+        Jujutsu's `jj` command, built from the jj-cli crate in
+        third-party//rust: for tests that need a jj of a known version.
+    """,
+    license = "Apache-2.0",
+    copyright = [
+        "2020 The Jujutsu Authors",
+    ],
+    visibility = ["PUBLIC"],
+)
