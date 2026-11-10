@@ -29,7 +29,7 @@ quad is an editor server, and every user interface is a client of it:
 several can be attached at once, to the same buffers, each with its own
 selections, modes and prompt, each seeing the others' cursors. The server
 draws each client's screen as cells and sends what changed; clients send
-key, mouse and paste events. [docs/design.md](docs/design.md) has the
+key, mouse and paste events. [docs/design.md](design.md) has the
 architecture and the protocol, which a graphical client in another process
 would speak too.
 
@@ -86,7 +86,7 @@ PulseAudio), where quad's streams can be routed and turned up or down, or
 on macOS through Core Audio, to the input and output System Settings
 choose; there is no echo cancellation yet, so use headphones. The speech travels
 as Opus over the same iroh connection, beside the editor's protocol
-([docs/design.md](docs/design.md#voice)).
+([docs/design.md](design.md#voice)).
 
 With `--mesh` (or the command `mesh-listen`, in a running editor) an
 editor also accepts clients over [iroh](https://iroh.computer), through

@@ -41,8 +41,8 @@
        ";; init.ss -- quad's configuration: Scheme, loaded as quad starts, with all\n"
        ";; of quad in scope. quad's setup wrote it (space j i asks again and\n"
        ";; writes it anew, keeping this one as init.ss.bak); change it as you\n"
-       ";; like. quad's README, and its docs/examples/init.ss, show what else can\n"
-       ";; go here: keys, commands, modes, hooks.\n\n"
+       ";; like. quad's guide, docs/guide.md, and its docs/examples/init.ss,\n"
+       ";; show what else can go here: keys, commands, modes, hooks.\n\n"
        (set 'key-scheme "The keys: 'ki (quad's own), 'vim or 'helix. space j s picks among them.")
        (set 'theme "The colors. space k t picks among the themes, showing each.")
        (set 'ai-provider "The AI that space a asks to change the editor: 'codex, or #f for none.")

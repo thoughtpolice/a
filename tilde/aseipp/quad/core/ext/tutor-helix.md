@@ -366,7 +366,7 @@ runs. `space e` evaluates Scheme: press it, type the line below, and press
 Your configuration is a Scheme file, `~/.config/quad/init.ss`, loaded at
 start. `(set-var! 'key-scheme 'helix)` there keeps Helix's keys; it can
 define commands, bind keys, change colours and add modes too: quad's
-README shows how, and its `docs/examples/init.ss` has more.
+guide, `docs/guide.md`, shows how, and `docs/examples/init.ss` has more.
 
 
 ## Lesson 10 summary

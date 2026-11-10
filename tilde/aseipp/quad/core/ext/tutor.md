@@ -408,7 +408,8 @@ runs. `space e` evaluates Scheme: press it, type the line below, and press
 
 Your configuration is a Scheme file, `~/.config/quad/init.ss`, loaded at
 start. It can define commands, bind keys, change colours and add modes:
-quad's README shows how, and its `docs/examples/init.ss` has more.
+quad's guide, `docs/guide.md`, shows how, and `docs/examples/init.ss`
+has more.
 
 `space a` asks an AI agent (Codex) to change the editor for you: `space a
 a`, then describe what you want, like "bind ctrl+d to duplicate the line".
