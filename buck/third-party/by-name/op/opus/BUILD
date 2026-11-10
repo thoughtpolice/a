@@ -237,7 +237,12 @@ shims.cxx_library(
         "opus/" + h: ":src[include/{}]".format(h)
         for h in PUBLIC_HEADERS
     },
-    exported_linker_flags = ["-lm"],
+    # The C library has the maths on Windows (the UCRT); lld-link takes no
+    # -l.
+    exported_linker_flags = shims.select({
+        "config//os:windows": [],
+        "DEFAULT": ["-lm"],
+    }),
     header_namespace = "",
     preferred_linkage = "static",
     preprocessor_flags = OPUS_DEFINES + OPUS_INCLUDES,
