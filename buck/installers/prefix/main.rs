@@ -16,7 +16,13 @@
 //! that is running keeps its old executable (writing into a running one in
 //! place fails with ETXTBSY). Buck's outputs are read-only; an installed
 //! file is writable by its owner, executable only if the output was.
+//!
+//! On Windows, where a file has no modes, an installed file is only made
+//! writable; and as a running program's executable cannot be replaced, nor
+//! deleted, but can be renamed, one in the way is first moved aside, to be
+//! deleted by the next install once it has exited.
 
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 
@@ -64,24 +70,55 @@ fn install_file(src: &Path, dest: &Path) -> Result<()> {
     let parent = dest.parent().context("no parent directory")?;
     std::fs::create_dir_all(parent).with_context(|| format!("{}", parent.display()))?;
     // Follows symlinks: Buck materializes outputs as links into its cache.
-    let executable = std::fs::metadata(src)
+    let permissions = std::fs::metadata(src)
         .with_context(|| format!("{}", src.display()))?
-        .permissions()
-        .mode()
-        & 0o111
-        != 0;
+        .permissions();
     let partial = partial_path(dest);
     let written = std::fs::copy(src, &partial)
-        .and_then(|_| {
-            let mode = if executable { 0o755 } else { 0o644 };
-            std::fs::set_permissions(&partial, std::fs::Permissions::from_mode(mode))
-        })
-        .and_then(|_| std::fs::rename(&partial, dest));
+        .and_then(|_| std::fs::set_permissions(&partial, writable(permissions)))
+        .and_then(|_| replace(&partial, dest));
     if let Err(e) = written {
         let _ = std::fs::remove_file(&partial);
         return Err(e).with_context(|| format!("{}", dest.display()));
     }
     Ok(())
+}
+
+/// The permissions an installed copy of a file with `of` gets.
+#[cfg(unix)]
+fn writable(of: std::fs::Permissions) -> std::fs::Permissions {
+    let executable = of.mode() & 0o111 != 0;
+    std::fs::Permissions::from_mode(if executable { 0o755 } else { 0o644 })
+}
+
+#[cfg(not(unix))]
+fn writable(mut of: std::fs::Permissions) -> std::fs::Permissions {
+    #[allow(clippy::permissions_set_readonly_false)]
+    of.set_readonly(false);
+    of
+}
+
+/// Renames `partial` over `dest`.
+#[cfg(unix)]
+fn replace(partial: &Path, dest: &Path) -> std::io::Result<()> {
+    std::fs::rename(partial, dest)
+}
+
+/// Renames `partial` over `dest`, moving `dest` aside first: a program that
+/// is running cannot be replaced, but can be renamed.
+#[cfg(not(unix))]
+fn replace(partial: &Path, dest: &Path) -> std::io::Result<()> {
+    let mut name = std::ffi::OsString::from(".");
+    name.push(dest.file_name().unwrap_or_default());
+    name.push(".old");
+    let aside = dest.with_file_name(name);
+    // One left by an install before this, which may still be running.
+    let _ = std::fs::remove_file(&aside);
+    if dest.exists() && std::fs::rename(dest, &aside).is_err() {
+        // Then whatever was there is in use under that name as well.
+        return std::fs::rename(partial, dest);
+    }
+    std::fs::rename(partial, dest)
 }
 
 #[common::async_trait]
@@ -134,10 +171,14 @@ mod tests {
         }
     }
 
+    // Modes, and a running program that keeps its file, are Unix's.
+    #[cfg(unix)]
     fn mode(path: &Path) -> u32 {
         std::fs::metadata(path).unwrap().permissions().mode() & 0o777
     }
 
+    // Modes, and a running program that keeps its file, are Unix's.
+    #[cfg(unix)]
     #[tokio::test]
     async fn installs_under_the_prefix_with_writable_modes() -> Result<()> {
         let tmp = tempfile::tempdir()?;
@@ -170,6 +211,8 @@ mod tests {
         Ok(())
     }
 
+    // Modes, and a running program that keeps its file, are Unix's.
+    #[cfg(unix)]
     #[tokio::test]
     async fn replaces_a_file_whole_leaving_nothing_beside_it() -> Result<()> {
         let tmp = tempfile::tempdir()?;
