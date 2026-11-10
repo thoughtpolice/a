@@ -7,12 +7,18 @@ def get_default_target_triple():
             return "aarch64-unknown-linux-gnu"
         elif host_info().os.is_macos:
             return "aarch64-apple-darwin"
+        elif host_info().os.is_windows:
+            return "aarch64-pc-windows-msvc"
         else:
             fail("OS not supported")
 
     elif host_info().arch.is_x86_64:
         if host_info().os.is_linux:
             return "x86_64-unknown-linux-gnu"
+        elif host_info().os.is_macos:
+            return "x86_64-apple-darwin"
+        elif host_info().os.is_windows:
+            return "x86_64-pc-windows-msvc"
         else:
             fail("OS not supported")
     else:
