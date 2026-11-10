@@ -18,7 +18,7 @@
           selection-mode-current selection-mode-move selection-mode-visible
           selection-mode-line-wise? selection-mode-of-text?
           define-selection-mode! find-selection-mode selection-mode-names
-          token-units line-range line-full-range blank-line? line-indent-end
+          token-units line-range line-full-range blank-line? line-indent-end blanks-before
           search-pattern search-pattern-set! search-error search-matches search-from goal-column)
   (import (chezscheme) (quad util) (quad text) (quad syntax) (quad buffer)
           (only (quad native) search-new search-next search-prev search-all))
@@ -64,6 +64,12 @@
     (let ([e (text-line-end t line)])
       (let loop ([i (text-line-start t line)])
         (if (and (< i e) (memv (text-ref t i) '(#\space #\tab))) (loop (+ i 1)) i))))
+
+  ;; Where the spaces and tabs before p in t start, back to no earlier
+  ;; than line-start.
+  (define (blanks-before t p line-start)
+    (let loop ([i p])
+      (if (and (> i line-start) (memv (text-ref t (- i 1)) '(#\space #\tab))) (loop (- i 1)) i)))
 
   ;; A line without its indentation and trailing whitespace.
   (define (line-range t line)
@@ -203,11 +209,11 @@
       (let* ([t (buffer-text b)] [n (line-count b)])
         (let loop ([line (text-line-of t pos)])
           (and (<= 0 line (- n 1))
-               (let* ([us (filter (lambda (u) (or (not major-only?) (caddr u))) (units b line))]
+               (let* ([ok? (lambda (u) (or (not major-only?) (caddr u)))]
+                      [us (units b line)]
                       [hit (if (> dir 0)
-                               (find (lambda (u) (> (car u) pos)) us)
-                               (let ([before (filter (lambda (u) (< (car u) pos)) us)])
-                                 (and (pair? before) (car (last-pair* before)))))])
+                               (find (lambda (u) (and (ok? u) (> (car u) pos))) us)
+                               (fold-left (lambda (best u) (if (and (ok? u) (< (car u) pos)) u best)) #f us))])
                  (if hit (cons (car hit) (cadr hit)) (loop (+ line dir))))))))
 
     (define (vertical b r dir)
@@ -215,13 +221,13 @@
              [goal (or (goal-column) (col b (car r)))])
         (let loop ([line (+ dir (text-line-of t (car r)))])
           (and (<= 0 line (- n 1))
-               (let ([us (units b line)])
+               (let ([us (units b line)] [ls (text-line-start t line)])
                  (if (null? us)
                      (loop (+ line dir))
                      ;; The unit under the goal column, or else the nearest.
                      (let ([best (fold-left
                                   (lambda (best u)
-                                    (let ([d (let ([cs (col b (car u))] [ce (col b (max (car u) (- (cadr u) 1)))])
+                                    (let ([d (let ([cs (- (car u) ls)] [ce (- (max (car u) (- (cadr u) 1)) ls)])
                                                (cond [(< goal cs) (- cs goal)] [(> goal ce) (- goal ce)] [else 0]))])
                                       (if (or (not best) (< d (car best))) (cons d u) best)))
                                   #f us)])
@@ -234,7 +240,7 @@
              [hit (or (find (lambda (u) (and (<= (car u) pos) (< pos (cadr u)))) us)
                       (find (lambda (u) (and (= (car u) pos) (= (cadr u) pos))) us)
                       (find (lambda (u) (>= (car u) pos)) us)
-                      (and (pair? us) (car (last-pair* us))))])
+                      (and (pair? us) (car (last-pair us))))])
         (if hit
             (cons (car hit) (cadr hit))
             (or (scan b pos 1 #f) (scan b pos -1 #f)))))
@@ -252,7 +258,7 @@
          [(first last)
           (let ([us (units b (text-line-of (buffer-text b) (car r)))])
             (and (pair? us)
-                 (let ([u (if (eq? dir 'first) (car us) (car (last-pair* us)))])
+                 (let ([u (if (eq? dir 'first) (car us) (car (last-pair us)))])
                    (cons (car u) (cadr u)))))]
          [else #f]))
      (lambda (b first last)
@@ -421,11 +427,6 @@
                    (buffer-local-set! b 'search-compiled c)
                    c))))))
 
-  (define (condition->string e)
-    (if (condition? e)
-        (call-with-string-output-port (lambda (p) (display-condition e p)))
-        (format "~a" e)))
-
   ;; What is wrong with b's search pattern, if it is not a pattern.
   (define (search-error b)
     (let ([c (compiled-search b)]) (and c (cadddr c))))
@@ -435,20 +436,16 @@
   (define (search-from b pos dir)
     (let* ([c (compiled-search b)] [s (and c (caddr c))] [r (text-rope (buffer-text b))])
       (and s
-           (let ([m (cond
-                     [(> dir 0) (search-next s r (max 0 pos) #t)]
-                     ;; Before the start: from the end, around.
-                     [(< pos 0) (search-prev s r (buffer-length b) #t)]
-                     [else (search-prev s r pos #t)])])
-             (and m (cons (car m) (cadr m)))))))
+           (cond
+            [(> dir 0) (search-next s r (max 0 pos) #t)]
+            ;; Before the start: from the end, around.
+            [(< pos 0) (search-prev s r (buffer-length b) #t)]
+            [else (search-prev s r pos #t)]))))
 
   ;; The matches of b's search pattern from start to end, apart.
   (define (search-matches b start end)
     (let* ([c (compiled-search b)] [s (and c (caddr c))])
-      (if (not s)
-          '()
-          (let loop ([l (search-all s (text-rope (buffer-text b)) start end)] [acc '()])
-            (if (null? l) (reverse acc) (loop (cddr l) (cons (cons (car l) (cadr l)) acc)))))))
+      (if s (search-all s (text-rope (buffer-text b)) start end) '())))
 
   (define search-mode
     (make-selection-mode
@@ -479,7 +476,7 @@
          (cond
           [(find (lambda (i) (and (<= (region-start i) pos) (< pos (region-end i)))) (reverse is)) => item-range]
           [(find (lambda (i) (>= (region-start i) pos)) is) => item-range]
-          [(pair? is) (item-range (car (last-pair* is)))]
+          [(pair? is) (item-range (car (last-pair is)))]
           [else #f])))
      (lambda (b r dir)
        (let ([is (items b)] [pos (car r)])
@@ -489,7 +486,7 @@
            [(left previous up)
             (let ([i (find (lambda (i) (< (region-start i) pos)) (reverse is))]) (and i (item-range i)))]
            [(first) (and (pair? is) (item-range (car is)))]
-           [(last) (and (pair? is) (item-range (car (last-pair* is))))]
+           [(last) (and (pair? is) (item-range (car (last-pair is))))]
            [else #f])))
      (lambda (b first last)
        (let ([t (buffer-text b)])

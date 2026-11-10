@@ -256,7 +256,8 @@
        [(< (car l) 128) (emit (char-key (integer->char (car l)) 0 'press) (cdr l))]
        [else
         (let ([n (utf8-length (car l))])
-          (if (< (length l) n)
+          ;; Fewer than n bytes yet (looking no further than n).
+          (if (let short? ([l l] [k n]) (and (> k 0) (or (null? l) (short? (cdr l) (- k 1)))))
               (values (reverse out) l)
               (emit (char-key (decode-utf8 l n) 0 'press) (drop l n))))])))
 
@@ -384,7 +385,6 @@
   (define (color-depth kitty?)
     (let* ([env (lambda (v) (let ([s (getenv v)]) (and s (string-downcase s))))]
            [term (or (env "TERM") "")]
-           [has? (lambda (v s) (let ([x (env v)]) (and x (string-contains x s) #t)))]
            [forced (env "QUAD_COLORS")])
       (cond
        [(and forced (member forced '("truecolor" "24bit" "24"))) 'truecolor]
@@ -406,6 +406,7 @@
   ;; them. QUAD_KITTY_GRAPHICS=1 or 0 says so instead.
   (define (kitty-graphics?)
     (let ([forced (getenv "QUAD_KITTY_GRAPHICS")]
+          ;; Whether environment variable var has s in it, in any case.
           [has (lambda (var s) (let ([v (getenv var)]) (and v (string-contains (string-downcase v) s) #t)))])
       (if forced
           (string=? forced "1")

@@ -168,21 +168,20 @@
             [(talking? c) "in voice, talking"]
             [else "in voice"])))
 
+  ;; Client c, if in voice, out of it, and the others told (why after
+  ;; "left voice").
+  (define (leave-voice! c why)
+    (when (in-voice c)
+      (guard (e [#t (void)]) (set-mode! c "off"))
+      (announce! c "~a left voice~a" (client-user c) why)))
+
   (at-load
    (define-person-note! note)
    ;; A client that leaves leaves voice.
-   (add-hook! 'client-detach-hook
-              (lambda (c)
-                (when (in-voice c)
-                  (guard (e [#t (void)]) (set-mode! c "off"))
-                  (announce! c "~a left voice" (client-user c)))))
+   (add-hook! 'client-detach-hook (lambda (c) (leave-voice! c "")))
    ;; A client that switches to another editor (core/ext/relay.sls) leaves
    ;; voice here: in voice there, its speech would go to both.
-   (add-hook! 'client-relay-hook
-              (lambda (c)
-                (when (in-voice c)
-                  (guard (e [#t (void)]) (set-mode! c "off"))
-                  (announce! c "~a left voice, for another editor" (client-user c)))))
+   (add-hook! 'client-relay-hook (lambda (c) (leave-voice! c ", for another editor")))
    ;; A client whose process could not make sound: ("failed" why).
    (add-hook! 'client-voice-hook
               (lambda (c args)

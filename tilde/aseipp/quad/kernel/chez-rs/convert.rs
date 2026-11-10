@@ -15,6 +15,7 @@
 //! | [`Symbol`] | symbols |
 //! | [`Bytes`] (arguments, borrowed), [`ByteVec`] | bytevectors |
 //! | `Vec<T>` | proper lists |
+//! | `(A, B)` (results) | pairs |
 //! | `Option<T>` | `T`, or `#f` for `None` |
 //! | `()` | the void object (results) |
 //! | `Result<T, E: Display>` (results) | `T`, or an error raised in Scheme |
@@ -262,11 +263,18 @@ impl<'s, T: FromScheme<'s>> FromScheme<'s> for Vec<T> {
 
 impl<T: IntoScheme> IntoScheme for Vec<T> {
     fn into_scheme(self, s: &Scope) -> Result<Value<'_>> {
-        let items = self
-            .into_iter()
-            .map(|x| x.into_scheme(s))
-            .collect::<Result<Vec<_>>>()?;
-        Ok(s.list(items))
+        // Consed from the back: no collection runs in a foreign call, so
+        // the values made so far stay put.
+        self.into_iter()
+            .rev()
+            .try_fold(s.nil(), |tail, x| Ok(s.cons(x.into_scheme(s)?, tail)))
+    }
+}
+
+impl<A: IntoScheme, B: IntoScheme> IntoScheme for (A, B) {
+    fn into_scheme(self, s: &Scope) -> Result<Value<'_>> {
+        let car = self.0.into_scheme(s)?;
+        Ok(s.cons(car, self.1.into_scheme(s)?))
     }
 }
 

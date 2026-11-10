@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Searching a buffer's text (text.rs) for a pattern: a regular expression,
+//! Searching a buffer's text (lib.rs) for a pattern: a regular expression,
 //! or literal text, run over the rope where it is ([`regex_cursor`]: the
 //! `regex` crate's engines, reading a rope's chunks), never copied out.
 //!
@@ -23,19 +23,6 @@ pub struct Search {
 /// before it; doubled until one is found.
 const BACK_WINDOW: usize = 64 * 1024;
 
-/// `s` with every character the regex syntax gives a meaning escaped, so
-/// that it matches itself alone.
-fn escape(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        if "\\.+*?()|[]{}^$#&-~".contains(c) {
-            out.push('\\');
-        }
-        out.push(c);
-    }
-    out
-}
-
 impl Search {
     /// A search for `pattern`: a regular expression if `regex`, else the
     /// text itself.
@@ -43,7 +30,7 @@ impl Search {
         let pattern = if regex {
             pattern.to_string()
         } else {
-            escape(pattern)
+            regex::escape(pattern)
         };
         Regex::builder()
             .syntax(
@@ -116,18 +103,15 @@ impl Search {
     }
 
     /// Every match from `start` to `end` (characters), left to right and
-    /// apart, as start, end, start, end...
-    pub fn all(&self, t: &Text, start: usize, end: usize) -> Vec<usize> {
+    /// apart, as (start, end).
+    pub fn all(&self, t: &Text, start: usize, end: usize) -> Vec<(usize, usize)> {
         let rope = t.rope();
         let s = rope.char_to_byte(start.min(t.len()));
         let e = rope.char_to_byte(end.min(t.len()));
         let input = Input::new(RopeyCursor::at(rope.slice(..), s)).range(s..e);
         self.regex
             .find_iter(input)
-            .flat_map(|m| {
-                let (a, b) = Self::chars(t, (m.start(), m.end()));
-                [a, b]
-            })
+            .map(|m| Self::chars(t, (m.start(), m.end())))
             .collect()
     }
 }
@@ -157,7 +141,7 @@ mod tests {
         // Positions are characters, past the wide ones too.
         let any = Search::new("foo", false, false).unwrap();
         assert_eq!(any.prev(&t, 100, false), Some((19, 22)));
-        assert_eq!(any.all(&t, 0, t.len()), vec![8, 11, 19, 22]);
+        assert_eq!(any.all(&t, 0, t.len()), vec![(8, 11), (19, 22)]);
         assert!(Search::new("(", true, false).is_err());
     }
 

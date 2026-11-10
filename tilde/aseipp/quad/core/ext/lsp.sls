@@ -88,7 +88,7 @@
                                             (cdr e)))
                           (or (json-ref d 'extensionToLanguage) '()))])
          (apply define-lsp-server! name
-                (cons (json-ref d 'command) (vector->list (or (json-ref d 'args) '#())))
+                (cons (json-ref d 'command) (json-list (json-ref d 'args)))
                 (map car langs)
                 (append props
                         (list 'languages langs)
@@ -118,26 +118,16 @@
     (let ([e (extension path)])
       (cond [(assoc e (spec-languages sp)) => cdr] [(assoc e language-ids) => cdr] [else e])))
 
-  (define (find-executable name)
-    (if (string-index name #\/)
-        (and (file-exists? name) name)
-        (let ([path (or (getenv "PATH") "")])
-          (exists (lambda (dir)
-                    (let ([f (path-join (if (string=? dir "") "." dir) name)])
-                      (and (file-exists? f) (not (file-directory? f)) f)))
-                  (string-split path #\:)))))
-
   (define (in-scope? sp path)
     (let ([scope (spec-scope sp)])
       (or (not scope)
           (and (member scope (project-roots path)) (eq? (project-state scope) 'loaded)))))
 
+  ;; The nearest directory up from path's holding one of sp's root
+  ;; markers, or #f.
   (define (marker-root sp path)
-    (let loop ([dir (path-dirname path)])
-      (cond
-       [(exists (lambda (m) (file-exists? (path-join dir m))) (spec-roots sp)) dir]
-       [(or (string=? dir "/") (string=? dir "") (string=? (path-dirname dir) dir)) #f]
-       [else (loop (path-dirname dir))])))
+    (find (lambda (dir) (exists (lambda (m) (file-exists? (path-join dir m))) (spec-roots sp)))
+          (ancestor-dirs (path-dirname path))))
 
   ;; The server for path: the innermost project's, then the newest.
   (define (spec-for path)
@@ -150,11 +140,11 @@
            (let ([depth (lambda (s) (if (spec-scope s) (string-length (spec-scope s)) -1))])
              (fold-left (lambda (best s) (if (> (depth s) (depth best)) s best)) (car fits) (cdr fits))))))
 
+  ;; The directory sp's server works in, for path: its own, the nearest
+  ;; with one of its markers, else path's own directory.
   (define (spec-root-for sp path)
     (or (spec-root sp) (marker-root sp path) (path-dirname path)))
 
-  ;; The nearest directory up from path's holding one of markers, else
-  ;; path's own directory.
   ;; A server's settings for a workspace/configuration item: the part of
   ;; its config the section names, or all of it for the server's own name
   ;; (as rust-analyzer and gopls ask), else null.
@@ -184,14 +174,7 @@
                  (string->list path)))))
 
   (define (uri->path uri)
-    (let* ([s (if (string-prefix? "file://" uri) (substring uri 7 (string-length uri)) uri)]
-           [n (string-length s)])
-      (let loop ([i 0] [bytes '()])
-        (cond
-         [(= i n) (utf8->string (u8-list->bytevector (reverse bytes)))]
-         [(and (char=? (string-ref s i) #\%) (< (+ i 2) n) (string->number (substring s (+ i 1) (+ i 3)) 16))
-          => (lambda (b) (loop (+ i 3) (cons b bytes)))]
-         [else (loop (+ i 1) (append (reverse (bytevector->u8-list (string->utf8 (string (string-ref s i))))) bytes))]))))
+    (percent-decode (if (string-prefix? "file://" uri) (substring uri 7 (string-length uri)) uri)))
 
   ;; ---------------------------------------------------------------------------
   ;; Positions: LSP's (line, character), the character counted in the
@@ -240,9 +223,16 @@
   (define (lsp-server-capabilities c) (conn-capabilities c))
 
   (define log-lines '())
-  (define (lsp-log-lines) (reverse log-lines))
+  (define log-count 0)
+  ;; The last 2000 lines logged, oldest first.
+  (define (lsp-log-lines) (reverse (take log-lines 2000)))
+  ;; Trimmed back to 2000 lines once twice that are kept, not at every one.
   (define (log! fmt . args)
-    (set! log-lines (take (cons (apply format fmt args) log-lines) 2000)))
+    (set! log-lines (cons (apply format fmt args) log-lines))
+    (set! log-count (+ log-count 1))
+    (when (> log-count 4000)
+      (set! log-lines (take log-lines 2000))
+      (set! log-count 2000)))
 
   ;; The server for buffer b, if it has one.
   (define (lsp-buffer-server b) (buffer-local b 'lsp-conn #f))
@@ -396,7 +386,7 @@
   ;; done (flush!).
   (define (on-change b changes)
     (let ([c (lsp-buffer-server b)])
-      (remap-diagnostics! b changes)
+      (when (pair? (lsp-diagnostics b)) (remap-diagnostics! b changes))
       (when (and c (buffer-local b 'lsp-open #f) (jsonrpc-running? (conn-rpc c)))
         (case (sync-kind c)
           [(2)
@@ -476,8 +466,8 @@
     `((textDocument . ((uri . ,(buffer-uri b))))
       (position . ,(lsp-position b (cursor b) (encoding-of b)))))
 
-  (define (ignore . _) (void))
 
+  ;; A result that may be one object or an array of them, as a list.
   (define (as-list v) (cond [(vector? v) (vector->list v)] [(or (not v) (eq? v 'null)) '()] [(json-object? v) (list v)] [else '()]))
 
   ;; ---------------------------------------------------------------------------
@@ -506,21 +496,27 @@
       (let ([base (or (exists (lambda (c) (under (conn-root c))) conns) (under (current-directory)))])
         (if base (substring path (string-length base) (string-length path)) path))))
 
-  ;; "file:line: the line's text"
-  (define (location-label l)
+  ;; "file:line: the line's text", files' lines found in `files` (path ->
+  ;; a buffer's text, or a vector of the file's lines), which keeps those
+  ;; it finds.
+  (define (location-label l files)
     (let* ([path (uri->path (location-uri l))]
            [line (or (json-ref (location-range l) 'start 'line) 0)]
-           [text (line-text path line)])
+           [text (line-text path line files)])
       (format "~a:~a: ~a" (relative path) (+ line 1) (string-trim text))))
 
-  (define (line-text path line)
-    (let ([b (find (lambda (b) (equal? (buffer-path b) path)) (buffers))])
+  (define (line-text path line files)
+    (let ([lines (or (hashtable-ref files path #f)
+                     (let ([new (let ([b (find (lambda (b) (equal? (buffer-path b) path)) (buffers))])
+                                  (cond
+                                   [b (buffer-text b)]
+                                   [(file-exists? path) (list->vector (string-split (read-file-string path) #\newline))]
+                                   [else '#()]))])
+                       (hashtable-set! files path new)
+                       new))])
       (cond
-       [b (let ([t (buffer-text b)])
-            (if (< line (text-line-count t)) (text-substring t (text-line-start t line) (text-line-end t line)) ""))]
-       [(file-exists? path)
-        (let ([lines (string-split (read-file-string path) #\newline)])
-          (if (< line (length lines)) (list-ref lines line) ""))]
+       [(vector? lines) (if (< line (vector-length lines)) (vector-ref lines line) "")]
+       [(< line (text-line-count lines)) (text-substring lines (text-line-start lines line) (text-line-end lines line))]
        [else ""])))
 
   (define (goto-locations! what result)
@@ -528,9 +524,10 @@
       (cond
        [(null? ls) (message "No ~a found" what)]
        [(null? (cdr ls)) (goto-location! (car ls))]
-       [else (pick (format "~a (~a)" (string-titlecase* what) (length ls))
-                   (map (lambda (l) (cons (location-label l) l)) ls)
-                   goto-location!)])))
+       [else (let ([files (make-hashtable string-hash string=?)])
+               (pick (format "~a (~a)" (string-titlecase* what) (length ls))
+                     (map (lambda (l) (cons (location-label l files) l)) ls)
+                     goto-location!))])))
 
   (define (string-titlecase* s)
     (if (string=? s "") s (string-append (string (char-upcase (string-ref s 0))) (substring s 1 (string-length s)))))
@@ -631,21 +628,28 @@
 
   ;; Diagnostics move with the text until the server sends new ones.
   (define (remap-diagnostics! b changes)
-    (for-each (lambda (d)
-                (diag-start-set! d (map-position changes (diag-start d)))
-                (diag-end-set! d (max (diag-start d) (map-position changes (diag-end d)))))
-              (lsp-diagnostics b)))
+    (let ([mapped (position-mapper changes)])
+      (for-each (lambda (d)
+                  (diag-start-set! d (mapped (diag-start d)))
+                  (diag-end-set! d (max (diag-start d) (mapped (diag-end d)))))
+                (lsp-diagnostics b))))
+
+  ;; How many of l pred holds for.
+  (define (count pred l) (fold-left (lambda (n x) (if (pred x) (+ n 1) n)) 0 l))
 
   (define severity-faces '#(#f diagnostic.error diagnostic.warning diagnostic.info diagnostic.hint))
   (define severity-names '#(#f "error" "warning" "info" "hint"))
   (define (severity-index d) (clamp (diag-severity d) 1 4))
 
+  ;; The diagnostics are sorted by where they start (and stay so as the
+  ;; text moves them): none after one starting past end is drawn.
   (define (decorate b start end)
-    (filter-map (lambda (d)
-                  (let* ([s (diag-start d)] [e (if (= (diag-end d) s) (+ s 1) (diag-end d))])
-                    (and (< s end) (> e start)
-                         (list s e (vector-ref severity-faces (severity-index d))))))
-                (lsp-diagnostics b)))
+    (let loop ([ds (lsp-diagnostics b)] [acc '()])
+      (if (or (null? ds) (>= (diag-start (car ds)) end))
+          (reverse acc)
+          (let* ([d (car ds)] [s (diag-start d)] [e (if (= (diag-end d) s) (+ s 1) (diag-end d))])
+            (loop (cdr ds)
+                  (if (> e start) (cons (list s e (vector-ref severity-faces (severity-index d))) acc) acc))))))
 
   ;; Diagnostics as selection modes: the units are the diagnostics of a
   ;; severity (or all), in order.
@@ -666,7 +670,7 @@
            [(right next down) (let ([d (find (lambda (d) (> (diag-start d) (car r))) l)]) (and d (range d)))]
            [(left previous up) (let ([d (find (lambda (d) (< (diag-start d) (car r))) (reverse l))]) (and d (range d)))]
            [(first) (and (pair? l) (range (car l)))]
-           [(last) (and (pair? l) (range (car (last-pair* l))))]
+           [(last) (and (pair? l) (range (car (last-pair l))))]
            [else #f])))
      (lambda (b first last)
        (let* ([t (buffer-text b)] [lo (text-line-start t first)] [hi (text-line-end t last)])
@@ -694,7 +698,7 @@
   (define (diagnostic-text d)
     (let ([src (json-ref (diag-raw d) 'source)] [code (json-ref (diag-raw d) 'code)])
       (format "~a: ~a~a" (vector-ref severity-names (severity-index d))
-              (car (string-split (diag-message d) #\newline))
+              (string-first-line (diag-message d))
               (cond [(and src code) (format " (~a ~a)" src code)] [src (format " (~a)" src)] [else ""]))))
 
   ;; Being on a diagnostic says what it is (each key clears the message,
@@ -728,7 +732,7 @@
                                         (let ([line (or (json-ref d 'range 'start 'line) 0)])
                                           (cons (format "~a:~a: ~a: ~a" (relative (uri->path uri)) (+ line 1)
                                                         (vector-ref severity-names (clamp (or (json-ref d 'severity) 1) 1 4))
-                                                        (car (string-split (or (json-ref d 'message) "") #\newline)))
+                                                        (string-first-line (or (json-ref d 'message) "")))
                                                 `((uri . ,uri) (range . ,(json-ref d 'range))))))
                                       ds))
                                (vector->list uris) (vector->list dss))))])
@@ -1020,15 +1024,14 @@
         (let ([n (guard (e [#t #f]) (apply-workspace-edit! c (json-ref params 'edit)))])
           (jsonrpc-reply! rpc id (if n '((applied . #t)) '((applied . #f) (failureReason . "it would not apply")))))]
        [(string=? method "window/showDocument")
-        (let ([client (and (pair? (clients)) (car (clients)))])
-          (as-client client (lambda () (goto-location! `((uri . ,(json-ref params 'uri)) (range . ,(json-ref params 'selection))))))
-          (jsonrpc-reply! rpc id '((success . #t))))]
+        (with-client-or-any #f (lambda () (goto-location! `((uri . ,(json-ref params 'uri)) (range . ,(json-ref params 'selection))))))
+        (jsonrpc-reply! rpc id '((success . #t)))]
        [(string=? method "window/showMessageRequest")
-        (let ([actions (as-list (json-ref params 'actions))] [client (and (pair? (clients)) (car (clients)))])
+        (let ([actions (as-list (json-ref params 'actions))])
           (if (null? actions)
-              (begin (as-client client (lambda () (message "~a: ~a" (lsp-server-name c) (json-ref params 'message))))
+              (begin (with-client-or-any #f (lambda () (message "~a: ~a" (lsp-server-name c) (json-ref params 'message))))
                      (jsonrpc-reply! rpc id 'null))
-              (as-client client
+              (with-client-or-any #f
                 (lambda ()
                   (pick (lsp-server-name c) (map (lambda (a) (cons (json-ref a 'title) a)) actions)
                         (lambda (a) (jsonrpc-reply! rpc id (if (json-object? a) a 'null)))
@@ -1124,8 +1127,8 @@
     (let* ([b (view-buffer v)] [c (lsp-buffer-server b)])
       (and c
            (let* ([ds (lsp-diagnostics b)]
-                  [count (lambda (i) (length (filter (lambda (d) (= (severity-index d) i)) ds)))]
-                  [e (count 1)] [w (count 2)]
+                  [e (count (lambda (d) (= (severity-index d) 1)) ds)]
+                  [w (count (lambda (d) (= (severity-index d) 2)) ds)]
                   [p (and (pair? (conn-progress c)) (cdr (car (conn-progress c))))])
              (cons (string-append
                     (if (> e 0) (format " ✖ ~a" e) "")

@@ -41,10 +41,7 @@ impl Headless {
             let format = self.gpu.pipelines.format;
             self.image = Some(Image::new(&self.gpu.device, extent, format)?);
         }
-        if self.readback.as_ref().is_none_or(|b| b.capacity() < bytes) {
-            self.readback = None;
-            self.readback = Some(HostBuffer::new(&self.gpu.device, bytes, true)?);
-        }
+        buffer_for(&self.gpu.device, &mut self.readback, bytes, true)?;
         let target = self.image.as_ref().expect("made above").target();
         self.frame.draw(
             &self.gpu.pipelines,

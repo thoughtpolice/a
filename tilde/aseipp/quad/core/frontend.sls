@@ -18,8 +18,18 @@
 (library (quad frontend)
   (export define-frontend-handler! frontend-handle!
           define-frontend-capability! frontend-capabilities
-          frontend-connect! deliver! client-painter client-divert! client-diverted?)
-  (import (chezscheme) (quad util) (quad editor) (quad server))
+          frontend-connect! deliver! client-painter client-divert! client-diverted?
+          frontend-hello!)
+  (import (chezscheme) (quad util) (quad editor) (quad server) (only (quad protocol) protocol-version))
+
+  ;; Say hello to an editor through send, as a client named name, rows by
+  ;; cols, with capabilities caps, of person user, and open files there
+  ;; at line.
+  (define (frontend-hello! send name rows cols caps user files line)
+    (send (list "hello" protocol-version name rows cols caps))
+    (send (list "user" user))
+    ;; Paths are the editor's to open, so they go absolute.
+    (for-each (lambda (f) (send (list "open" (absolute-path f) line))) files))
 
   ;; ---------------------------------------------------------------------------
   ;; Messages beyond drawing, and capabilities
@@ -70,11 +80,5 @@
   ;; Send input from client c's terminal or window to the editor, or where
   ;; it is diverted to.
   (define (deliver! c msg)
-    (let ([route (client-local c 'route #f)])
-      (if route (route msg) (client-receive! c msg))))
-
-  ;; Divert client c: (route msg) takes its input, and what this editor
-  ;; sends it is not painted. #f undoes it.
-  (define (client-divert! c route) (client-local-set! c 'route route))
-
-  (define (client-diverted? c) (and (client-local c 'route #f) #t)))
+    (let ([route (client-route c)])
+      (if route (route msg) (client-receive! c msg)))))

@@ -157,41 +157,15 @@ impl Fonts {
         let (weight, slant) = attributes(style);
         // The families asked for first, in order.
         for family in self.spec.fallbacks.clone() {
-            let mut query = self.collection.query(&mut self.cache);
-            query.set_families([QueryFamily::Named(&family)]);
-            query.set_attributes(Attributes::new(FontWidth::NORMAL, slant, weight));
-            let mut found = None;
-            query.matches_with(|font| {
-                if font.charmap().is_some_and(|m| m.map(c).is_some()) {
-                    found = Some((font.blob.clone(), font.index, font.synthesis));
-                }
-                QueryStatus::Stop
-            });
-            drop(query);
+            let found = self.first_with(QueryFamily::Named(&family), None, c, slant, weight, true);
             if let Some((blob, index, synthesis)) = found {
                 return self.face(blob, index, synthesis);
             }
         }
-        let mut query = self.collection.query(&mut self.cache);
-        query.set_families([QueryFamily::Generic(GenericFamily::Monospace)]);
-        query.set_attributes(Attributes::new(FontWidth::NORMAL, slant, weight));
-        if let Some(script) = script {
-            query.set_fallbacks(FallbackKey::new(script, None));
-        }
-        let mut found = None;
-        query.matches_with(|font| {
-            if font.charmap().is_some_and(|m| m.map(c).is_some()) {
-                found = Some((font.blob.clone(), font.index, font.synthesis));
-                QueryStatus::Stop
-            } else {
-                QueryStatus::Continue
-            }
-        });
-        drop(query);
-        if found.is_none() {
-            found = self.any_family_with(c, slant, weight);
-        }
-        let (blob, index, synthesis) = found?;
+        let monospace = QueryFamily::Generic(GenericFamily::Monospace);
+        let (blob, index, synthesis) = self
+            .first_with(monospace, script, c, slant, weight, false)
+            .or_else(|| self.any_family_with(c, slant, weight))?;
         self.face(blob, index, synthesis)
     }
 
@@ -205,22 +179,41 @@ impl Fonts {
         weight: FontWeight,
     ) -> Option<(fontique::Blob<u8>, u32, Synthesis)> {
         let families: Vec<fontique::FamilyId> = self.collection.family_ids().collect();
-        for family in families {
-            let mut query = self.collection.query(&mut self.cache);
-            query.set_families([QueryFamily::Id(family)]);
-            query.set_attributes(Attributes::new(FontWidth::NORMAL, slant, weight));
-            let mut found = None;
-            query.matches_with(|font| {
-                if font.charmap().is_some_and(|m| m.map(c).is_some()) {
-                    found = Some((font.blob.clone(), font.index, font.synthesis));
-                }
-                QueryStatus::Stop
-            });
-            if found.is_some() {
-                return found;
-            }
+        families.into_iter().find_map(|family| {
+            self.first_with(QueryFamily::Id(family), None, c, slant, weight, true)
+        })
+    }
+
+    /// The first font of `family` in `slant` and `weight` (falling back by
+    /// `script`'s fonts, if given) that has `c`; if `best_only`, only the
+    /// family's best match is looked at.
+    fn first_with(
+        &mut self,
+        family: QueryFamily,
+        script: Option<fontique::Script>,
+        c: char,
+        slant: FontStyle,
+        weight: FontWeight,
+        best_only: bool,
+    ) -> Option<(fontique::Blob<u8>, u32, Synthesis)> {
+        let mut query = self.collection.query(&mut self.cache);
+        query.set_families([family]);
+        query.set_attributes(Attributes::new(FontWidth::NORMAL, slant, weight));
+        if let Some(script) = script {
+            query.set_fallbacks(FallbackKey::new(script, None));
         }
-        None
+        let mut found = None;
+        query.matches_with(|font| {
+            if font.charmap().is_some_and(|m| m.map(c).is_some()) {
+                found = Some((font.blob.clone(), font.index, font.synthesis));
+                QueryStatus::Stop
+            } else if best_only {
+                QueryStatus::Stop
+            } else {
+                QueryStatus::Continue
+            }
+        });
+        found
     }
 }
 

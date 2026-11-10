@@ -30,7 +30,7 @@
             (immutable defining syntax-defining)           ; words whose next word is a definition's name
             (immutable line-proc syntax-line-proc)         ; #f, or a custom lexer for a whole line
             (immutable line-comment syntax-line-comment)   ; what a line comment starts with, for toggling
-            (immutable indent-unit syntax-indent-unit)))
+            (immutable indent-unit syntax-indent-unit)))   ; #f, or the mode's indent-unit
 
   (define (default-word-char? c) (or (char-alphabetic? c) (char-numeric? c) (char=? c #\_)))
 
@@ -44,7 +44,7 @@
       h))
 
   (define plain-syntax
-    (make-syntax 'text #f '() '() '() default-word-char? (keyword-table) '() #f #f "  "))
+    (make-syntax 'text #f '() '() '() default-word-char? (keyword-table) '() #f #f #f))
 
   ;; ---------------------------------------------------------------------------
   ;; Highlighting

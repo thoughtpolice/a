@@ -50,9 +50,7 @@
 
   ;; Say text to everyone, as the current client's person.
   (define (say! text)
-    (let ([line (format "~a: ~a" (client-user (current-client)) text)])
-      (log! line)
-      (tell! #f "~a" line)))
+    (announce! #f "~a: ~a" (client-user (current-client)) text))
 
   (define (show-chat!)
     (let ([b (or (find-buffer-named "*chat*")
@@ -169,14 +167,12 @@
    (add-hook! 'client-user-hook
               (lambda (c old)
                 (when (person? c)
-                  (let ([text (if old (format "~a is now ~a" old (client-user c)) (format "~a joined" (client-user c)))])
-                    (log! text)
-                    (tell! c "~a" text)))))
+                  (if old
+                      (announce! c "~a is now ~a" old (client-user c))
+                      (announce! c "~a joined" (client-user c))))))
    (add-hook! 'client-detach-hook
               (lambda (c)
-                (when (person? c)
-                  (log! (format "~a left" (client-user c)))
-                  (tell! c "~a left" (client-user c)))))
+                (when (person? c) (announce! c "~a left" (client-user c)))))
    (add-hook! 'before-render-hook before-render!)
    (add-hook! 'before-event-hook before-event!)
    (define-status-segment! 'right status)

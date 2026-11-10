@@ -162,11 +162,7 @@
          (run-command op)
          (set-cursors! (list (first-nonblank (min s (vi-len)))))]
         [(upper lower toggle)
-         (buffer-edit! b (list (list s e (case op
-                                           [(upper) (string-upcase text)]
-                                           [(lower) (string-downcase text)]
-                                           [else (list->string (map (lambda (c) (if (char-upper-case? c) (char-downcase c) (char-upcase c)))
-                                                                    (string->list text)))]))))
+         (buffer-edit! b (list (list s e ((case-transform op) text))))
          (set-cursors! (list s))])))
 
   ;; The range of lines from p's to q's, with the last's newline.
@@ -278,16 +274,8 @@
              '("d" "c" "y" ">" "<" "~" "u" "U"))
    ;; A count after the operator, before its motion; 0 is a digit after
    ;; another, else the motion.
-   (do ([d 1 (+ d 1)]) ((> d 9))
-     (let ([d d])
-       (define-key operator-keymap (number->string d)
-         (lambda () (count-digit! d) (enter-layer! operator-keymap pending-key)) "Count")))
-   (define-key operator-keymap "0"
-     (lambda ()
-       (if (count-pending?)
-           (begin (count-digit! 0) (enter-layer! operator-keymap pending-key))
-           (operate-motion! (assoc "0" motions))))
-     "Line Start"))
+   (bind-count-digits! operator-keymap (lambda () (enter-layer! operator-keymap pending-key))
+                       (lambda () (operate-motion! (assoc "0" motions))) "Line Start"))
 
   ;; An operator's key: on what is selected, in visual mode; else, wait
   ;; for its motion.
@@ -308,8 +296,6 @@
 
   ;; ---------------------------------------------------------------------------
   ;; Other commands
-
-  (define (count-times! f) (let ([n (take-count!)]) (do ([i 0 (+ i 1)]) ((= i n)) (f))))
 
   (define (paste! after?)
     (change-made!)
@@ -367,10 +353,8 @@
 
   (at-load
    (bind-motions! vim-keymap vim-move!)
-   (do ([d 1 (+ d 1)]) ((> d 9))
-     (let ([d d]) (define-key vim-keymap (number->string d) (lambda () (count-digit! d)) "Count")))
    ;; 0 is a digit after another, else the line's start.
-   (define-key vim-keymap "0" (lambda () (if (count-pending?) (count-digit! 0) (vim-move! (assoc "0" motions)))) "Line Start")
+   (bind-count-digits! vim-keymap void (lambda () (vim-move! (assoc "0" motions))) "Line Start")
    (bind vim-keymap
          "d" (operator 'delete "d") "Delete" "c" (operator 'change "c") "Change"
          "y" (operator 'yank "y") "Yank" ">" (operator 'indent ">") "Indent" "<" (operator 'dedent "<") "Dedent"
@@ -430,12 +414,4 @@
      (define-key g "U" (operator 'upper "U") "Upper")
      (define-key g "J" (lambda () (change-made!) (run-command 'join)) "Join"))
    (add-hook! 'escape-hook (lambda () (set! pending-op #f) (set! op-count #f)))
-   ;; A cursor a character wide in every buffer: its selection mode CHAR,
-   ;; which insert mode goes back to.
-   (add-hook! 'buffer-switch-hook
-              (lambda (b) (when (vim?) (set-selection-mode! b 'char))))
-   (define-key-scheme! 'vim "Vim" "Vim's: motions, operators that take them, counts, visual mode" vim-keymap
-     (lambda () (when (current-buffer) (set-selection-mode! (current-buffer) 'char)))
-     #f))
-
-  (define (vim?) (let ([s (current-key-scheme)]) (and s (eq? (key-scheme-name s) 'vim)))))
+   (define-char-scheme! 'vim "Vim" "Vim's: motions, operators that take them, counts, visual mode" vim-keymap)))

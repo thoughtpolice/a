@@ -11,7 +11,7 @@
 ;;   (json-read-string "{\"a\": [1, 2.5, null]}")   ⇒ ((a . #(1 2.5 null)))
 ;;   (json->string '((ok . #t) (items . #())))      ⇒ "{\"ok\":true,\"items\":[]}"
 (library (quad json)
-  (export json-read json-read-string json-write json->string json-ref json-object?)
+  (export json-read json-read-string json-write json->string json-ref json-object? json-list)
   (import (chezscheme))
 
   ;; ---------------------------------------------------------------------------
@@ -153,6 +153,10 @@
 
   (define (json-object? v)
     (or (null? v) (and (pair? v) (pair? (car v)) (symbol? (caar v)))))
+
+  ;; A JSON array's items, as a list; anything else (missing, null, not an
+  ;; array) as none.
+  (define (json-list v) (if (vector? v) (vector->list v) '()))
 
   (define (write-string-literal s p)
     (write-char #\" p)

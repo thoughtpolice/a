@@ -93,13 +93,8 @@
              [send (frame-sender fd)]
              [reader (make-frame-reader)]
              [lost? #f])                ; the editor went without a goodbye
-        (send (list "hello" protocol-version (terminal-client-name) (tty-rows tty) (tty-cols tty)
-                    (tui-capabilities tty)))
-        (send (list "user" (default-user-name)))
-        ;; Paths are the server's to open, so they go absolute.
-        (for-each (lambda (f)
-                    (send (list "open" (if (string-prefix? "/" f) f (path-join (current-directory) f)) line)))
-                  files)
+        (frontend-hello! send (terminal-client-name) (tty-rows tty) (tty-cols tty)
+                         (tui-capabilities tty) (default-user-name) files line)
         (let loop ()
           (let* ([timeout (tty-pending-timeout tty)]
                  [ready (kernel-poll (list (tty-in-fd tty) fd) timeout)]

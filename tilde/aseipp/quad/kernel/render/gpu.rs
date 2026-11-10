@@ -113,12 +113,16 @@ pub(super) fn pick_device(
         })
 }
 
-/// The name of a SPIR-V module's first entry point.
-pub(super) fn entry_point_name(code: &[u8]) -> Option<std::ffi::CString> {
-    let words: Vec<u32> = code
-        .chunks_exact(4)
+/// A SPIR-V module's words, from its bytes (little-endian, as slangc
+/// writes them).
+pub(super) fn spirv_words(code: &[u8]) -> Vec<u32> {
+    code.chunks_exact(4)
         .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
-        .collect();
+        .collect()
+}
+
+/// The name of a SPIR-V module's first entry point.
+pub(super) fn entry_point_name(words: &[u32]) -> Option<std::ffi::CString> {
     // After the five-word header, instructions: a word of length (high 16
     // bits) and opcode (low), then operands. OpEntryPoint (15) is the
     // execution model, the function, then the name as a nul-terminated
@@ -149,7 +153,8 @@ mod tests {
 
     #[test]
     fn the_shaders_entry_points_are_named_for_their_pipelines() {
-        let name = |code: &[u8]| entry_point_name(code).map(|n| n.into_string().unwrap());
+        let name =
+            |code: &[u8]| entry_point_name(&spirv_words(code)).map(|n| n.into_string().unwrap());
         assert_eq!(name(RECT_VERTEX).as_deref(), Some("rectVertex"));
         assert_eq!(name(RECT_FRAGMENT).as_deref(), Some("rectFragment"));
         assert_eq!(name(GLYPH_VERTEX).as_deref(), Some("glyphVertex"));

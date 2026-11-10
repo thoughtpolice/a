@@ -20,7 +20,4 @@
   (define shell-mode (define-major-mode! 'shell shell-syntax))
 
   (at-load
-   (major-mode-hook-set! shell-mode
-                         (lambda (b)
-                           (set-local! 'indent-unit "    " b)))
    (add-auto-mode! '("sh" "bash" "zsh" "fish" "py" "bzl" "BUILD" "PACKAGE" "toml" "yaml" "yml" "nix" "Makefile" "mk" "rb" "pl" "conf" "ini") 'shell)))

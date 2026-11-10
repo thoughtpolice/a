@@ -10,7 +10,7 @@
 
 use std::rc::Rc;
 
-use quad_font::{CELL_BYTES, Fonts, Layout, RECT_BYTES};
+use quad_font::{CELL_BYTES, Fonts, Layout, RECT_BYTES, append_records};
 use quad_fx::{EFFECT_BYTES, Placed};
 use quad_image::Placement;
 
@@ -103,6 +103,14 @@ impl Update {
     }
 }
 
+/// The rows `effects` cover.
+fn effect_rows(effects: &[Placed]) -> impl Iterator<Item = usize> + '_ {
+    effects.iter().flat_map(|e| {
+        let top = e.cells[1].max(0.0) as usize;
+        top..top + e.cells[3].max(0.0) as usize
+    })
+}
+
 #[derive(Default)]
 struct Row {
     data: RowData,
@@ -143,10 +151,7 @@ impl Screen {
 
     /// The rows the effects cover.
     pub fn effect_rows(&self) -> impl Iterator<Item = usize> + '_ {
-        self.effects.iter().flat_map(|e| {
-            let top = e.cells[1].max(0.0) as usize;
-            top..top + e.cells[3].max(0.0) as usize
-        })
+        effect_rows(&self.effects)
     }
 
     /// Takes a frame's changes. Returns the rows that show something new:
@@ -163,19 +168,20 @@ impl Screen {
             if top >= bottom {
                 continue;
             }
-            let mut moved: Vec<Option<Row>> = self.rows[top..bottom]
-                .iter_mut()
-                .map(|r| Some(std::mem::take(r)))
-                .collect();
-            for r in top..bottom {
-                let from = r as i64 + i64::from(by);
-                self.rows[r] = if (top as i64..bottom as i64).contains(&from) {
-                    moved[from as usize - top].take().unwrap_or_default()
-                } else {
-                    Row::default()
-                };
-                damaged[r] = true;
+            // Row r shows what row r + by did, or nothing.
+            let rows = &mut self.rows[top..bottom];
+            let k = by.unsigned_abs() as usize;
+            if k >= rows.len() {
+                rows.fill_with(Row::default);
+            } else if by > 0 {
+                rows.rotate_left(k);
+                let n = rows.len();
+                rows[n - k..].fill_with(Row::default);
+            } else {
+                rows.rotate_right(k);
+                rows[..k].fill_with(Row::default);
             }
+            damaged[top..bottom].fill(true);
         }
         for (r, data) in update.changed {
             if let Some(row) = self.rows.get_mut(r as usize) {
@@ -187,15 +193,15 @@ impl Screen {
         self.foreground = update.foreground;
         self.cursor = update.cursor;
         self.placements = update.placements;
-        if self.effects != update.effects {
-            // Where they were, and where they are, are drawn again.
-            for r in self.effect_rows().collect::<Vec<_>>() {
-                if let Some(d) = damaged.get_mut(r) {
-                    *d = true;
-                }
-            }
-            self.effects = update.effects;
-            for r in self.effect_rows().collect::<Vec<_>>() {
+        // The effects come again with each frame, older: where what they
+        // draw changes, where they were and where they are are drawn again.
+        let since = self
+            .effects_came
+            .map_or(0.0, |came| came.elapsed().as_secs_f64() * 1000.0);
+        let drawn = self.effects_at(since).0;
+        let old = std::mem::replace(&mut self.effects, update.effects);
+        if drawn != self.effects_at(0.0).0 {
+            for r in effect_rows(&old).chain(effect_rows(&self.effects)) {
                 if let Some(d) = damaged.get_mut(r) {
                     *d = true;
                 }
@@ -247,7 +253,7 @@ impl Screen {
         let last = self.rows.len().saturating_sub(1);
         for (y, row) in self.rows.iter().enumerate() {
             let start = rects.len();
-            moved(&mut rects, &row.data.rects, RECT_BYTES, y as f32);
+            append_records(&mut rects, &row.data.rects, RECT_BYTES, y as f32);
             let reach = if y == 0 { EDGE_TOP } else { 0 } | if y == last { EDGE_BOTTOM } else { 0 };
             if reach == 0 {
                 continue;
@@ -260,17 +266,6 @@ impl Screen {
             }
         }
         rects
-    }
-}
-
-/// Appends `from`'s records, `size` bytes each, moved down `dy`: y is each
-/// record's second f32.
-fn moved(out: &mut Vec<u8>, from: &[u8], size: usize, dy: f32) {
-    let start = out.len();
-    out.extend_from_slice(from);
-    for record in out[start..].chunks_exact_mut(size) {
-        let y = f32::from_ne_bytes(record[4..8].try_into().unwrap()) + dy;
-        record[4..8].copy_from_slice(&y.to_ne_bytes());
     }
 }
 

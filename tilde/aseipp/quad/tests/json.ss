@@ -74,6 +74,23 @@
 (run-until "the framed cat exits" (lambda () framed-done?))
 (check "framed, in pieces" (equal? results `(((text . ,big)))))
 
+;; Several messages in a read, the last not whole: each whole one is
+;; taken out before what follows it moves up to wait for the rest.
+(set! results '())
+(define several-done? #f)
+(define several
+  (jsonrpc-start '("cat") #f #f void
+                 (lambda (rpc id method params) (jsonrpc-reply! rpc id params))
+                 (lambda (s) (set! several-done? #t) (editor-stop!))
+                 'headers))
+(for-each (lambda (i) (jsonrpc-request! several "echo" `((n . ,i)) (lambda (r) (set! results (cons r results)))))
+          (iota 3))
+(jsonrpc-request! several "echo" `((text . ,big))
+                  (lambda (r) (set! results (cons r results)) (process-close-input! (jsonrpc-process several))))
+(run-until "the cat of several exits" (lambda () several-done?))
+(check "several, and one in pieces after them"
+       (equal? (reverse results) `(((n . 0)) ((n . 1)) ((n . 2)) ((text . ,big)))))
+
 ;; A program that is not there.
 (check "spawn failure" (string-contains (error-message-of (lambda () (spawn-process '("/nonexistent/quad-test") #f #f)))
                                         "/nonexistent/quad-test"))

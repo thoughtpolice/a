@@ -23,7 +23,7 @@
           make-picture picture? picture-key picture-width picture-height picture-png
           place-picture! put-string! ui-face fill-row! grid-rows grid-cols)
   (import (chezscheme) (quad util) (quad text) (quad face) (quad anim) (quad color)
-          (only (quad native) fx-shade fx-raster)
+          (only (quad native) fx-raster blake3)
           (quad syntax) (quad buffer) (quad selection) (quad editor) (quad canvas) (quad widget))
 
   ;; ---------------------------------------------------------------------------
@@ -107,34 +107,37 @@
   (define steps 64)
   (define (stepped e) (/ (round (* steps (effect-progress e))) steps))
 
-  ;; Shaded faces: (face . fg) -> the face with that foreground.
-  (define shaded (make-hashtable equal-hash equal?))
+  ;; Face f with foreground fg: over f, a face of fg alone, one for each
+  ;; color, which face-merge's interning makes one face for each f too.
+  (define fg-faces (make-eqv-hashtable))
   (define (shaded-face f fg)
-    (let ([key (cons (face-id f) fg)])
-      (or (hashtable-ref shaded key #f)
-          (let ([new (face-merge f (make-face fg #f))])
-            (when (> (hashtable-size shaded) 50000) (hashtable-clear! shaded))
-            (hashtable-set! shaded key new)
-            new))))
+    (face-merge f (or (hashtable-ref fg-faces fg #f)
+                      (let ([top (make-face fg #f)]) (hashtable-set! fg-faces fg top) top))))
 
+  ;; Effect placement p over g's cells as their inks: all shaded at once,
+  ;; and those that change put back.
   (define (shade-cells! g p)
     (let* ([e (car p)] [row (cadr p)] [col (caddr p)] [rows (cadddr p)] [cols (list-ref p 4)]
-           [progress (stepped e)])
-      (do ([r 0 (+ r 1)]) ((or (= r rows) (>= (+ row r) (grid-rows g))))
-        (do ([k 0 (+ k 1)]) ((or (= k cols) (>= (+ col k) (grid-cols g))))
-          (let* ([f (face-at g (+ row r) (+ col k))] [fg (face-fg f)])
-            (when fg
-              (let ([new (fx-shade-at e progress (+ k 0.5) (* 2 (+ r 0.5)) cols (* 2 rows) (color-rgb fg))])
-                (unless (= new (color-rgb fg))
-                  (put! g (+ row r) (+ col k) (vector-ref (vector-ref (grid-chars g) (+ row r)) (+ col k))
-                        (shaded-face f new))))))))))
-
-  (define (fx-shade-at e progress x y w h ink)
-    (fx-shade (effect-kind-number e) (effect-params e) (effect-color e) (inexact progress)
-              (inexact x) (inexact y) (inexact w) (inexact h) ink))
+           [shown-rows (max 0 (min rows (- (grid-rows g) row)))]
+           [shown-cols (max 0 (min cols (- (grid-cols g) col)))]
+           [inks (make-bytevector (* 4 rows cols) #xff)]
+           [at (lambda (r k) (* 4 (+ k (* r cols))))])
+      (do ([r 0 (+ r 1)]) ((= r shown-rows))
+        (do ([k 0 (+ k 1)]) ((= k shown-cols))
+          (let ([fg (face-fg (face-at g (+ row r) (+ col k)))])
+            (when fg (bytevector-u32-native-set! inks (at r k) (color-rgb fg))))))
+      (let ([shaded (effect-shade-cells e (stepped e) cols rows inks)])
+        (do ([r 0 (+ r 1)]) ((= r shown-rows))
+          (do ([k 0 (+ k 1)]) ((= k shown-cols))
+            (let ([new (bytevector-u32-native-ref shaded (at r k))])
+              (unless (= new (bytevector-u32-native-ref inks (at r k)))
+                (put! g (+ row r) (+ col k) (vector-ref (vector-ref (grid-chars g) (+ row r)) (+ col k))
+                      (shaded-face (face-at g (+ row r) (+ col k)) new)))))))))
 
   ;; Pictures of effects, by key: their cells, the effect, and its step.
-  (define effect-pictures (make-hashtable string-hash string=?))
+  ;; Keyed by all they are drawn from, (id cols step texts colors), and
+  ;; named by their PNGs.
+  (define effect-pictures (make-hashtable equal-hash equal?))
   (define effect-cell '(16 . 32))
 
   ;; Draw effect placement p over g's cells as a picture; #f where it
@@ -142,35 +145,41 @@
   ;; does not draw).
   (define (effect-picture! g p)
     (let* ([e (car p)] [row (cadr p)] [col (caddr p)]
-           [rows (min (cadddr p) (- (grid-rows g) row))] [cols (min (list-ref p 4) (- (grid-cols g) col))]
-           [cells (let loop ([r (- rows 1)] [acc '()])
-                    (if (< r 0)
-                        acc
-                        (loop (- r 1)
-                              (append (map (lambda (k)
-                                             (let ([ch (vector-ref (vector-ref (grid-chars g) (+ row r)) (+ col k))]
-                                                   [f (face-at g (+ row r) (+ col k))])
-                                               (list (cond [(char? ch) (string ch)] [(string? ch) ch] [else ""])
-                                                     (face-fg f) (face-bg f))))
-                                           (iota cols))
-                                      acc))))])
+           [rows (min (cadddr p) (- (grid-rows g) row))] [cols (min (list-ref p 4) (- (grid-cols g) col))])
       (and (> rows 0) (> cols 0)
-           (for-all (lambda (c) (and (cadr c) (caddr c))) cells)
-           (let* ([texts (map car cells)]
-                  [colors (apply append (map (lambda (c) (list (color-rgb (cadr c)) (color-rgb (caddr c)))) cells))]
-                  [progress (stepped e)]
-                  [key (format "fx:~a:~a:~a:~a" (effect-id e) cols (equal-hash (cons texts colors))
-                               (exact (round (* steps progress))))]
-                  [pic (or (hashtable-ref effect-pictures key #f)
-                           (let ([png (fx-raster texts colors cols (car effect-cell) (cdr effect-cell)
-                                                 (effect-kind-number e) (effect-params e) (effect-color e)
-                                                 (inexact progress))])
-                             (and png
-                                  (let ([pic (make-picture key (* cols (car effect-cell)) (* rows (cdr effect-cell)) png)])
-                                    (when (> (hashtable-size effect-pictures) 512) (hashtable-clear! effect-pictures))
-                                    (hashtable-set! effect-pictures key pic)
-                                    pic))))])
-             (and pic (begin (place-picture! g pic row col rows cols) #t))))))
+           (let-values ([(texts colors) (effect-cells g row col rows cols)])
+             (and texts
+                  (let* ([progress (stepped e)]
+                         [key (list (effect-id e) cols (exact (round (* steps progress))) texts colors)]
+                         [pic (or (hashtable-ref effect-pictures key #f)
+                                  (let ([png (fx-raster texts colors cols (car effect-cell) (cdr effect-cell)
+                                                        (effect-kind-number e) (effect-params e) (effect-color e)
+                                                        (inexact progress))])
+                                    (and png
+                                         (let ([pic (make-picture (string-append "fx:" (bytevector->hex (blake3 png)))
+                                                                  (* cols (car effect-cell)) (* rows (cdr effect-cell))
+                                                                  png)])
+                                           (when (> (hashtable-size effect-pictures) 512)
+                                             (hashtable-clear! effect-pictures))
+                                           (hashtable-set! effect-pictures key pic)
+                                           pic))))])
+                    (and pic (begin (place-picture! g pic row col rows cols) #t))))))))
+
+  ;; The texts of the rows by cols cells of g at (row, col), row by row,
+  ;; and their colors, each one's foreground then background (#xRRGGBB);
+  ;; #f and #f if one has no colors of its own.
+  (define (effect-cells g row col rows cols)
+    (let loop ([r (- rows 1)] [k (- cols 1)] [texts '()] [colors '()])
+      (cond
+       [(< r 0) (values texts colors)]
+       [(< k 0) (loop (- r 1) (- cols 1) texts colors)]
+       [else
+        (let* ([f (face-at g (+ row r) (+ col k))] [fg (face-fg f)] [bg (face-bg f)])
+          (if (and fg bg)
+              (loop r (- k 1)
+                    (cons (cell-text (vector-ref (vector-ref (grid-chars g) (+ row r)) (+ col k))) texts)
+                    (cons (color-rgb fg) (cons (color-rgb bg) colors)))
+              (values #f #f)))])))
 
   ;; ---------------------------------------------------------------------------
   ;; Output: frames as messages
@@ -219,25 +228,27 @@
 
   ;; The cells of row r from c0 to c1, as Neovim's grid_line has them:
   ;; (text hl repeat), with repeat left out when it is 1, and hl too when it
-  ;; is the previous cell's.
+  ;; is the previous cell's. Each run of cells with the same text and face
+  ;; is looked at once (faces are interned, so the same face is eq?).
   (define (row-cells g r c0 c1 hl!)
     (let ([chars (vector-ref (grid-chars g) r)] [faces (vector-ref (grid-faces g) r)])
-      ;; Runs of identical cells first, as (text hl count).
-      (let loop ([c c0] [acc '()])
-        (if (< c c1)
-            (let ([text (cell-text (vector-ref chars c))] [hl (hl! (vector-ref faces c))])
-              (if (and (pair? acc) (string=? text (car (car acc))) (= hl (cadr (car acc))))
-                  (loop (+ c 1) (cons (list text hl (+ 1 (caddr (car acc)))) (cdr acc)))
-                  (loop (+ c 1) (cons (list text hl 1) acc))))
-            (let compact ([runs (reverse acc)] [last-hl #f] [out '()])
-              (if (null? runs)
-                  (reverse out)
-                  (let* ([run (car runs)] [text (car run)] [hl (cadr run)] [n (caddr run)])
-                    (compact (cdr runs) hl
-                             (cons (cond [(> n 1) (list text hl n)]
-                                         [(eqv? hl last-hl) (list text)]
-                                         [else (list text hl)])
-                                   out)))))))))
+      (let loop ([c c0] [last-hl #f] [out '()])
+        (if (>= c c1)
+            (reverse out)
+            (let* ([ch (vector-ref chars c)] [f (vector-ref faces c)] [text (cell-text ch)] [hl (hl! f)]
+                   ;; Two characters are the same text only if they are one.
+                   [same? (lambda (x)
+                            (or (equal? x ch)
+                                (and (not (and (char? x) (char? ch))) (string=? (cell-text x) text))))]
+                   [end (let run ([k (+ c 1)])
+                          (if (and (< k c1) (eq? (vector-ref faces k) f) (same? (vector-ref chars k)))
+                              (run (+ k 1))
+                              k))]
+                   [n (- end c)])
+              (loop end hl (cons (cond [(> n 1) (list text hl n)]
+                                       [(eqv? hl last-hl) (list text)]
+                                       [else (list text hl)])
+                                 out)))))))
 
   ;; How many lines the text area moved since the frame old, when the
   ;; client can scroll its rows ("scroll") to match: scroll is the text
@@ -301,18 +312,21 @@
   (define (send-frame! c g cursor scroll)
     (let* ([cursor (and cursor (or (not (eq? (caddr cursor) 'hidden)) (client-has? c "hidden-cursor"))
                         cursor)]
-           [old (client-frame c)]
-           [full? (or (not old)
-                      (not (= (grid-rows (frame-grid old)) (grid-rows g)))
-                      (not (= (grid-cols (frame-grid old)) (grid-cols g))))]
-           [old (and (not full?) old)]
+           ;; What it shows, if it is a grid of this size.
+           [old (let ([o (client-frame c)])
+                  (and o (= (grid-rows (frame-grid o)) (grid-rows g)) (= (grid-cols (frame-grid o)) (grid-cols g))
+                       o))]
            [known (if old (frame-known old) (make-eqv-hashtable))]
            [shift (frame-shift c old scroll)]
            [prev (and old (if shift
                               (scrolled-grid (frame-grid old) (car scroll) (cadr scroll) shift)
                               (frame-grid old)))]
-           [pictures (if (client-has? c "images") (frame-pictures g) '())]
-           [effects (if (and (client-has? c "effects") (get-var 'animations #f)) (reverse (grid-effects g)) '())]
+           [images? (client-has? c "images")]
+           [effects? (client-has? c "effects")]
+           [pictures (if images? (frame-pictures g) '())]
+           [placed (map car pictures)]
+           [effects (if (and effects? (get-var 'animations #f)) (reverse (grid-effects g)) '())]
+           [signatures (map effect-signature effects)]
            [hl! (lambda (f)
                   (let ([id (face-id f)])
                     (unless (hashtable-contains? known id)
@@ -324,10 +338,8 @@
       (when shift (client-send! c (list "scroll" (car scroll) (cadr scroll) shift)))
       (let* ([rows? (send-rows! c g prev hl!)]
              ;; A terminal forgets its pictures on "grid".
-             [pictures? (and (client-has? c "images")
-                             (or (not old) (not (equal? (map car pictures) (frame-images old)))))]
-             [effects? (and (client-has? c "effects")
-                            (not (equal? (map effect-signature effects) (if old (frame-effects old) '()))))])
+             [pictures? (and images? (or (not old) (not (equal? placed (frame-images old)))))]
+             [effects? (and effects? (not (equal? signatures (if old (frame-effects old) '()))))])
         (when pictures? (send-pictures! c pictures))
         (when effects? (client-send! c (list "effects" (map effect-message effects))))
         ;; A frame like the last is not sent: clients draw only what changed.
@@ -335,7 +347,7 @@
           (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
                               '("cursor" #f)))
           (client-send! c '("flush"))))
-      (client-frame-set! c (make-frame g known cursor scroll (map car pictures) (map effect-signature effects)))))
+      (client-frame-set! c (make-frame g known cursor scroll placed signatures))))
 
   ;; ---------------------------------------------------------------------------
   ;; The text area
@@ -372,10 +384,10 @@
   (define (peer-face c part)
     (F (string->symbol (format "ui.peer.~a.~a" (client-color c) part))))
 
-  ;; Overlay faces per position on a line: selections and cursors, under
-  ;; the other people's selections and cursors in the same buffer, each in
-  ;; their color.
-  (define (selection-spans v line-start line-end)
+  ;; Overlay faces per position on lines from line-start to line-end (the
+  ;; last's newline): selections and cursors, under the other people's
+  ;; (`others`, their views of the same buffer), each in their color.
+  (define (selection-spans v others line-start line-end)
     (let ([insert? (eq? (view-input-mode v) 'insert)]
           [others (apply append
                          (map (lambda (o)
@@ -394,7 +406,7 @@
                                                        (list (list h (+ h 1) (peer-face c 'cursor)))
                                                        '()))))
                                               (view-sels o)))))
-                              (others-views v)))])
+                              others))])
       (let loop ([sels (view-sels v)] [primary? #t] [acc others])
         (if (null? sels)
             acc
@@ -429,7 +441,8 @@
                        [else (loop (+ i step) depth (- budget 1))]))))))))
 
   ;; Draw buffer line [s, e] (e is its newline) into row, from text column
-  ;; `left`, starting at screen column `gutter`.
+  ;; `left`, starting at screen column `gutter`; returns the screen column
+  ;; its newline is at (past width, if the line is cut off before it).
   (define (draw-line! g b row s e gutter width left row-face syntax-spans overlays match tw ws?)
     (let ([t (buffer-text b)])
       (define (face-for i ss)
@@ -444,18 +457,22 @@
         (let ([ss (let skip ([ss ss]) (if (and (pair? ss) (<= (cadr (car ss)) i)) (skip (cdr ss)) ss))]
               [sc (+ gutter (- col left))])
           (cond
-           [(> i e) (void)]
            [(= i e)
             ;; The newline: a space, so a selection or a cursor on it shows.
-            (when (visible? sc) (put! g row sc #\space (face-for i ss)))]
+            (when (visible? sc) (put! g row sc #\space (face-for i ss)))
+            sc]
+           ;; Past the right edge (where a mark may still join the last
+           ;; cell): nothing more shows.
+           [(> sc width) sc]
            [else
-            ;; A grapheme cluster: a character and what extends it.
+            ;; A grapheme cluster: a character and what extends it. Its
+            ;; face is found only where it shows.
             (let* ([ch (text-ref t i)]
                    [tab? (char=? ch #\tab)]
                    [j (if tab? (+ i 1) (grapheme-end ref i e))]
                    [w (if tab? (- tw (modulo col tw)) (grapheme-columns ref i j))]
                    [ch (if (= j (+ i 1)) ch (text-substring t i j))]
-                   [face (face-for i ss)])
+                   [face (lambda () (face-for i ss))])
               (cond
                [(= w 0)
                 ;; Marks with nothing to mark (after a tab, at the line's
@@ -464,20 +481,21 @@
                   (when (visible? pc)
                     (let ([prev (vector-ref (vector-ref (grid-chars g) row) pc)])
                       (put! g row pc
-                            (string-append (cond [(char? prev) (string prev)] [(string? prev) prev] [else ""])
-                                           (if (char? ch) (string ch) ch))
+                            (string-append (cell-text prev) (cell-text ch))
                             (face-at g row pc)))))]
                [tab?
-                (do ([k 0 (+ k 1)]) ((= k w))
-                  (when (visible? (+ sc k))
-                    (put! g row (+ sc k) (if (and ws? (= k 0)) #\→ #\space)
-                          (if ws? (face-merge face (F 'ui.virtual.whitespace)) face))))]
+                (let ([f (and (< sc width) (> (+ sc w) gutter)
+                              (if ws? (face-merge (face) (F 'ui.virtual.whitespace)) (face)))])
+                  (do ([k 0 (+ k 1)]) ((= k w))
+                    (when (visible? (+ sc k))
+                      (put! g row (+ sc k) (if (and ws? (= k 0)) #\→ #\space) f))))]
                [(= w 2)
                 (when (visible? sc)
-                  (if (visible? (+ sc 1))
-                      (begin (put! g row sc ch face) (put! g row (+ sc 1) 'wide face))
-                      (put! g row sc #\space face)))]
-               [else (when (visible? sc) (put! g row sc ch face))])
+                  (let ([f (face)])
+                    (if (visible? (+ sc 1))
+                        (begin (put! g row sc ch f) (put! g row (+ sc 1) 'wide f))
+                        (put! g row sc #\space f))))]
+               [else (when (visible? sc) (put! g row sc ch (face)))])
               (loop j (+ col w) ss))])))))
 
   ;; Decorators mark up a buffer's text beyond its syntax: diagnostics,
@@ -572,17 +590,16 @@
            0))
      (lambda (v line cur? w)
        (let* ([numbers (get-var 'line-numbers (view-buffer v))]
-              [primary-line (text-line-of (buffer-text (view-buffer v)) (head-position v (view-primary v)))]
-              [str (number->string (if (and (eq? numbers 'relative) (not cur?)) (abs (- line primary-line)) (+ line 1)))])
+              [str (number->string
+                    (if (and (eq? numbers 'relative) (not cur?))
+                        (abs (- line (text-line-of (buffer-text (view-buffer v)) (head-position v (view-primary v)))))
+                        (+ line 1)))])
          (cons (string-append (make-string (max 0 (- w 1 (string-length str))) #\space) str)
                (if cur? 'ui.linenr.selected 'ui.linenr))))))
 
   (define (draw-buffer! g v row0 height width focused?)
     (let*-values ([(shown gutter) (view-gutters v)])
-     (draw-buffer* g v row0 height width focused? shown gutter)))
-
-  (define (draw-buffer* g v row0 height width focused? shown gutter)
-    (let* ([b (view-buffer v)]
+     (let* ([b (view-buffer v)]
            [t (buffer-text b)]
            [nlines (text-line-count t)]
            [_ (scroll-into-view! v height width gutter)]
@@ -598,7 +615,12 @@
            [tw (get-var 'tab-width b)]
            [ws? (get-var 'show-whitespace b)]
            [others (others-views v)]
-           [decos (view-decorations v top last)])
+           ;; What is drawn over the lines shown: decorations, then the
+           ;; selections and cursors.
+           [overlays (if (> top last)
+                         '()
+                         (append (view-decorations v top last)
+                                 (selection-spans v others (text-line-start t top) (text-line-end t last))))])
       (view-geometry-set! (list row0 gutter height (- width gutter) top left))
       (do ([r 0 (+ r 1)]) ((= r height))
         (let ([line (+ top r)] [row (+ row0 r)])
@@ -613,14 +635,13 @@
                                    text-face)])
                 (fill-row! g row 0 width row-face)
                 (draw-gutters! g row v line cur? shown row-face)
-                (draw-line! g b row s e gutter width left row-face (vector-ref spans r)
-                            (append (filter (lambda (d) (and (< (car d) (+ e 1)) (> (cadr d) s))) decos)
-                                    (selection-spans v s e))
-                            match tw ws?)
-                (draw-peer-names! g b row s e (+ gutter (- (display-column b e) left) 2) gutter width
-                                  row-face others)))))
+                (let ([end (draw-line! g b row s e gutter width left row-face (vector-ref spans r)
+                                       (filter (lambda (o) (and (< (car o) (+ e 1)) (> (cadr o) s))) overlays)
+                                       match tw ws?)])
+                  (unless (null? others)
+                    (draw-peer-names! g row s e (+ end 2) gutter width row-face others)))))))
       (draw-jump-labels! g b row0 top last gutter left width)
-      gutter))
+      gutter)))
 
   ;; What decorates view v's lines top to last: the decorators', and the
   ;; view decorators'.
@@ -641,7 +662,7 @@
 
   ;; The names of the people (others' views) whose cursors are on the line
   ;; [s, e] drawn in row, from column col on.
-  (define (draw-peer-names! g b row s e col gutter width row-face others)
+  (define (draw-peer-names! g row s e col gutter width row-face others)
     (let loop ([os (filter (lambda (o) (<= s (head-position o (view-primary o)) e)) others)] [col col])
       (when (and (pair? os) (< col width))
         (let ([c (view-client (car os))])
@@ -714,14 +735,9 @@
   (define (define-status-segment! side proc)
     (set! the-status-segments (append the-status-segments (list (cons side proc)))))
 
-  (define draw-status!
-    (case-lambda
-     [(g row v width) (draw-status! g row v width #t)]
-     [(g row v width active?) (draw-status* g row v width active?)]))
-
   ;; A pane's status line: an unfocused pane's (not active?) in
   ;; ui.statusline.inactive.
-  (define (draw-status* g row v width active?)
+  (define (draw-status! g row v width active?)
     (let ([base (UI (if active? 'ui.statusline 'ui.statusline.inactive))])
       (fill-row! g row 0 width base)
       (let* ([segs (filter-map (lambda (s) (let ([x ((cdr s) v)]) (and x (cons (car s) x)))) the-status-segments)]
@@ -750,7 +766,7 @@
     (fill-row! g row 0 width (UI 'ui.prompt))
     (let ([m (current-message)])
       (when m
-        (put-string! g row 0 (car (string-split (cdr m) #\newline)) (UI (car m))))))
+        (put-string! g row 0 (string-first-line (cdr m)) (UI (car m))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Overlays: the editor's own, from widgets (widget.sls)
@@ -766,24 +782,19 @@
   ;; A popup: at the right between the panes' top and bottom, its last
   ;; lines if it has more than fit.
   (define (popup-overlay pop)
-    (make-overlay
-     'popup
-     (lambda (a)
-       (let* ([cols (area-cols a)]
-              [width (min (- cols 2) (max 50 (quotient cols 2)) 100)]
-              [lines (popup-text pop (- width 4))]
-              [height (min (- (area-bottom a) (area-top a)) (max 3 (+ 2 (length lines))))])
-         (and (>= height 3) (> width 4)
-              (list (area-top a) (- cols width 1) height width))))
-     (framed (lambda () (now (popup-title pop)))
-          (text-lines (lambda () ((popup-lines-of pop))) #t)
-          (list (cons 'footer (lambda () (let ([f (now (popup-footer pop))]) (and f (string-append " " f " ")))))))
-     #f))
-
-  ;; A popup's lines, (text . face) each, wrapped to width.
-  (define (popup-text pop width)
-    (apply append (map (lambda (l) (map (lambda (t) (cons t (cdr l))) (wrap-text (car l) width)))
-                       ((popup-lines-of pop)))))
+    (let ([w (framed (lambda () (now (popup-title pop)))
+                     (text-lines (lambda () ((popup-lines-of pop))) #t)
+                     (list (cons 'footer (lambda () (let ([f (now (popup-footer pop))]) (and f (string-append " " f " ")))))))])
+      (make-overlay
+       'popup
+       (lambda (a)
+         (let* ([cols (area-cols a)]
+                [width (min (- cols 2) (max 50 (quotient cols 2)) 100)]
+                [height (min (- (area-bottom a) (area-top a)) (max 3 (widget-rows w width)))])
+           (and (>= height 3) (> width 4)
+                (list (area-top a) (- cols width 1) height width))))
+       w
+       #f)))
 
   (define (popup-lines-of pop)
     (lambda ()
@@ -999,19 +1010,18 @@
                            (and cursor (list (+ row (car cursor)) (+ col (cadr cursor)) (caddr cursor)))))))
 
   (define (draw-view-pane! c g p v row col rows cols focused?)
-    (let ()
-      (when v
-        (if (and (= col 0) (= cols (grid-cols g)))
-            (begin
-              (draw-view! g v row (- rows 1) cols focused?)
-              (draw-status! g (+ row rows -1) v cols (eq? p (client-focused-pane c))))
-            (let ([sub (new-grid rows cols (F 'ui))])
-              (draw-view! sub v 0 (- rows 1) cols focused?)
-              (draw-status! sub (- rows 1) v cols (eq? p (client-focused-pane c)))
-              (blit! g sub row col)
-              (let ([geo (view-geometry)])
-                (when geo
-                  (view-geometry-set! (cons* (+ row (car geo)) (+ col (cadr geo)) (cddr geo))))))))))
+    (when v
+      (if (and (= col 0) (= cols (grid-cols g)))
+          (begin
+            (draw-view! g v row (- rows 1) cols focused?)
+            (draw-status! g (+ row rows -1) v cols (eq? p (client-focused-pane c))))
+          (let ([sub (new-grid rows cols (F 'ui))])
+            (draw-view! sub v 0 (- rows 1) cols focused?)
+            (draw-status! sub (- rows 1) v cols (eq? p (client-focused-pane c)))
+            (blit! g sub row col)
+            (let ([geo (view-geometry)])
+              (when geo
+                (view-geometry-set! (cons* (+ row (car geo)) (+ col (cadr geo)) (cddr geo)))))))))
 
   ;; Draw client c's layout in rows row.. and columns col.. of g. Each pane
   ;; is drawn with it focused, so that what draws a view draws its; the
@@ -1039,6 +1049,15 @@
 
   ;; Draw client c's frame and send it what changed. The client's own
   ;; state (prompt, layer, message, view) is current while drawing.
+  ;; Where position pos of view v (of buffer b) shows, in the text area
+  ;; at geo (row col rows cols top left): (row col), or #f off it.
+  (define (screen-cell geo v b pos)
+    (let ([r (+ (car geo) (- (text-line-of (buffer-text b) pos) (view-top v)))]
+          [col (+ (cadr geo) (- (display-column b pos) (view-left v)))])
+      (and (<= (car geo) r (+ (car geo) (caddr geo) -1))
+           (<= (cadr geo) col (+ (cadr geo) (cadddr geo) -1))
+           (list r col))))
+
   (define (render-client! c)
     (with-client c
       (lambda ()
@@ -1059,14 +1078,8 @@
                      ;; Where the focused pane's text is: (row col rows cols top left).
                      [geo (view-geometry)]
                      ;; The cursor in its text, where a menu goes: (row col), or #f.
-                     [at-head
-                      (and geo (not (focused-component c))
-                           (let* ([pos (head-position v (view-primary v))]
-                                  [r (+ (car geo) (- (text-line-of (buffer-text b) pos) (view-top v)))]
-                                  [col (+ (cadr geo) (- (display-column b pos) (view-left v)))])
-                             (and (<= (car geo) r (+ (car geo) (caddr geo) -1))
-                                  (<= (cadr geo) col (+ (cadr geo) (cadddr geo) -1))
-                                  (list r col))))]
+                     [at-head (and geo (not (focused-component c))
+                                   (screen-cell geo v b (head-position v (view-primary v))))]
                      [_ (draw-bottom! g (- rows 1) cols)]
                      [over (draw-overlays! g (make-area rows cols text-top status-row at-head) (editor-overlays c))]
                      [cursor
@@ -1081,13 +1094,10 @@
                        [(not geo) #f]
                        [else
                         (let* ([insert? (eq? (view-input-mode v) 'insert)]
-                               [pos (if insert? (sel-start (view-primary v)) (head-position v (view-primary v)))]
-                               [r (+ (car geo) (- (text-line-of (buffer-text b) pos) (view-top v)))]
-                               [col (+ (cadr geo) (- (display-column b pos) (view-left v)))])
-                          (and (<= (car geo) r (+ (car geo) (caddr geo) -1))
-                               (<= (cadr geo) col (+ (cadr geo) (cadddr geo) -1))
-                               (list r col (if insert? 'bar 'hidden))))])])
+                               [at (screen-cell geo v b (if insert?
+                                                            (sel-start (view-primary v))
+                                                            (head-position v (view-primary v))))])
+                          (and at (append at (list (if insert? 'bar 'hidden)))))])])
                 (draw-effects! c g)
                 ;; A scroll is a whole row's: with panes side by side, none.
-                (send-frame! c g cursor (and single? (list text-top status-row b (view-top v))))
-                (client-dirty?-set! c #f)))))))))
+                (send-frame! c g cursor (and single? (list text-top status-row b (view-top v))))))))))))

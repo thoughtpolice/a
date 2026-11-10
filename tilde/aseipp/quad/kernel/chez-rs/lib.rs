@@ -26,7 +26,8 @@
 //! At run time, the program embedding Chez Scheme calls
 //! `library().register()` once its heap is built; at build time,
 //! `library().scheme_source()` is the Scheme library `(my native)`, which
-//! binds them (Buck: `chez_rust_library` in defs.bzl does this). Scheme
+//! binds them (Buck: `chez.rust_library`, toolchains//chez:defs.bzl, does
+//! this). Scheme
 //! then calls `(blake3 #vu8(1 2 3))`, `(counter-bump! c)`, and a wrong
 //! argument is a Scheme error naming it.
 //!

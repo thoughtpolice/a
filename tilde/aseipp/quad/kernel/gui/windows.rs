@@ -62,10 +62,10 @@ pub(super) fn run(ready: mpsc::Sender<Result<System, String>>) {
     let mut builder = EventLoop::<Request>::with_user_event();
     #[cfg(target_os = "linux")]
     {
+        // Otherwise winit's own choice: Wayland where WAYLAND_DISPLAY (or
+        // WAYLAND_SOCKET) is set and not empty, else X11.
         if std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1") {
             builder.with_x11();
-        } else if std::env::var_os("WAYLAND_DISPLAY").is_some() {
-            builder.with_wayland();
         }
     }
     #[cfg(target_os = "macos")]
@@ -217,7 +217,9 @@ impl Windows {
             screen: Screen::default(),
             damage: None,
             images: Images::default(),
-            pixels: FramePixels::default(),
+            frame: None,
+            ime_area: None,
+            snapshot: std::env::var_os("QUAD_GUI_SNAPSHOT").is_some(),
             grid: (0, 0),
             modifiers: ModifiersState::empty(),
             preedit: String::new(),
@@ -236,7 +238,7 @@ impl Windows {
     pub(super) fn close(&mut self, key: u64) -> Option<Sender<Event>> {
         let win = self.open.remove(&key)?;
         self.ids.remove(&win.window.id());
-        Some(win.events.clone())
+        Some(win.events)
     }
 }
 
@@ -284,6 +286,7 @@ impl ApplicationHandler<Request> for Windows {
                     if let Err(error) = win.images.add(image, &png) {
                         win.send(Event::Error(error));
                     }
+                    win.frame = None;
                 }
             }
             Request::Pointer(key, shape) => {
@@ -359,5 +362,3 @@ impl ApplicationHandler<Request> for Windows {
         }
     }
 }
-
-// Fields drop in order: the renderer before the window it draws to.

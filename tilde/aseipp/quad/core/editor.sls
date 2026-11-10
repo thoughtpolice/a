@@ -41,9 +41,10 @@
    make-connection connection? connection-send connection-close
    client? client-id client-name client-rows client-cols client-rows-set! client-cols-set!
    client-capabilities client-has? client-connection client-view client-views
-   client-frame client-frame-set! client-dirty? client-dirty?-set! client-local client-local-set!
+   client-frame client-frame-set! client-local client-local-set! client-route client-divert! client-diverted?
    client-user set-client-user! client-color person? people default-user-name peer-colors
-   clients current-client set-current-client! with-client with-client-or-any add-client! remove-client! client-send!
+   clients current-client set-current-client! with-client with-client-or-any with-client-if-here
+   add-client! remove-client! client-send!
    client-quit! client-switch-buffer! view-of
    ;; panes
    pane? pane-rect pane-rect-set! split? split-dir split-ratio split-ratio-set! split-first split-second
@@ -93,7 +94,7 @@
    ;; prompts
    make-prompt prompt? prompt-label prompt-input prompt-input-set! prompt-cursor
    prompt-cursor-set! prompt-items prompt-index prompt-index-set! prompt-style prompt-hint prompt-most
-   current-prompt open-prompt! close-prompt! prompt-refresh! prompt-accept!
+   current-prompt open-prompt! close-prompt! prompt-refresh! prompt-edit! prompt-accept!
    prompt-on-select-set! prompt-on-cancel-set! prompt-selected! cancel-prompt!
    read-string-prompt read-string-dialog pick unfiltered unfiltered?
    ;; overlays
@@ -154,6 +155,8 @@
 
   (define (set-major-mode! b m)
     (buffer-major-mode-set! b m)
+    (let ([unit (syntax-indent-unit (major-mode-syntax m))])
+      (when unit (set-local! 'indent-unit unit b)))
     (when (major-mode-hook m) ((major-mode-hook m) b))
     (run-hooks 'major-mode-hook b))
 
@@ -189,13 +192,9 @@
   (define (show-text-buffer! name text mode)
     (let ([b (or (find-buffer-named name)
                  (new-buffer! name "" (or (find-major-mode mode) fundamental-mode)))])
-      (buffer-read-only?-set! b #f)
-      (buffer-replace-all! b text)
+      (buffer-set-text! b text)
       (buffer-read-only?-set! b #t)
       (switch-to-buffer! b)))
-
-  (define (absolute-path p)
-    (if (string-prefix? "/" p) p (path-join (current-directory) p)))
 
   (define (buffer-display-name b)
     (let ([p (buffer-path b)])
@@ -253,7 +252,7 @@
       (run-hooks 'after-save-hook b)
       (message "Wrote ~a (~a lines)" (buffer-display-name b) (text-line-count (buffer-text b)))]))
 
-;; What trim-trailing-whitespace and trim-final-newlines ask of a buffer
+  ;; What trim-trailing-whitespace and trim-final-newlines ask of a buffer
   ;; being saved, as one undo step.
   (define (trim-whitespace! b)
     (let* ([t (buffer-text b)] [n (text-length t)]
@@ -261,8 +260,7 @@
                       (let loop ([l (- (text-line-count t) 1)] [acc '()])
                         (if (< l 0)
                             acc
-                            (let* ([s (text-line-start t l)] [e (text-line-end t l)]
-                                   [k (let back ([i e]) (if (and (> i s) (memv (text-ref t (- i 1)) '(#\space #\tab))) (back (- i 1)) i))])
+                            (let* ([e (text-line-end t l)] [k (blanks-before t e (text-line-start t l))])
                               (loop (- l 1) (if (< k e) (cons (list k e "") acc) acc)))))
                       '())]
            [end (if (get-var 'trim-final-newlines b)
@@ -387,7 +385,8 @@
   (define (primary) (view-primary (current-view)))
   (define (selection-mode-of x) (find-selection-mode (view-selection-mode (as-view x))))
 
-  ;; Replace the selections, sorted and merged; the primary stays first.
+  ;; Replace the selections, kept in the text, each once; the primary
+  ;; stays first.
   (define set-sels!
     (case-lambda
      [(sels) (set-sels! (current-view) sels)]
@@ -399,12 +398,18 @@
                            (make-sel (clamp (sel-start s) 0 len) (clamp (sel-end s) 0 len)
                                      (let ([a (sel-anchor s)])
                                        (and a (cons (clamp (car a) 0 len) (clamp (cdr a) 0 len))))))]
-               [p (clampsel (car sels))]
-               [rest (delete-duplicates*
-                      (filter (lambda (s) (not (and (= (sel-start s) (sel-start p)) (= (sel-end s) (sel-end p)))))
-                              (map clampsel (cdr sels)))
-                      (lambda (a b) (and (= (sel-start a) (sel-start b)) (= (sel-end a) (sel-end b)))))])
-          (view-sels-set! v (cons p rest))))]))
+               [p (clampsel (car sels))])
+          (if (null? (cdr sels))
+              (view-sels-set! v (list p))
+              ;; Ranges by a number each: start and end are at most len.
+              (let* ([seen (make-eqv-hashtable)]
+                     ;; Whether s's range was not seen yet (and now is).
+                     [new? (lambda (s)
+                             (let ([key (+ (* (sel-start s) (+ len 1)) (sel-end s))])
+                               (and (not (hashtable-contains? seen key))
+                                    (begin (hashtable-set! seen key #t) #t))))])
+                (new? p)
+                (view-sels-set! v (cons p (filter new? (map clampsel (cdr sels)))))))))]))
 
   (define (set-primary! s) (set-sels! (list s)))
 
@@ -412,10 +417,19 @@
     (find-selection-mode name)
     (view-selection-mode-set! (as-view x) name))
 
+  ;; Whether selections a and b are the same: records are equal? only
+  ;; when they are one.
+  (define (same-sels? a b)
+    (and (= (length a) (length b))
+         (for-all (lambda (x y)
+                    (and (= (sel-start x) (sel-start y)) (= (sel-end x) (sel-end y))
+                         (equal? (sel-anchor x) (sel-anchor y))))
+                  a b)))
+
   ;; Selection history, for backspace and tab in normal mode.
   (define (push-selection-history! x)
     (let* ([v (as-view x)] [h (view-local v 'sel-history '())])
-      (unless (and (pair? h) (equal? (car (car h)) (view-sels v)))
+      (unless (and (pair? h) (same-sels? (car (car h)) (view-sels v)))
         (view-local-set! v 'sel-history
                          (take (cons (cons (view-sels v) (view-selection-mode v)) h) 200))
         (view-local-set! v 'sel-future '()))))
@@ -572,11 +586,7 @@
              [bnd (run-command (binding-target bnd))]
              [(self-insert-text ev)
               => (lambda (s)
-                   (let* ([in (prompt-input p)] [c (prompt-cursor p)])
-                     (prompt-input-set! p (string-append (substring in 0 c) s (substring in c (string-length in))))
-                     (prompt-cursor-set! p (+ c (string-length s)))
-                     (prompt-index-set! p 0)
-                     (prompt-refresh! p)))])))]
+                   (prompt-edit! (lambda (in c) (values (string-splice in c c s) (+ c (string-length s))))))])))]
        ;; An extension's overlay, over the panes, that takes the key.
        [(and (key-event-press? ev) (key-overlay (current-client))
              ((overlay-key (key-overlay (current-client))) key (self-insert-text ev)))

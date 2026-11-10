@@ -27,7 +27,7 @@
            [line (clamp (+ (text-line-of t (sel-range-start (primary))) lines) 0 (- (text-line-count t) 1))])
       (scroll! lines)
       (view-local-set! (cv) 'free-scroll #f)
-      (let ([r (current-unit b (cons (line-indent-end t line) (line-indent-end t line)))])
+      (let ([r (line-unit b line)])
         (when r (set-sels! b (list (range->sel r)))))))
 
   (define (center-view!)
@@ -109,7 +109,7 @@
        [(exists (lambda (h) ((cdr h) b pos mods)) click-handlers) (void)]
        [(logtest mods mod-shift)
         (let ([r (unit-at b pos)] [p (primary)])
-          (set-sels! b (cons (make-sel (car r) (cdr r) (or (sel-anchor p) (sel-range p))) (cdr (sels-of b)))))]
+          (set-sels! b (cons (extend-sel p r) (cdr (sels-of b)))))]
        [(logtest mods (logior mod-alt mod-ctrl))
         (set-sels! b (cons (range->sel (unit-at b pos)) (sels-of b)))]
        [else
@@ -126,8 +126,8 @@
     (let ([s (primary-selection)])
       (when (> (string-length s) 0)
         (run-command (lambda ()
-                       (let ([starts (buffer-edit! b (list (list pos pos s)))])
-                         (set-sels! b (list (make-sel (car starts) (+ (car starts) (string-length s)))))))))))
+                       (let ([at (buffer-insert! b pos s)])
+                         (set-sels! b (list (make-sel at (+ at (string-length s)))))))))))
 
   ;; Dragging: the selection reaches from where the drag began to pos.
   (define (drag-to! b pos)
@@ -143,28 +143,11 @@
         (primary-selection-set! (selection-text b (primary)))))
     (set! drag-anchor #f))
 
-
-
-
-  ;; Pasting from the terminal (bracketed paste): typed in insert mode, and
-  ;; in normal mode it replaces the selections.
-
-
-
   ;; Clients that show a title (a terminal's, a window's) show the buffer's,
   ;; and learn the working directory, for new terminal tabs.
   (define (send-title! c b)
     (when (client-has? c "title")
       (client-send! c (list "title" (string-append "quad — " (buffer-name b))))))
-
-
-
-
-  ;; Coming back to the terminal: reload files changed on disk behind
-  ;; unmodified buffers, and warn about modified ones.
-
-
-
 
   ;; What this registers, once: (quad commands) calls it as it loads, as
   ;; nothing would run this library's own at-loads (a library runs only

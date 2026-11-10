@@ -31,14 +31,14 @@
           animate! stagger timeline timeline-add!
           animation? animation-play! animation-pause! animation-restart! animation-seek!
           animation-finished? animation-elapsed
-          effect effect? effect-kind effect-id effect-progress effect-next-change effect-shade
+          effect effect? effect-kind effect-id effect-progress effect-next-change effect-shade-cells
           effect-kind-number effect-params effect-color effect-timing effect-age effect-restart!
           with-effect
           timing-numbers easing-index
           anim-now anim-clock-set! anim-timeout anim-tick! anim-render-begin! anim-effect-shown!
           animations-running?)
   (import (chezscheme) (quad util) (quad color) (quad canvas) (quad widget) (quad client)
-          (only (quad native) fx-easing-names fx-progress fx-next-change fx-shade))
+          (only (quad native) fx-easing-names fx-sample fx-shade-cells))
 
   (define-variable animations #t "Whether things move: #f (reduced motion) jumps them to their ends.")
   (define-variable animation-fps 60 "Frames a second the editor draws while something moves.")
@@ -80,6 +80,12 @@
             [(eq? (car o) key) (cadr o)]
             [else (loop (cddr o))])))
 
+  ;; Where timing is at elapsed milliseconds: its progress, and the
+  ;; milliseconds until that next changes (#f once it is done).
+  (define (sample timing elapsed)
+    (let ([s (fx-sample timing (inexact (max 0 elapsed)))])
+      (if s (values (car s) (cdr s)) (values #f #f))))
+
   ;; The ten numbers of the timing options say (delay a number here).
   (define (timing-numbers options delay)
     (let ([loop (option options 'loop #f)])
@@ -93,11 +99,10 @@
   ;; Animated values
 
   ;; kind: number or color (#xRRGGBB, mixed in sRGB).
-  (define-record-type (animated-cell make-animated animated?) (fields (mutable value) kind))
+  (define-record-type (animated-cell make-animated animated?)
+    (fields (mutable value animated-value animated-set!) kind))
   (define (animated v) (make-animated v 'number))
   (define (animated-color c) (make-animated c 'color))
-  (define (animated-value a) (animated-cell-value a))
-  (define (animated-set! a v) (animated-cell-value-set! a v))
 
   (define (between kind a b t)
     (if (eq? kind 'color)
@@ -142,9 +147,7 @@
             (let* ([p (car parts)] [offset (car p)] [t (cdr p)] [e (- elapsed offset)])
               (if (animation? t)
                   (loop (cdr parts) (or (advance-at! t e) any?))
-                  (let* ([timing (tween-timing t)]
-                         [progress (if (moving?) (fx-progress timing (max 0.0 (inexact e))) 1.0)]
-                         [next (and (moving?) (fx-next-change timing (max 0.0 (inexact e))))])
+                  (let-values ([(progress next) (if (moving?) (sample (tween-timing t) e) (values 1.0 #f))])
                     ;; A tween that has not begun stays where it was.
                     (when (>= e 0)
                       (animated-set! (tween-target t)
@@ -268,15 +271,11 @@
 
   ;; kind: a symbol (sheen); params: four numbers, the kind's; color:
   ;; #xRRGGBB; timing: ten numbers; start: when it began, on the clock.
-  (define-record-type effect-object
-    (fields id kind params color timing (mutable start))
+  (define-record-type (effect-object make-effect-object effect?)
+    (fields (immutable id effect-id) (immutable kind effect-kind) (immutable params effect-params)
+            (immutable color effect-color) (immutable timing effect-timing)
+            (mutable start effect-object-start effect-object-start-set!))
     (nongenerative))
-  (define (effect? x) (effect-object? x))
-  (define (effect-id e) (effect-object-id e))
-  (define (effect-kind e) (effect-object-kind e))
-  (define (effect-params e) (effect-object-params e))
-  (define (effect-color e) (effect-object-color e))
-  (define (effect-timing e) (effect-object-timing e))
   (define (effect-restart! e) (effect-object-start-set! e (anim-now)))
   (define (effect-age e) (- (anim-now) (effect-object-start e)))
 
@@ -303,14 +302,16 @@
 
   ;; Its progress now (0 where it stands still).
   (define (effect-progress e)
-    (if (moving?) (fx-progress (effect-timing e) (inexact (max 0 (effect-age e)))) 0.0))
+    (if (moving?) (let-values ([(progress next) (sample (effect-timing e) (effect-age e))]) progress) 0.0))
   (define (effect-next-change e)
-    (and (moving?) (fx-next-change (effect-timing e) (inexact (max 0 (effect-age e))))))
+    (and (moving?) (let-values ([(progress next) (sample (effect-timing e) (effect-age e))]) next)))
 
-  ;; Ink (#xRRGGBB) at (x, y) in a rectangle w by h, in cell widths.
-  (define (effect-shade e x y w h ink)
-    (fx-shade (effect-kind-number e) (effect-params e) (effect-color e) (effect-progress e)
-              (inexact x) (inexact y) (inexact w) (inexact h) ink))
+  ;; The inks of cols by rows cells (a bytevector of a native u32 for each,
+  ;; #xRRGGBB, row by row; #xFFFFFFFF for none) with e at progress over
+  ;; them: a bytevector of them likewise (kernel/fx).
+  (define (effect-shade-cells e progress cols rows inks)
+    (fx-shade-cells (effect-kind-number e) (effect-params e) (effect-color e) (inexact progress)
+                    cols rows inks))
 
   ;; Widget w, with effect e over the cells it draws.
   (define (with-effect w e)
@@ -339,15 +340,14 @@
   ;; else when the next shown effect next changes.
   (define (anim-timeout)
     (let* ([interval (/ 1000.0 (max 1 (get-var 'animation-fps #f)))]
-           [frame (max 0 (exact (ceiling (- (+ last-tick interval) (anim-now)))))]
-           [waits (filter-map (lambda (e)
-                                (let ([n (effect-next-change e)])
-                                  (and n (if (<= n 0) frame (exact (ceiling n))))))
-                              shown)])
-      (cond
-       [(exists (lambda (a) (not (animation-paused a))) running) frame]
-       [(pair? waits) (apply min waits)]
-       [else -1])))
+           [frame (max 0 (exact (ceiling (- (+ last-tick interval) (anim-now)))))])
+      (if (exists (lambda (a) (not (animation-paused a))) running)
+          frame
+          (let ([waits (filter-map (lambda (e)
+                                     (let ([n (effect-next-change e)])
+                                       (and n (if (<= n 0) frame (exact (ceiling n))))))
+                                   shown)])
+            (if (pair? waits) (apply min waits) -1)))))
 
   ;; Move everything playing to where it is now.
   (define (anim-tick!)

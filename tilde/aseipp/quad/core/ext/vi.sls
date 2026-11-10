@@ -16,9 +16,10 @@
 (library (quad ext vi)
   (export vi-buffer vi-len bol eol last-char first-nonblank line-of line-start line-end last-line on-line
           word-forward word-backward word-end find-in-line matching-bracket
-          cursor-sel head set-cursors! vi-move-cursors!
+          cursor-sel head set-cursors!
           select-kind select-anchor select-start! select-stop! select-set-head! selecting?
-          take-count! count-digit! count-pending? clear-count!
+          take-count! count-digit! count-pending? clear-count! count-times! bind-count-digits!
+          define-char-scheme!
           char-keymap enclosure-of enclosure-at
           yank! register-key! register-store! register-fetch show-registers!
           take-register! recording record-start! record-stop! play-macro! run-macro!
@@ -108,28 +109,15 @@
   ;; The bracket matching the one at p, or the first after it on its line;
   ;; #f if there is none.
   (define (matching-bracket p)
-    (let* ([pairs '((#\( . #\)) (#\[ . #\]) (#\{ . #\}))]
-           [e (eol p)]
+    (let* ([e (eol p)]
            [at (let loop ([i p])
                  (cond [(>= i e) #f]
-                       [(exists (lambda (pr) (or (char=? (text-ref (t*) i) (car pr)) (char=? (text-ref (t*) i) (cdr pr)))) pairs) i]
+                       [(memv (text-ref (t*) i) '(#\( #\) #\[ #\] #\{ #\})) i]
                        [else (loop (+ i 1))]))])
       (and at
-           (let* ([c (text-ref (t*) at)]
-                  [open (find (lambda (pr) (char=? (car pr) c)) pairs)]
-                  [close (find (lambda (pr) (char=? (cdr pr) c)) pairs)]
-                  [n (vi-len)])
-             (if open
-                 (let loop ([i (+ at 1)] [depth 0])
-                   (cond [(>= i n) #f]
-                         [(char=? (text-ref (t*) i) (car open)) (loop (+ i 1) (+ depth 1))]
-                         [(char=? (text-ref (t*) i) (cdr open)) (if (= depth 0) i (loop (+ i 1) (- depth 1)))]
-                         [else (loop (+ i 1) depth)]))
-                 (let loop ([i (- at 1)] [depth 0])
-                   (cond [(< i 0) #f]
-                         [(char=? (text-ref (t*) i) (cdr close)) (loop (- i 1) (+ depth 1))]
-                         [(char=? (text-ref (t*) i) (car close)) (if (= depth 0) i (loop (- i 1) (- depth 1)))]
-                         [else (loop (- i 1) depth)])))))))
+           (let* ([enc (enclosure-of (text-ref (t*) at))]
+                  [found (enclosure-at at (+ at 1) (car enc) (cadr enc))])
+             (and found (if (= (car found) at) (cdr found) (car found)))))))
 
   ;; ---------------------------------------------------------------------------
   ;; The cursor, and select
@@ -143,12 +131,6 @@
 
   (define (set-cursors! ps)
     (set-sels! (vi-buffer) (map (lambda (p) (cursor-sel (clamp p 0 (vi-len)))) ps)))
-
-  ;; Move every cursor (or, selecting, the head) to (f p).
-  (define (vi-move-cursors! f)
-    (if (selecting?)
-        (select-set-head! (clamp (f (head)) 0 (vi-len)))
-        (set-cursors! (map (lambda (s) (f (sel-start s))) (sels-of (vi-buffer))))))
 
   ;; Select: #f, 'char or 'line; from select-anchor to the head.
   (define (select-kind) (view-local (current-view) 'vi-select #f))
@@ -311,7 +293,7 @@
       (let* ([s (string-join (car v) " | ")]
              [s (list->string (apply append (map (lambda (c) (if (char=? c #\newline) (string->list "⏎") (list c)))
                                                  (string->list s))))])
-        (if (> (string-length s) 70) (string-append (substring s 0 69) "…") s)))
+        (string-clip s 70)))
     (let ([lines (filter-map
                   (lambda (r)
                     (let ([v (if (char=? r #\") (register-fetch-unnamed) (hashtable-ref registers r #f))])
@@ -413,7 +395,32 @@
       (and v (eq? (view-input-mode v) 'normal) (not (active-layer)) (not (current-prompt))
            (not (count-pending?)) (not (register-pending?)) (not (selecting?)))))
 
-  (define (vi-scheme?) (let ([s (current-key-scheme)]) (and s (memq (key-scheme-name s) '(vim helix)) #t)))
+  ;; Whether the key scheme is one of those named.
+  (define (key-scheme-is? . names)
+    (let ([s (current-key-scheme)]) (and s (memq (key-scheme-name s) names) #t)))
+  (define (vi-scheme?) (key-scheme-is? 'vim 'helix))
+
+  ;; (f) as many times as the count says, once with none.
+  (define (count-times! f) (let ([n (take-count!)]) (do ([i 0 (+ i 1)]) ((= i n)) (f))))
+
+  ;; Keys 1 to 9 of km add their digit to the count, then (after); 0 does
+  ;; too after another, else (zero), its label then label.
+  (define bind-count-digits!
+    (case-lambda
+     [(km) (bind-count-digits! km void void "Count")]
+     [(km after zero label)
+      (do ([d 1 (+ d 1)]) ((> d 9))
+        (let ([d d]) (define-key km (number->string d) (lambda () (count-digit! d) (after)) "Count")))
+      (define-key km "0" (lambda () (if (count-pending?) (begin (count-digit! 0) (after)) (zero))) label)]))
+
+  ;; Key scheme name (its title, doc and keymap km), with a cursor a
+  ;; character wide in every buffer: CHAR its selection mode, which insert
+  ;; mode goes back to.
+  (define (define-char-scheme! name title doc km)
+    (add-hook! 'buffer-switch-hook (lambda (b) (when (key-scheme-is? name) (set-selection-mode! b 'char))))
+    (define-key-scheme! name title doc km
+      (lambda () (when (current-buffer) (set-selection-mode! (current-buffer) 'char)))
+      #f))
 
   ;; Every key pressed, and text pasted, before it is handled.
   (define (note-event! ev)
@@ -491,9 +498,6 @@
        [(and (string=? cmd "set") arg (member arg '("nonu" "nonumber"))) (set-var! 'line-numbers #f)]
        [(find-command (string->symbol line)) (run-command (string->symbol line))]
        [else (message-error "Not an editor command: ~a" line)])))
-
-  (define (absolute-path p)
-    (if (string-prefix? "/" p) p (path-join (current-directory) p)))
 
   ;; Leaving select (and a count, and a register) is what escape does here
   ;; too.

@@ -29,6 +29,19 @@
 (press! "a" "l" "r" "r")
 (expect-equal "delete line" (buffer-contents) "a\nc\n")
 
+;; Each selection takes its own text, in order, however many there are;
+;; and a transform sees each selection's own.
+(headless-buffer! "a b c d" 'text)
+(set-sels! (current-buffer) (list (make-sel 0 1) (make-sel 2 3) (make-sel 4 5) (make-sel 6 7)))
+(replace-with! '("1" "2" "3" "4"))
+(expect-equal "a text each, in order" (buffer-contents) "1 2 3 4")
+(headless-buffer! "ab c def g" 'text)
+(set-sels! (current-buffer) (list (make-sel 0 2) (make-sel 3 4) (make-sel 5 8) (make-sel 9 10)))
+(transform-sels! string-upcase)
+(expect-equal "each transformed" (buffer-contents) "AB C DEF G")
+(place! '("1" "2" "3" "4") 'before)
+(expect-equal "placed in order" (buffer-contents) "1AB 2C 3DEF 4G")
+
 ;; Insert before and after, as one undo step.
 (headless-buffer! "world" 'text)
 (press! "s" "h")

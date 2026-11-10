@@ -67,37 +67,37 @@
   ;; Words: w and e select from the cursor to the next word's start, or
   ;; its end; b back to the start of a word. Pressed again, the next.
   (define (select-word-forward! mode end?)
-    (let ([n (take-count!)])
-      (do ([i 0 (+ i 1)]) ((= i n))
-        (each! (lambda (s h)
-                 ;; A selection the last w made ends at the head: the next
-                 ;; starts after it, past the end of its line if it is
-                 ;; there. From a cursor, it starts there. A word's
-                 ;; selection stops at its line's end.
-                 (let* ([from (if (and (< (+ h 1) (vi-len)) (> (sel-length s) 1) (= h (- (sel-range-end s) 1))) (+ h 1) h)]
-                        [from (let skip ([f from])
-                                (if (and (< (+ f 1) (vi-len)) (= f (eol f))) (skip (+ f 1)) f))]
-                        [to (if end?
-                                (word-end mode from)
-                                (min (- (word-forward mode from) 1) (max from (- (eol from) 1))))])
-                   (values from (max from to))))))))
+    (count-times!
+     (lambda ()
+       (each! (lambda (s h)
+                ;; A selection the last w made ends at the head: the next
+                ;; starts after it, past the end of its line if it is
+                ;; there. From a cursor, it starts there. A word's
+                ;; selection stops at its line's end.
+                (let* ([from (if (and (< (+ h 1) (vi-len)) (> (sel-length s) 1) (= h (- (sel-range-end s) 1))) (+ h 1) h)]
+                       [from (let skip ([f from])
+                               (if (and (< (+ f 1) (vi-len)) (= f (eol f))) (skip (+ f 1)) f))]
+                       [to (if end?
+                               (word-end mode from)
+                               (min (- (word-forward mode from) 1) (max from (- (eol from) 1))))])
+                  (values from (max from to))))))))
 
   (define (select-word-backward! mode)
-    (let ([n (take-count!)])
-      (do ([i 0 (+ i 1)]) ((= i n))
-        (each! (lambda (s h)
-                 (let* ([from (if (and (> h 0) (> (sel-length s) 1) (= h (sel-range-start s))) (- h 1) h)])
-                   (values from (word-backward mode from))))))))
+    (count-times!
+     (lambda ()
+       (each! (lambda (s h)
+                (let* ([from (if (and (> h 0) (> (sel-length s) 1) (= h (sel-range-start s))) (- h 1) h)])
+                  (values from (word-backward mode from))))))))
 
   ;; x: the lines the selections cover; if they are just that, one more.
   (define (select-lines!)
-    (let ([n (take-count!)])
-      (do ([i 0 (+ i 1)]) ((= i n))
-        (each! (lambda (s h)
-                 (let* ([s0 (sel-range-start s)] [e0 (sel-range-end s)]
-                        [whole? (and (= s0 (bol s0)) (> e0 s0) (= (- e0 1) (eol (- e0 1))))]
-                        [last (if whole? (min (- (vi-len) 1) e0) (max s0 (- e0 1)))])
-                   (values (bol s0) (min (- (vi-len) 1) (eol last)))))))))
+    (count-times!
+     (lambda ()
+       (each! (lambda (s h)
+                (let* ([s0 (sel-range-start s)] [e0 (sel-range-end s)]
+                       [whole? (and (= s0 (bol s0)) (> e0 s0) (= (- e0 1) (eol (- e0 1))))]
+                       [last (if whole? (min (- (vi-len) 1) e0) (max s0 (- e0 1)))])
+                  (values (bol s0) (min (- (vi-len) 1) (eol last)))))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Acting on the selections
@@ -114,8 +114,9 @@
     (enter-insert! 'start))
 
   (define (yank-selections!)
-    (register-store! (texts) #f 'yank)
-    (message "Yanked ~a selection~a" (length (texts)) (if (= 1 (length (texts))) "" "s")))
+    (let ([n (length (sels-of (b*)))])
+      (register-store! (texts) #f 'yank)
+      (message "Yanked ~a selection~a" n (if (= n 1) "" "s"))))
 
   ;; Paste a register's texts, one to each selection (the last again for
   ;; any more), after them or before, or in their place; as many times as
@@ -126,28 +127,12 @@
         (paste-texts! top where))))
 
   (define (paste-texts! top where)
-    (let ([n (length top)])
-      (edit-sels!
-       (let ([i -1])
-         (lambda (s)
-           (set! i (+ i 1))
-           (let ([text (list-ref top (min i (- n 1)))])
-             (case where
-               [(after) (list (sel-range-end s) (sel-range-end s) text
-                              (lambda (p) (make-sel p (+ p (string-length text)))))]
-               [(before) (list (sel-range-start s) (sel-range-start s) text
-                               (lambda (p) (make-sel p (+ p (string-length text)))))]
-               [else (list (sel-range-start s) (sel-range-end s) text
-                           (lambda (p) (make-sel p (+ p (string-length text)))))])))))))
-
-  (define (case! f)
-    (edit-sels! (lambda (s)
-                  (let ([t (selection-text (b*) s)])
-                    (list (sel-range-start s) (sel-range-end s) (f t)
-                          (lambda (p) (make-sel p (+ p (string-length t)))))))))
-
-  (define (swap-case s)
-    (list->string (map (lambda (c) (if (char-upper-case? c) (char-downcase c) (char-upcase c))) (string->list s))))
+    ;; A text for each selection, the last again for any more.
+    (let ([texts (let loop ([k (length (sels-of (b*)))] [l top] [acc '()])
+                   (if (= k 0)
+                       (reverse acc)
+                       (loop (- k 1) (if (null? (cdr l)) l (cdr l)) (cons (car l) acc))))])
+      (if (eq? where 'replace) (replace-with! texts) (place! texts where))))
 
   ;; s: what pattern (a regular expression) matches within each selection.
   (define (select-matches!)
@@ -245,7 +230,7 @@
   ;; ---------------------------------------------------------------------------
   ;; The keys
 
-  (define (counted f) (lambda () (let ([n (take-count!)]) (do ([i 0 (+ i 1)]) ((= i n)) (f)))))
+  (define (counted f) (lambda () (count-times! f)))
 
   (define (insert-at! where)
     (select-stop!)
@@ -266,9 +251,7 @@
           (select-set-head! h))))
 
   (at-load
-   (do ([d 1 (+ d 1)]) ((> d 9))
-     (let ([d d]) (define-key helix-keymap (number->string d) (lambda () (count-digit! d)) "Count")))
-   (define-key helix-keymap "0" (lambda () (when (count-pending?) (count-digit! 0))) "Count")
+   (bind-count-digits! helix-keymap)
    (bind helix-keymap
          "h" (counted (lambda () (move-to! (lambda (h) (max (bol h) (- h 1)))))) "←"
          "l" (counted (lambda () (move-to! (lambda (h) (min (last-char h) (+ h 1)))))) "→"
@@ -314,8 +297,9 @@
          "O" (lambda () (select-stop!) (run-command 'open-above)) "Open Above"
          "u" (counted (lambda () (run-command 'undo))) "Undo" "U" (counted (lambda () (run-command 'redo))) "Redo"
          ">" 'indent "Indent" "<" 'dedent "Dedent" "J" 'join "Join"
-         "~" (lambda () (case! swap-case)) "Switch Case"
-         "`" (lambda () (case! string-downcase)) "Lower" "alt+`" (lambda () (case! string-upcase)) "Upper"
+         "~" (lambda () (transform-sels! (case-transform 'toggle))) "Switch Case"
+         "`" (lambda () (transform-sels! (case-transform 'lower))) "Lower"
+         "alt+`" (lambda () (transform-sels! (case-transform 'upper))) "Upper"
          "g" goto-keymap "Goto" "m" match-keymap "Match"
          ;; ]g and [g: the next and previous change (the jj extension's).
          "]" (let ([km (make-keymap 'helix-next "Next")])
@@ -335,9 +319,4 @@
          "ctrl+d" 'scroll-down "Scroll ↓" "ctrl+u" 'scroll-up "Scroll ↑"
          "ctrl+f" 'scroll-down "Page ↓" "ctrl+b" 'scroll-up "Page ↑"
          "home" (lambda () (move-to! bol)) "Line Start" "end" (lambda () (move-to! last-char)) "Line End")
-   (add-hook! 'buffer-switch-hook (lambda (b) (when (helix?) (set-selection-mode! b 'char))))
-   (define-key-scheme! 'helix "Helix" "Helix's: selection first, every motion on every selection" helix-keymap
-     (lambda () (when (current-buffer) (set-selection-mode! (current-buffer) 'char)))
-     #f))
-
-  (define (helix?) (let ([s (current-key-scheme)]) (and s (eq? (key-scheme-name s) 'helix)))))
+   (define-char-scheme! 'helix "Helix" "Helix's: selection first, every motion on every selection" helix-keymap)))

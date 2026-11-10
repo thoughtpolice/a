@@ -30,7 +30,17 @@ impl Renderer {
     /// window that needs it.
     pub fn new(window: &Arc<Window>, shared: &mut Option<Rc<Gpu>>) -> Result<Renderer, String> {
         if let Some(gpu) = shared {
-            return Renderer::on(gpu.clone(), window);
+            let physical = gpu.device.physical();
+            let surface = Surface::new(physical.instance(), window)?;
+            if !surface.supports(physical, gpu.device.family()) {
+                return Err("the device cannot draw to this window".into());
+            }
+            // The pipelines draw in the format the device was set up with.
+            let format = surface.format(physical)?;
+            if format.format != gpu.format() {
+                return Err("this window takes another color format than the others".into());
+            }
+            return Renderer::on(gpu.clone(), surface, format, window);
         }
         let display = window.display_handle().map_err(|e| e.to_string())?.as_raw();
         let surface_extension = match display {
@@ -38,42 +48,41 @@ impl Renderer {
             RawDisplayHandle::Xlib(_) => ash::khr::xlib_surface::NAME,
             _ => return Err("only Wayland and X11 (Xlib) windows are supported".into()),
         };
-        let gpu = match take_prepared_for(surface_extension, window) {
-            Some(gpu) => gpu,
+        let (gpu, surface, format) = match take_prepared_for(surface_extension, window) {
+            Some(prepared) => prepared,
             None => {
                 let instance = Instance::load(&[ash::khr::surface::NAME, surface_extension])?;
-                // The device is chosen for the first window's surface,
-                // which is made only to choose it.
+                // The device is chosen for the first window's surface.
                 let surface = Surface::new(&instance, window)?;
                 let (physical, family) = pick_device(&instance, Some(&surface))?;
                 let format = surface.format(&physical)?;
-                Gpu::new(physical, family, format.format, true)?
+                (
+                    Gpu::new(physical, family, format.format, true)?,
+                    surface,
+                    format,
+                )
             }
         };
         let gpu = Rc::new(gpu);
         *shared = Some(gpu.clone());
-        Renderer::on(gpu, window)
+        Renderer::on(gpu, surface, format, window)
     }
 
-    /// A renderer on `gpu` for `window`.
-    fn on(gpu: Rc<Gpu>, window: &Arc<Window>) -> Result<Renderer, String> {
-        let physical = gpu.device.physical();
-        let surface = Arc::new(Surface::new(physical.instance(), window)?);
-        if !surface.supports(physical, gpu.device.family()) {
-            return Err("the device cannot draw to this window".into());
-        }
-        // The pipelines draw in the format the device was set up with.
-        let surface_format = surface.format(physical)?;
-        if surface_format.format != gpu.format() {
-            return Err("this window takes another color format than the others".into());
-        }
+    /// A renderer on `gpu` for `window`, through `surface`, which `gpu`
+    /// can draw to in `surface_format`.
+    fn on(
+        gpu: Rc<Gpu>,
+        surface: Surface,
+        surface_format: vk::SurfaceFormatKHR,
+        window: &Arc<Window>,
+    ) -> Result<Renderer, String> {
         let frames = (0..FRAMES_IN_FLIGHT)
             .map(|_| Frame::new(&gpu.device))
             .collect::<Result<_, _>>()?;
         Ok(Renderer {
             frames,
             swapchain: None,
-            surface,
+            surface: Arc::new(surface),
             surface_format,
             size: window.inner_size(),
             stale: true,
@@ -150,7 +159,7 @@ impl Renderer {
         )?;
         // With no rectangles, the whole image changed.
         let changed = damage
-            .filter(|_| !self.fresh)
+            .filter(|_| !self.fresh && self.gpu.device.incremental_present)
             .map(|damage| damage_rects(damage, target.extent))
             .unwrap_or_default();
         self.fresh = false;
@@ -200,8 +209,11 @@ pub fn prepare() {
 
 /// The device made ahead, waited for, if it suits `window`: made for its
 /// kind of display, able to draw to it, and made to draw in its format (or
-/// made so again).
-fn take_prepared_for(surface_extension: &CStr, window: &Arc<Window>) -> Option<Gpu> {
+/// made so again); with the window's surface, and its format.
+fn take_prepared_for(
+    surface_extension: &CStr,
+    window: &Arc<Window>,
+) -> Option<(Gpu, Surface, vk::SurfaceFormatKHR)> {
     let (made_for, mut gpu) = take_prepared()?;
     if made_for != surface_extension {
         return None;
@@ -211,13 +223,12 @@ fn take_prepared_for(surface_extension: &CStr, window: &Arc<Window>) -> Option<G
     if !surface.supports(physical, gpu.device.family()) {
         return None;
     }
-    let format = surface.format(physical).ok()?.format;
-    drop(surface);
-    if format != gpu.format() {
+    let format = surface.format(physical).ok()?;
+    if format.format != gpu.format() {
         timing::mark("the window draws in another format");
-        gpu.set_format(format).ok()?;
+        gpu.set_format(format.format).ok()?;
     }
-    Some(gpu)
+    Some((gpu, surface, format))
 }
 
 /// `damage` (rectangles in pixels: x, y, width, height) within an image of

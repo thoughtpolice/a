@@ -29,7 +29,7 @@
   (export jj-root jj-info jj-hunks jj-refresh!)
   (import (chezscheme) (quad util) (quad text) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (quad server)
-          (only (quad native) diff-base diff-base-line-count diff-base-lines diff-base-block diff-hunks))
+          (only (quad native) diff-base diff-base-lines diff-base-block diff-hunks))
 
   (define-variable jj-program "jj" "The jj command the jj extension runs.")
   (define-variable jj-diff-base "@-" "The revision whose files the gutter marks changes from.")
@@ -70,15 +70,9 @@
 
   (define repos (make-hashtable string-hash string=?))
 
-  (define (parent-dir d) (let ([p (path-dirname d)]) (if (or (string=? p "") (string=? p d)) #f p)))
-
   ;; The directory above path with .jj in it, or #f.
   (define (find-root path)
-    (let loop ([d (path-dirname path)])
-      (cond
-       [(not d) #f]
-       [(file-directory? (path-join d ".jj")) d]
-       [else (loop (parent-dir d))])))
+    (find (lambda (d) (file-directory? (path-join d ".jj"))) (ancestor-dirs (path-dirname path))))
 
   ;; Where a workspace's repository is: .jj/repo, or (another workspace's)
   ;; the path in it.
@@ -188,7 +182,7 @@
         (let ([cached (buffer-local b 'jj-hunks #f)] [v (text-version t)])
           (if (and cached (eqv? (car cached) v))
               (cdr cached)
-              (let ([hs (list->vector (map list->vector (diff-hunks base (text-rope t))))])
+              (let ([hs (diff-hunks base (text-rope t))])
                 (buffer-local-set! b 'jj-hunks (cons v hs))
                 hs)))])))
 
@@ -209,16 +203,20 @@
              [(>= line e) (loop (+ mid 1) hi)]
              [else h])))))
 
-  ;; The base's line that b's line was, or #f if it is in a hunk.
+  ;; The base's line that b's line was, or #f if it is in a hunk: the last
+  ;; hunk starting at or before it, found by a binary search, says, as the
+  ;; lines after a hunk are those after its old lines.
   (define (base-line hs line)
-    (let loop ([i 0] [shift 0])
-      (if (= i (vector-length hs))
-          (- line shift)
-          (let* ([h (vector-ref hs i)] [s (hunk-new-start h)])
-            (cond
-             [(< line s) (- line shift)]
-             [(< line (+ s (hunk-new-len h))) #f]
-             [else (loop (+ i 1) (+ shift (- (hunk-new-len h) (hunk-old-len h))))])))))
+    (let loop ([lo 0] [hi (vector-length hs)])
+      (if (< lo hi)
+          (let ([mid (quotient (+ lo hi) 2)])
+            (if (<= (hunk-new-start (vector-ref hs mid)) line) (loop (+ mid 1) hi) (loop lo mid)))
+          ;; lo hunks start at or before line.
+          (cond
+           [(= lo 0) line]
+           [else
+            (let* ([h (vector-ref hs (- lo 1))] [after (+ (hunk-new-start h) (hunk-new-len h))])
+              (and (>= line after) (+ (hunk-old-start h) (hunk-old-len h) (- line after))))]))))
 
   ;; ---------------------------------------------------------------------------
   ;; Blame: who last changed each of the base's lines
@@ -235,19 +233,29 @@
              (lambda (ok? out err)
                (buffer-local-set!
                 b 'jj-blame-lines
+                ;; Each base line's (label id author when description),
+                ;; the label as the gutter shows it; #f for a line jj
+                ;; said nothing sensible of.
                 (if ok?
-                    (list->vector (map (lambda (l) (string-split l #\x1f))
-                                       (filter (lambda (l) (not (string=? l ""))) (string-split out #\newline))))
+                    (list->vector
+                     (map (lambda (l)
+                            (let ([f (string-split l #\x1f)])
+                              (and (= (length f) 4)
+                                   (cons (string-clip (string-append (car f) " " (cadr f)) (- blame-width 1)) f))))
+                          (filter (lambda (l) (not (string=? l ""))) (string-split out #\newline))))
                     (vector))))))))
 
-  ;; Line's blame in b: (id author when description), or #f (changed since
-  ;; the base, or not known yet).
-  (define (blame-of b line)
+  ;; Line's blame in b: (label id author when description), or #f (changed
+  ;; since the base, or not known yet).
+  (define (blame-entry b line)
     (let ([lines (buffer-local b 'jj-blame-lines #f)] [hs (jj-hunks b)])
       (and lines hs
            (let ([l (base-line hs line)])
-             (and l (< l (vector-length lines))
-                  (let ([f (vector-ref lines l)]) (and (= (length f) 4) f)))))))
+             (and l (< l (vector-length lines)) (vector-ref lines l))))))
+
+  ;; Line's blame in b: (id author when description), or #f.
+  (define (blame-of b line)
+    (let ([e (blame-entry b line)]) (and e (cdr e))))
 
   ;; ---------------------------------------------------------------------------
   ;; Looking again
@@ -272,8 +280,10 @@
             (repo-stamp-set! r stamp)
             (refresh-info! r)
             (for-each (lambda (x) (when (equal? (jj-root x) root) (refresh-base! x))) (buffers))]
-           [(not (buffer-local b 'jj-base #f))
-            (unless (repo-info r) (refresh-info! r))
+           ;; No base yet: fetch it, unless that is under way (opening a
+           ;; file and showing it both come here, one after the other).
+           [(not (or (buffer-local b 'jj-base #f) (buffer-local b 'jj-fetching #f)))
+            (unless (or (repo-info r) (repo-busy? r)) (refresh-info! r))
             (refresh-base! b)])))))
 
   (define last-check 0)
@@ -374,12 +384,11 @@
             (message "Not in a jj repository")
             (jj! root args
                  (lambda (ok? out err)
-                   (when (memq c (clients))
-                     (with-client c
-                       (lambda ()
-                         (if ok?
-                             (show-text-buffer! name out 'text)
-                             (message-error "jj: ~a" (first-error err))))))))))))
+                   (with-client-if-here c
+                     (lambda ()
+                       (if ok?
+                           (show-text-buffer! name out 'text)
+                           (message-error "jj: ~a" (first-error err)))))))))))
 
   (define jj-keymap
     (menu 'jj "jj"
@@ -396,7 +405,6 @@
   ;; ---------------------------------------------------------------------------
   ;; The gutters and the status line
 
-  (define (clip s n) (if (> (string-length s) n) (string-append (substring s 0 (- n 1)) "…") s))
 
   (define blame-width 20)
 
@@ -413,9 +421,8 @@
    (define-gutter! 'jj-blame 20
      (lambda (v) (let ([b (view-buffer v)]) (if (and (get-var 'jj-blame b) (jj-hunks b)) blame-width 0)))
      (lambda (v line cur? w)
-       (let ([f (blame-of (view-buffer v) line)])
-         (cons (if f (clip (string-append (car f) " " (cadr f)) (- w 1)) "")
-               'ui.gutter.blame))))
+       (let ([e (blame-entry (view-buffer v) line)])
+         (cons (if e (car e) "") 'ui.gutter.blame))))
    (define-status-segment! 'left
      (lambda (v)
        (let ([info (jj-info (view-buffer v))])
@@ -426,7 +433,7 @@
                      (if (cdr (assq 'conflict? info)) " (conflict)" "")
                      (if (cdr (assq 'empty? info)) " (empty)" "")
                      (let ([d (cdr (assq 'description info))])
-                       (if (string=? d "") "" (string-append " · " (clip d 30)))))
+                       (if (string=? d "") "" (string-append " · " (string-clip d 30)))))
                     'ui.statusline.dim)))))
    (define-key space-keymap "g" jj-keymap "jj")
    (add-hook! 'find-file-hook (lambda (b) (check! b)))

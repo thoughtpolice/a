@@ -58,8 +58,5 @@
                                 acc))))])))))
 
   (at-load
-   (major-mode-hook-set! markdown-mode
-                         (lambda (b)
-                           (set-local! 'indent-unit "  " b)))
    (add-auto-mode! '("md" "markdown" "txt") 'markdown)
    (define-link-finder! 'markdown markdown-links)))

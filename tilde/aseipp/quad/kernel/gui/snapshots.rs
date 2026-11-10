@@ -11,7 +11,6 @@ pub struct Snapshots {
     fonts: Fonts,
     gpu: Headless,
     images: Images,
-    pixels: FramePixels,
     screen: Screen,
 }
 
@@ -29,7 +28,6 @@ impl Snapshots {
             fonts,
             gpu,
             images: Images::default(),
-            pixels: FramePixels::default(),
             screen: Screen::default(),
         })
     }
@@ -53,30 +51,19 @@ impl Snapshots {
     pub fn draw(&mut self, update: Update, cols: u32) -> Result<Vec<u8>, String> {
         let rows = update.rows;
         self.screen.apply(update);
-        let (rects, laid) = self.screen.layout(&mut self.fonts);
-        let [w, h] = self.fonts.metrics.cell;
-        let pictures = self.pixels.pictures(
+        // Effects as they were when the frame was made: a snapshot takes
+        // no time.
+        let effects = self.screen.effects_at(0.0).0;
+        let frame = Frame::new(
+            &mut self.screen,
+            &mut self.fonts,
             &mut self.images,
-            &self.screen.placements,
-            [w, h],
-            &self.fonts.colors,
-            &laid.pictures,
+            None,
+            effects,
         );
-        let list = DrawList {
-            rects: &rects,
-            pictures: &pictures,
-            pixels: (&self.pixels.pixels, self.pixels.generation),
-            glyphs: &laid.glyphs,
-            decorations: &laid.rects,
-            atlas: &self.fonts.atlas,
-            background: self.screen.background,
-            cell: [w, h],
-            // Frames as the grid is, with no padding around them.
-            origin: [0.0, 0.0],
-            // Effects as they were when the frame was made: a snapshot
-            // takes no time.
-            effects: &self.screen.effects_at(0.0).0,
-        };
+        // Frames as the grid is, with no padding around them.
+        let list = frame.list(&self.screen, &self.fonts, &self.images, [0.0, 0.0]);
+        let [w, h] = self.fonts.metrics.cell;
         self.gpu.draw(&list, cols * w as u32, rows * h as u32)
     }
 }

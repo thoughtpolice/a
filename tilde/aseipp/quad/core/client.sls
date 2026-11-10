@@ -16,17 +16,19 @@
           client-prompt-set! client-layer client-layer-set! client-jumps client-jumps-set!
           client-jump-callback client-jump-callback-set! client-message client-message-set!
           client-geometry client-geometry-set! client-pending-clipboard
-          client-pending-clipboard-set! client-dirty? client-dirty?-set! client-frame
+          client-pending-clipboard-set! client-frame
           client-frame-set! client-locals client-popup client-popup-set! client-has?
-          client-local client-local-set! peer-colors person? people client-user
+          client-local client-local-set! client-route client-divert! client-diverted?
+          peer-colors person? people client-user
           set-client-user! client-color assign-color! default-user-name clients current-client
           current-view current-buffer set-current-client! with-client with-client-or-any
+          with-client-if-here
           client-send! add-client! remove-client! view-of client-switch-buffer! editor-running?
           editor-stop! editor-restart! editor-daemon? editor-daemon?-set! editor-quit!
           client-quit! messages-buffer set-messages-buffer! current-message clear-message!
           log-message! show! message message-error variables define-variable define-variable*
           variable-names variable-doc get-var set-var! local-keys local-key set-local! hooks
-          add-hook! remove-hook! run-hooks condition->string buffers add-buffer! remove-buffer!
+          add-hook! remove-hook! run-hooks buffers add-buffer! remove-buffer!
           background
           pane? pane-rect pane-rect-set! split? split-dir split-ratio split-ratio-set! split-first
           split-second client-focused-pane client-layout client-panes pane-view-of focus-pane!
@@ -52,16 +54,22 @@
             (mutable views)           ; buffer -> view (the focused pane's)
             (mutable prompt) (mutable layer) (mutable jumps) (mutable jump-callback)
             (mutable message) (mutable geometry) (mutable pending-clipboard)
-            (mutable dirty?) (mutable frame) locals (mutable popup))
+            (mutable frame) locals (mutable popup))
     (protocol
      (lambda (new)
        (lambda (id name connection rows cols capabilities)
          (new id name connection rows cols capabilities #f (make-eq-hashtable)
-              #f #f '() #f #f #f #f #t #f (make-eq-hashtable) #f)))))
+              #f #f '() #f #f #f #f #f (make-eq-hashtable) #f)))))
 
   (define (client-has? c capability) (and (member capability (client-capabilities c)) #t))
   (define (client-local c key default) (hashtable-ref (client-locals c) key default))
   (define (client-local-set! c key v) (hashtable-set! (client-locals c) key v))
+
+  ;; Divert client c: (route msg) takes its input, and what this editor
+  ;; sends it is not drawn. #f undoes it.
+  (define (client-route c) (client-local c 'route #f))
+  (define (client-divert! c route) (client-local-set! c 'route route))
+  (define (client-diverted? c) (and (client-route c) #t))
 
   ;; ---------------------------------------------------------------------------
   ;; People: who is at each client, for the others to see
@@ -136,6 +144,9 @@
   (define (with-client-or-any c thunk)
     (let ([c (if (and c (memq c (clients))) c (and (pair? (clients)) (car (clients))))])
       (if c (with-client c thunk) (thunk))))
+
+  ;; (thunk) as client c, if it is still connected.
+  (define (with-client-if-here c thunk) (when (memq c (clients)) (with-client c thunk)))
 
   ;; Send a message to client c, if it is connected.
   (define (client-send! c msg)
@@ -448,10 +459,6 @@
          (apply p args)))
      (hashtable-ref hooks name '())))
 
-  (define (condition->string e)
-    (if (condition? e)
-        (call-with-string-output-port (lambda (p) (display-condition e p)))
-        (format "~s" e)))
 
   ;; ---------------------------------------------------------------------------
   ;; The buffers, in the order made: what's in them is editor.sls's.

@@ -82,11 +82,12 @@
   ;; The conversation, as the popup shows it: newest first.
   (define-record-type entry (fields kind (mutable text) (mutable face)))
   (define changes 0)                    ; counts changes to the conversation
+  (define (entry-changed!) (set! changes (+ changes 1)))
   (define entries '())
   (define items (make-hashtable string-hash string=?))   ; item id -> entry
 
   (define (add-entry! kind text face)
-    (set! changes (+ changes 1))
+    (entry-changed!)
     (let ([e (make-entry kind text face)])
       (set! entries (cons e entries))
       e))
@@ -101,22 +102,25 @@
   (define (codex-transcript-text)
     (string-join (map entry-text (reverse entries)) "\n\n"))
 
-  (define (clip s n)
-    (if (> (string-length s) n) (string-append (substring s 0 n) "…") s))
-
   ;; Things happen as the client that asked, while it is here.
   (define (as-asker thunk) (with-client-or-any turn-client thunk))
 
   ;; ---------------------------------------------------------------------------
   ;; The popup
 
+  ;; Made again only once what they show changed, not each time the popup
+  ;; is drawn: (what they were made from . lines).
+  (define popup-made #f)
   (define (popup-contents)
-    (cond
-     [(null? entries) (list (cons "Tell the AI what to change or add: space a a." 'ui.popup.info))]
-     [(get-var 'codex-summary-model) (summary-lines)]
-     [else (log-lines)]))
-
-  (define (first-line s) (car (string-split (string-append s "\n") #\newline)))
+    (let ([from (list changes summary busy? asks (get-var 'codex-summary-model))])
+      (if (and popup-made (for-all eqv? (car popup-made) from))
+          (cdr popup-made)
+          (let ([lines (cond
+                        [(null? entries) (list (cons "Tell the AI what to change or add: space a a." 'ui.popup.info))]
+                        [(get-var 'codex-summary-model) (summary-lines)]
+                        [else (log-lines)])])
+            (set! popup-made (cons from lines))
+            lines))))
 
   ;; The latest request, the summary of what has happened since, and what
   ;; waits: questions, errors, the end.
@@ -126,12 +130,12 @@
                           [(eq? (entry-kind (car es)) 'user) acc]
                           [else (loop (cdr es) (cons (car es) acc))]))]
            [request (find (lambda (e) (eq? (entry-kind e) 'user)) entries)]
-           [latest (and (pair? since) (car (last-pair* since)))])
+           [latest (and (pair? since) (car entries))])
       (append
-       (if request (list (cons (clip (entry-text request) 300) 'ui.popup.title) (cons "" 'ui.popup)) '())
+       (if request (list (cons (string-clip (entry-text request) 300) 'ui.popup.title) (cons "" 'ui.popup)) '())
        (cond
         [summary (map (lambda (l) (cons l 'ui.popup)) (string-split (string-trim summary) #\newline))]
-        [latest (list (cons (clip (first-line (entry-text latest)) 200) 'ui.text.dim))]
+        [latest (list (cons (string-clip (string-first-line (entry-text latest)) 200) 'ui.text.dim))]
         [busy? (list (cons "Starting..." 'ui.text.dim))]
         [else '()])
        (if (pair? asks) (list (cons "" 'ui.popup) (cons "It waits for your answer: space a y." 'warning)) '())
@@ -140,18 +144,19 @@
            (list (cons "" 'ui.popup) (cons (entry-text latest) 'ui.text.dim))
            '()))))
 
+  ;; The transcript as the popup's lines.
   (define (log-lines)
-        (let loop ([es (reverse entries)] [acc '()])
-          (if (null? es)
-              (reverse acc)
-              (let* ([e (car es)]
-                     [line (cons (list->string (map (lambda (c) (if (char=? c #\tab) #\space c))
-                                                    (string->list (entry-text e))))
-                                 (entry-face e))])
-                (loop (cdr es)
-                      (if (and (eq? (entry-kind e) 'user) (pair? acc))
-                          (cons* line (cons "" 'ui.popup) acc)
-                          (cons line acc)))))))
+    (let loop ([es (reverse entries)] [acc '()])
+      (if (null? es)
+          (reverse acc)
+          (let* ([e (car es)]
+                 [line (cons (list->string (map (lambda (c) (if (char=? c #\tab) #\space c))
+                                                (string->list (entry-text e))))
+                             (entry-face e))])
+            (loop (cdr es)
+                  (if (and (eq? (entry-kind e) 'user) (pair? acc))
+                      (cons* line (cons "" 'ui.popup) acc)
+                      (cons line acc)))))))
 
   (define codex-popup
     (make-popup (lambda () (cond [(pair? asks) "AI · waiting for you"]
@@ -197,7 +202,7 @@
                           (let ([r (as-asker (lambda () ((tool-proc t) args)))])
                             (values #t (if (string? r) r (format "~s" r)))))
                         (values #f (format "quad has no tool ~a" name)))])
-        `((contentItems . #(((type . "inputText") (text . ,(clip text 20000)))))
+        `((contentItems . #(((type . "inputText") (text . ,(string-clip text 20000)))))
           (success . ,ok?)))))
 
   ;; Every keymap reachable from the roots, depth first: (f path keymap),
@@ -261,7 +266,7 @@
            [lines
             (append
              (map (lambda (c) (format "command ~a: ~a" c (command-doc (find-command c))))
-                  (sort-symbols (filter match? (command-names))))
+                  (filter match? (command-names)))
              (map (lambda (v) (format "variable ~a: ~a" v (variable-doc v)))
                   (sort-symbols (filter match? (variable-names))))
              (apply append
@@ -272,8 +277,6 @@
       (cond [(null? lines) (format "Nothing matches ~s." pattern)]
             [(> (length lines) 200) (string-append (string-join (take lines 200) "\n") "\n…and more; narrow the pattern.")]
             [else (string-join lines "\n")])))
-
-  (define (sort-symbols l) (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b))) l))
 
   (define (describe-keymap path)
     (let ([words (string-split (string-trim path) #\space)])
@@ -319,7 +322,7 @@
         (if b
             (list (format "current buffer: ~a, mode ~a, file ~a" (buffer-name b)
                           (major-mode-name (buffer-major-mode b)) (or (buffer-path b) "none"))
-                  (format "selections: ~s" (map (lambda (t) (clip t 200)) (sels-texts b))))
+                  (format "selections: ~s" (map (lambda (t) (string-clip t 200)) (sels-texts b))))
             '()))
        "\n")))
 
@@ -383,11 +386,6 @@ commands to use it."
       (set! thread-starting? #f)
       (set! busy? #f)))
 
-  (define (mkdir-p dir)
-    (unless (or (string=? dir "") (file-exists? dir))
-      (mkdir-p (path-dirname dir))
-      (mkdir dir)))
-
   ;; Run k once there is a conversation: start the app server and a thread
   ;; first, if need be.
   (define (codex-start! k)
@@ -398,19 +396,21 @@ commands to use it."
           (with-server! start-thread! (failed! "Codex would not start")))))
 
   ;; Run k once the app server is up, starting it if need be; (on-error e)
-  ;; if it will not start.
-  (define server-waiting '())
+  ;; if it will not start (or none is set up), for each that waits.
+  (define server-waiting '())           ; ((k . on-error) ...)
   (define (with-server! k on-error)
     (cond
      [(not (eq? (get-var 'ai-provider) 'codex))
-      (message-error "No AI is set up: ai-provider is ~s (space j i sets one up)" (get-var 'ai-provider))]
+      (let ([why (format "No AI is set up: ai-provider is ~s (space j i sets one up)" (get-var 'ai-provider))])
+        (message-error "~a" why)
+        (on-error `((message . ,why))))]
      [initialized? (k)]
-     [rpc (set! server-waiting (append server-waiting (list k)))]
+     [rpc (set! server-waiting (append server-waiting (list (cons k on-error))))]
      [else
       (let ([dir (codex-directory)])
-        (mkdir-p dir)
+        (make-directories! dir)
         (set! stopping? #f)
-        (set! server-waiting (list k))
+        (set! server-waiting (list (cons k on-error)))
         (set! rpc (jsonrpc-start (get-var 'codex-command) dir (get-var 'codex-log)
                                  on-notification on-request on-exit))
         (jsonrpc-request!
@@ -421,8 +421,9 @@ commands to use it."
          (lambda (r)
            (set! initialized? #t)
            (jsonrpc-notify! rpc "initialized" #f)
-           (let ([ks server-waiting]) (set! server-waiting '()) (for-each (lambda (k) (k)) ks)))
-         (lambda (e) (set! server-waiting '()) (on-error e))))]))
+           (let ([ws server-waiting]) (set! server-waiting '()) (for-each (lambda (w) ((car w))) ws)))
+         (lambda (e)
+           (let ([ws server-waiting]) (set! server-waiting '()) (for-each (lambda (w) ((cdr w) e)) ws)))))]))
 
   (define (start-thread!)
     (unless thread-starting?
@@ -466,7 +467,7 @@ commands to use it."
            (if turn-id
                (jsonrpc-request! rpc "turn/steer"
                                  `((threadId . ,thread-id) (input . ,input) (expectedTurnId . ,turn-id))
-                                 void
+                                 ignore
                                  (lambda (e)
                                    (add-entry! 'error (format "Codex did not take that: ~a" (jsonrpc-error-message e))
                                                'error)))
@@ -476,7 +477,7 @@ commands to use it."
 
   (define (codex-interrupt!)
     (if (and rpc thread-id turn-id)
-        (jsonrpc-request! rpc "turn/interrupt" `((threadId . ,thread-id) (turnId . ,turn-id)) void)
+        (jsonrpc-request! rpc "turn/interrupt" `((threadId . ,thread-id) (turnId . ,turn-id)) ignore)
         (message "The AI is not working on anything")))
 
   ;; Forget the conversation: the next question starts another.
@@ -486,12 +487,13 @@ commands to use it."
     (set! busy? #f)
     (drop-asks!)
     (set! entries '())
+    (entry-changed!)
     (hashtable-clear! items))
 
   (define (codex-stop!)
     (when rpc
       (when summary-thread
-        (jsonrpc-request! rpc "thread/delete" `((threadId . ,(car summary-thread))) void* void*))
+        (jsonrpc-request! rpc "thread/delete" `((threadId . ,(car summary-thread))) ignore ignore))
       (set! stopping? #t)
       (jsonrpc-stop! rpc)))
 
@@ -515,10 +517,12 @@ commands to use it."
   (define (ours? params)
     (let ([t (json-ref params 'threadId)]) (or (not t) (equal? t thread-id))))
 
+  ;; What our conversation's thread says may change the transcript, which
+  ;; the summary then follows; other threads' (a review's, the
+  ;; summarizer's own) do not.
   (define (on-notification method params)
     (on-notification* method params)
-    (set! changes (+ changes 1))
-    (summarize-soon!))
+    (when (ours? params) (summarize-soon!)))
 
   (define (on-notification* method params)
     ;; A review's turn, done.
@@ -532,7 +536,8 @@ commands to use it."
        [(string=? method "item/started") (item-started! (json-ref params 'item))]
        [(string=? method "item/agentMessage/delta")
         (let ([e (item-entry! (json-ref params 'itemId) 'agent "" 'ui.popup)])
-          (entry-text-set! e (string-append (entry-text e) (or (json-ref params 'delta) ""))))]
+          (entry-text-set! e (string-append (entry-text e) (or (json-ref params 'delta) "")))
+          (entry-changed!))]
        [(string=? method "item/completed") (item-completed! (json-ref params 'item))]
        [(string=? method "turn/completed") (turn-completed! (json-ref params 'turn))]
        [(string=? method "error")
@@ -565,7 +570,7 @@ commands to use it."
        [(equal? type "dynamicToolCall")
         (item-entry! id 'tool
                      (format "λ ~a ~a" (json-ref item 'tool)
-                             (clip (let ([a (json-ref item 'arguments)])
+                             (string-clip (let ([a (json-ref item 'arguments)])
                                      (cond [(or (not a) (null? a)) ""]
                                            [(and (json-object? a) (= (length a) 1) (string? (cdar a))) (cdar a)]
                                            [else (json->string a)]))
@@ -581,13 +586,15 @@ commands to use it."
     (let ([e (and id (hashtable-ref items id #f))])
       (when e
         (entry-text-set! e (string-append (entry-text e) suffix))
-        (when face (entry-face-set! e face)))))
+        (when face (entry-face-set! e face))
+        (entry-changed!))))
 
   (define (item-completed! item)
     (let ([id (json-ref item 'id)] [type (json-ref item 'type)] [status (json-ref item 'status)])
       (cond
        [(equal? type "agentMessage")
-        (entry-text-set! (item-entry! id 'agent "" 'ui.popup) (or (json-ref item 'text) ""))]
+        (entry-text-set! (item-entry! id 'agent "" 'ui.popup) (or (json-ref item 'text) ""))
+        (entry-changed!)]
        [(equal? type "commandExecution")
         (let ([code (json-ref item 'exitCode)])
           (cond [(equal? status "declined") (mark! id "  (declined)" 'ui.text.dim)]
@@ -711,7 +718,7 @@ commands to use it."
   (define (question-step q)
     (let* ([header (or (non-empty (json-ref q 'header)) "The AI asks")]
            [question (or (json-ref q 'question) "")]
-           [options (vector->list (or (json-ref q 'options) '#()))]
+           [options (json-list (json-ref q 'options))]
            [secret? (json-ref q 'isSecret)]
            [answered (lambda (k)
                        (lambda (a)
@@ -836,7 +843,7 @@ commands to use it."
         (let* ([schema (or (json-ref params 'requestedSchema) '())]
                [fields (let ([p (json-ref schema 'properties)]) (if (json-object? p) p '()))]
                [required (map (lambda (x) (if (string? x) (string->symbol x) x))
-                              (vector->list (or (json-ref schema 'required) '#())))])
+                              (json-list (json-ref schema 'required)))])
           (lambda (reply)
             (ask-pick (format "~a asks" server) (json-ref params 'message)
                       `((,(if (null? fields) "Yes" "Answer") . answer) ("No" . "decline") ("No, and stop" . "cancel"))
@@ -890,7 +897,7 @@ commands to use it."
       (let ([cmd (or (json-ref params 'command) "a command")] [why (json-ref params 'reason)])
         (add-entry! 'approval (format "? run ~a~a" cmd (if why (format " (~a)" why) "")) 'warning)
         (queue-ask! id "a command"
-              (approval (string-append "Run " (clip cmd 60) "?")
+              (approval (string-append "Run " (string-clip cmd 60) "?")
                         (paragraphs (string-append "$ " cmd)
                                     (let ([cwd (json-ref params 'cwd)]) (and cwd (string-append "in " cwd)))
                                     why))))]
@@ -900,7 +907,7 @@ commands to use it."
         (add-entry! 'approval (format "? change ~a" what) 'warning)
         (queue-ask! id "file changes" (approval "Make these changes?" (paragraphs what (json-ref params 'reason)))))]
      [(string=? method "item/tool/requestUserInput")
-      (let ([qs (vector->list (or (json-ref params 'questions) '#()))])
+      (let ([qs (json-list (json-ref params 'questions))])
         (for-each (lambda (q) (add-entry! 'question (format "? ~a" (or (json-ref q 'question) "")) 'warning)) qs)
         (queue-ask! id "a question" (user-input-answer qs)))]
      [(string=? method "mcpServer/elicitation/request")
@@ -934,7 +941,7 @@ commands to use it."
   (define summary-timer #f)
 
   (define (summarizing?)
-    (and (get-var 'codex-summary-model) rpc initialized? (< summary-failures 3)))
+    (and (get-var 'codex-summary-model) rpc initialized? (pair? entries) (< summary-failures 3)))
 
   (define (summarize-soon!)
     (when (and (summarizing?) (> changes summary-changes) (not summary-busy?) (not summary-starting?))
@@ -976,25 +983,39 @@ commands to use it."
 
   (define (start-summarizer!)
     (set! summary-starting? #t)
+    (primed-thread!
+     `((model . ,(get-var 'codex-summary-model))
+       (developerInstructions . "You summarize an AI agent's work for a small status window. You never use tools; you answer in plain text."))
+     `((effort . ,(get-var 'codex-summary-effort)))
+     (lambda (t turn)
+       (set! summary-starting? #f)
+       (set! summary-thread (cons t (json-ref turn 'id)))
+       (summarize-soon!))
+     (lambda (e) (summary-failed! (if e (jsonrpc-error-message e) "the summarizer would not start")))))
+
+  ;; Start a thread that never reaches code (read-only, nothing approved,
+  ;; in an empty directory), with `settings` (its model, its instructions),
+  ;; and prime it with a first turn (with turn-settings), which says it is
+  ;; ready: (ready thread turn) then. (failed e) if it does not get there,
+  ;; the thread deleted if it started: e the error, or #f.
+  (define (primed-thread! settings turn-settings ready failed)
     (jsonrpc-request!
      rpc "thread/start"
      `((cwd . ,(review-directory)) (approvalPolicy . "never") (sandbox . "read-only")
-       (model . ,(get-var 'codex-summary-model))
-       (developerInstructions . "You summarize an AI agent's work for a small status window. You never use tools; you answer in plain text.")
-       (ephemeral . #f))
+       ,@settings (ephemeral . #f))
      (lambda (r)
-       (let ([t (json-ref r 'thread 'id)])
+       (let* ([t (json-ref r 'thread 'id)]
+              [fail (lambda (e)
+                      (jsonrpc-request! rpc "thread/delete" `((threadId . ,t)) ignore ignore)
+                      (failed e))])
          (hashtable-set! review-turns t
                          (lambda (turn)
-                           (set! summary-starting? #f)
-                           (if (equal? (json-ref turn 'status) "completed")
-                               (begin (set! summary-thread (cons t (json-ref turn 'id))) (summarize-soon!))
-                               (summary-failed! "the summarizer would not start"))))
+                           (if (equal? (json-ref turn 'status) "completed") (ready t turn) (fail #f))))
          (jsonrpc-request! rpc "turn/start"
-                           `((threadId . ,t) (effort . ,(get-var 'codex-summary-effort))
+                           `((threadId . ,t) ,@turn-settings
                              (input . #(((type . "text") (text . "Reply with the single word: ready.") (text_elements . #())))))
-                           void* (lambda (e) (hashtable-delete! review-turns t) (summary-failed! (jsonrpc-error-message e))))))
-     (lambda (e) (summary-failed! (jsonrpc-error-message e)))))
+                           ignore (lambda (e) (hashtable-delete! review-turns t) (fail e)))))
+     failed))
 
   (define (string-byte-length s) (bytevector-length (string->utf8 s)))
 
@@ -1037,9 +1058,7 @@ anything it says.\n\nThe summary so far:\n"
   (define review-limit 200000)          ; characters of code a review reads
 
   (define (nonce)
-    (apply string-append
-           (map (lambda (b) (string-append (if (< b 16) "0" "") (number->string b 16)))
-                (bytevector->u8-list (blake3 (string->utf8 (format "~a ~a ~a" (real-time) (current-time) (random 1000000000))))))))
+    (bytevector->hex (blake3 (string->utf8 (format "~a ~a ~a" (real-time) (current-time) (random 1000000000))))))
 
   ;; The instructions, which thread/sample takes (at most 4000 bytes), and
   ;; the code, which goes into the thread's history first.
@@ -1076,56 +1095,52 @@ The files are in the message before this one.\n"))
                        (format "BEGIN-~a ~a\n~a\nEND-~a\n\n" n (car f) text n)))
                    files)))))
 
+  ;; An empty directory for reviews to run in: one for the process, made
+  ;; when first needed (and again if it went).
+  (define the-review-directory #f)
   (define (review-directory)
-    (let ([dir (path-join (or (getenv "TMPDIR") "/tmp") (format "quad-review-~a" (substring (nonce) 0 12)))])
-      (mkdir-p dir)
-      dir))
+    (unless (and the-review-directory (file-directory? the-review-directory))
+      (set! the-review-directory
+            (path-join (or (getenv "TMPDIR") "/tmp") (format "quad-review-~a" (substring (nonce) 0 12))))
+      (make-directories! the-review-directory))
+    the-review-directory)
 
   ;; The project reviewer: (k text), or (k #f why).
   (define (review-project! root files k)
     (let ([fail (lambda (what) (lambda (e) (k #f (format "~a: ~a" what (jsonrpc-error-message e)))))])
       (with-server!
        (lambda ()
-         (jsonrpc-request!
-          rpc "thread/start"
-          `((cwd . ,(review-directory)) (approvalPolicy . "never") (sandbox . "read-only")
-            ,@(if (get-var 'codex-model) `((model . ,(get-var 'codex-model))) '())
-            (developerInstructions . "You review code for safety. You never use tools; you answer in text.")
-            (ephemeral . #f))
-          (lambda (r)
-            (let ([thread (json-ref r 'thread 'id)])
-              (define (done . result)
-                (jsonrpc-request! rpc "thread/delete" `((threadId . ,thread)) void* void*)
-                (apply k result))
-              (hashtable-set! review-turns thread
-                              (lambda (turn)
-                                (if (equal? (json-ref turn 'status) "completed")
-                                    (let ([n (nonce)])
-                                      (jsonrpc-request!
-                                       rpc "thread/inject_items"
-                                       `((threadId . ,thread)
-                                         (items . #(((type . "message") (role . "user")
-                                                     (content . #(((type . "input_text") (text . ,(review-material root files n)))))))))
-                                       (lambda (r)
-                                         (jsonrpc-request!
-                                          rpc "thread/sample"
-                                          `((threadId . ,thread) (expectedTurnId . ,(json-ref turn 'id))
-                                            (prompt . ,(review-instructions root n)))
-                                          (lambda (r)
-                                            (done (or (json-ref r 'text)
-                                                      "VERDICT: CAUTION - the reviewer tried to call a tool while reading the code, \
+         (primed-thread!
+          `(,@(if (get-var 'codex-model) `((model . ,(get-var 'codex-model))) '())
+            (developerInstructions . "You review code for safety. You never use tools; you answer in text."))
+          '()
+          (lambda (thread turn)
+            (define (done . result)
+              (jsonrpc-request! rpc "thread/delete" `((threadId . ,thread)) ignore ignore)
+              (apply k result))
+            (let ([n (nonce)])
+              (jsonrpc-request!
+               rpc "thread/inject_items"
+               `((threadId . ,thread)
+                 (items . #(((type . "message") (role . "user")
+                             (content . #(((type . "input_text") (text . ,(review-material root files n)))))))))
+               (lambda (r)
+                 (jsonrpc-request!
+                  rpc "thread/sample"
+                  `((threadId . ,thread) (expectedTurnId . ,(json-ref turn 'id))
+                    (prompt . ,(review-instructions root n)))
+                  (lambda (r)
+                    (done (or (json-ref r 'text)
+                              "VERDICT: CAUTION - the reviewer tried to call a tool while reading the code, \
 which the code may have asked it to do; read the code yourself.")))
-                                          (lambda (e) (done #f (format "the review: ~a" (jsonrpc-error-message e))))))
-                                       (lambda (e) (done #f (format "the review: ~a" (jsonrpc-error-message e))))))
-                                    (done #f "the review could not start"))))
-              (jsonrpc-request! rpc "turn/start"
-                                `((threadId . ,thread)
-                                  (input . #(((type . "text") (text . "Reply with the single word: ready.") (text_elements . #())))))
-                                void* (lambda (e) (hashtable-delete! review-turns thread) (done #f "the review could not start")))))
-          (fail "Codex would not start a review")))
+                  (lambda (e) (done #f (format "the review: ~a" (jsonrpc-error-message e))))))
+               (lambda (e) (done #f (format "the review: ~a" (jsonrpc-error-message e)))))))
+          (lambda (e)
+            (if e
+                ((fail "Codex would not start a review") e)
+                (k #f "the review could not start")))))
        (fail "Codex would not start"))))
 
-  (define (void* . _) (void))
 
   ;; ---------------------------------------------------------------------------
   ;; Commands and keys

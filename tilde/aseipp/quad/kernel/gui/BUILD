@@ -19,7 +19,6 @@ DEPS = [
     "third-party//rust:winit",
 ] + shims.select({
     "config//os:linux": [
-        "third-party//rust:ash",
         "third-party//rust:smithay-clipboard",
     ],
     "config//os:macos": [

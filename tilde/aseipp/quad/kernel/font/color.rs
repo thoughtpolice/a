@@ -102,11 +102,11 @@ pub fn paint_bitmap(
     if decoded.width == 0 || decoded.height == 0 {
         return None;
     }
-    let scale = (width as f32 / decoded.width as f32)
-        .min(height as f32 / decoded.height as f32)
-        .min(1.0);
-    let w = ((decoded.width as f32 * scale).round() as u32).clamp(1, width);
-    let h = ((decoded.height as f32 * scale).round() as u32).clamp(1, height);
+    let (w, h) = image::fit(
+        (decoded.width, decoded.height),
+        [width as f32, height as f32],
+    );
+    let (w, h) = (w.min(width), h.min(height));
     let scaled = image::scale_to(&decoded, w, h);
     let (x0, y0) = ((width - w) / 2, (height - h) / 2);
     let mut pixels = vec![0; (width * height) as usize];

@@ -158,6 +158,28 @@ impl Easing {
         }
     }
 
+    /// The easing at `index` in [`easing_names`], given `args` where it
+    /// takes them; None past the end.
+    pub fn indexed(index: usize, args: [f64; 4]) -> Option<Easing> {
+        let curves = 4 * CURVES.len();
+        match index {
+            0 => Some(Easing::Linear),
+            i if i <= curves => {
+                let curve = CURVES[(i - 1) / 4].1;
+                Some(match (i - 1) % 4 {
+                    0 => Easing::In(curve),
+                    1 => Easing::Out(curve),
+                    2 => Easing::InOut(curve),
+                    _ => Easing::OutIn(curve),
+                })
+            }
+            i => Easing::named(
+                ["cubic-bezier", "steps", "spring"].get(i - 1 - curves)?,
+                args,
+            ),
+        }
+    }
+
     /// A spring, as Anime.js has them: a damped oscillator, run until it
     /// settles; mass, stiffness and damping are made at least a little
     /// positive.
@@ -171,11 +193,12 @@ impl Easing {
             settles: 1.0,
         };
         // Where it stays within a thousandth of 1, in sixtieths of a second.
+        let at = spring_at(mass, stiffness, damping, velocity);
         let mut settled = 0;
         let mut s = 0.0;
         while settled < 16 && s < 30.0 {
             s += 1.0 / 60.0;
-            if (spring_at(mass, stiffness, damping, velocity, s) - 1.0).abs() < 0.001 {
+            if (at(s) - 1.0).abs() < 0.001 {
                 settled += 1;
             } else {
                 settled = 0;
@@ -224,7 +247,7 @@ impl Easing {
                 if t <= 0.0 || t >= 1.0 {
                     t
                 } else {
-                    spring_at(mass, stiffness, damping, velocity, t * settles)
+                    spring_at(mass, stiffness, damping, velocity)(t * settles)
                 }
             }
         }
@@ -232,18 +255,20 @@ impl Easing {
 }
 
 /// A spring's position at `s` seconds, from 0 toward 1.
-fn spring_at(mass: f64, stiffness: f64, damping: f64, velocity: f64, s: f64) -> f64 {
+fn spring_at(mass: f64, stiffness: f64, damping: f64, velocity: f64) -> impl Fn(f64) -> f64 {
     let w0 = (stiffness / mass).sqrt();
     let zeta = damping / (2.0 * (stiffness * mass).sqrt());
-    let rest = if zeta < 1.0 {
-        let wd = w0 * (1.0 - zeta * zeta).sqrt();
-        let b = (zeta * w0 - velocity) / wd;
-        (-s * zeta * w0).exp() * ((wd * s).cos() + b * (wd * s).sin())
-    } else {
-        let b = w0 - velocity;
-        (1.0 + b * s) * (-s * w0).exp()
-    };
-    1.0 - rest
+    let wd = w0 * (1.0 - zeta * zeta).sqrt();
+    move |s: f64| {
+        let rest = if zeta < 1.0 {
+            let b = (zeta * w0 - velocity) / wd;
+            (-s * zeta * w0).exp() * ((wd * s).cos() + b * (wd * s).sin())
+        } else {
+            let b = w0 - velocity;
+            (1.0 + b * s) * (-s * w0).exp()
+        };
+        1.0 - rest
+    }
 }
 
 /// CSS's cubic-bezier: y where x is `t`, x found by Newton's method, then
@@ -316,8 +341,7 @@ impl Timing {
     /// arguments.
     pub fn from_numbers(n: &[f64]) -> Option<Timing> {
         let n: [f64; 10] = n.get(..10)?.try_into().ok()?;
-        let names = easing_names();
-        let easing = Easing::named(names.get(n[5] as usize)?, [n[6], n[7], n[8], n[9]])?;
+        let easing = Easing::indexed(n[5] as usize, [n[6], n[7], n[8], n[9]])?;
         Some(Timing {
             duration: n[0].max(0.0),
             delay: n[1].max(0.0),
@@ -373,7 +397,7 @@ impl Timing {
 
     /// Milliseconds from `elapsed` until its progress next changes: 0
     /// while it moves, the time to its next iteration while it waits, None
-    /// once it is done.
+    /// once it is done (or, endless, if it never changes).
     pub fn next_change(&self, elapsed: f64) -> Option<f64> {
         let t = elapsed - self.delay;
         if t < 0.0 {
@@ -387,6 +411,10 @@ impl Timing {
             return Some(0.0);
         }
         let length = self.duration + self.end_delay;
+        // Endless, and over as it begins: it never changes again.
+        if length <= 0.0 {
+            return None;
+        }
         Some(length - (t % length))
     }
 }
@@ -395,9 +423,6 @@ impl Timing {
 
 /// The kinds of effect, by the numbers Scheme and the shaders know them.
 pub const SHEEN: u32 = 1;
-
-/// The names of the kinds, by their numbers less one.
-pub const KINDS: [&str; 1] = ["sheen"];
 
 /// An effect's kind and parameters, and the color it brings: for a sheen,
 /// its angle (degrees from across, positive down), its band's half-width
@@ -421,27 +446,40 @@ impl Effect {
     /// (across, and down), so that angles mean the same however cells are
     /// shaped. gui.slang's `effectAmount` is this.
     pub fn amount(&self, progress: f32, point: [f32; 2], extent: [f32; 2]) -> f32 {
-        match self.kind {
-            SHEEN => {
-                let [angle, width, intensity, _] = self.params;
-                let (sin, cos) = angle.to_radians().sin_cos();
-                let along = |x: f32, y: f32| x * cos + y * sin;
-                let corners = [
-                    along(0.0, 0.0),
-                    along(extent[0], 0.0),
-                    along(0.0, extent[1]),
-                    along(extent[0], extent[1]),
-                ];
-                let first = corners.iter().copied().fold(f32::INFINITY, f32::min);
-                let last = corners.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-                let width = width.max(0.01);
-                // The band starts off one side and ends off the other.
-                let middle = (first - width) + (last - first + 2.0 * width) * progress;
-                let away = (along(point[0], point[1]) - middle).abs();
-                intensity.clamp(0.0, 1.0) * (1.0 - smoothstep(0.0, width, away))
+        self.amounts(progress, extent)(point)
+    }
+
+    /// [`Effect::amount`] at each point of one rectangle at one progress,
+    /// with what is the same for all of them worked out once.
+    pub fn amounts(&self, progress: f32, extent: [f32; 2]) -> impl Fn([f32; 2]) -> f32 + use<> {
+        let [cos, sin, width, intensity] = self.sheen();
+        let along = move |x: f32, y: f32| x * cos + y * sin;
+        let corners = [
+            along(0.0, 0.0),
+            along(extent[0], 0.0),
+            along(0.0, extent[1]),
+            along(extent[0], extent[1]),
+        ];
+        let first = corners.iter().copied().fold(f32::INFINITY, f32::min);
+        let last = corners.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        // The band starts off one side and ends off the other.
+        let middle = (first - width) + (last - first + 2.0 * width) * progress;
+        let sheen = self.kind == SHEEN;
+        move |point: [f32; 2]| {
+            if !sheen {
+                return 0.0;
             }
-            _ => 0.0,
+            let away = (along(point[0], point[1]) - middle).abs();
+            intensity * (1.0 - smoothstep(0.0, width, away))
         }
+    }
+
+    /// A sheen's shape, as it is drawn: its angle's cosine and sine, its
+    /// half-width and its intensity.
+    fn sheen(&self) -> [f32; 4] {
+        let [angle, width, intensity, _] = self.params;
+        let (sin, cos) = angle.to_radians().sin_cos();
+        [cos, sin, width.max(0.01), intensity.clamp(0.0, 1.0)]
     }
 
     /// Ink `ink` (0xRRGGBB, sRGB) at `point`, with the effect: mixed
@@ -500,16 +538,9 @@ impl Placed {
     /// shape (a sheen's angle's cosine and sine, its half-width and its
     /// intensity); its progress; its kind; its color, 0xRRGGBB; padding.
     pub fn gpu_bytes(&self, progress: f32) -> [u8; EFFECT_BYTES] {
-        let [angle, width, intensity, _] = self.effect.params;
-        let (sin, cos) = angle.to_radians().sin_cos();
+        let [cos, sin, width, intensity] = self.effect.sheen();
         let mut out = [0u8; EFFECT_BYTES];
-        let shape = [
-            cos,
-            sin,
-            width.max(0.01),
-            intensity.clamp(0.0, 1.0),
-            progress,
-        ];
+        let shape = [cos, sin, width, intensity, progress];
         for (i, f) in self.cells.iter().chain(&shape).enumerate() {
             out[i * 4..i * 4 + 4].copy_from_slice(&f.to_ne_bytes());
         }
@@ -552,6 +583,21 @@ mod tests {
             );
         }
         assert!(Easing::named("in-wobble", [0.0; 4]).is_none());
+    }
+
+    /// Scheme names easings by index: each is the easing of that name.
+    #[test]
+    fn each_index_is_its_name() {
+        let names = easing_names();
+        let args = [1.0, 100.0, 10.0, 0.0];
+        for (i, name) in names.iter().enumerate() {
+            assert_eq!(
+                Easing::indexed(i, args),
+                Easing::named(name, args),
+                "{name}"
+            );
+        }
+        assert!(Easing::indexed(names.len(), args).is_none());
     }
 
     #[test]
@@ -602,6 +648,14 @@ mod tests {
             ..t
         };
         assert!(forever.next_change(1_000_000.0).is_some());
+        // For ever, but over as each begins: it never changes again.
+        let instant = Timing {
+            duration: 0.0,
+            end_delay: 0.0,
+            ..forever
+        };
+        assert_eq!(instant.progress(60.0), 1.0);
+        assert_eq!(instant.next_change(60.0), None);
     }
 
     #[test]

@@ -82,6 +82,20 @@ cloexec(int fd)
 }
 #endif
 
+// A pipe, both its ends close-on-exec.
+static int
+cloexec_pipe(int p[2])
+{
+#if defined(__linux__)
+  return pipe2(p, O_CLOEXEC);
+#else
+  if (pipe(p) != 0) return -1;
+  cloexec(p[0]);
+  cloexec(p[1]);
+  return 0;
+#endif
+}
+
 static int
 unix_socket(void)
 {
@@ -100,7 +114,7 @@ static int g_raw_fd = -1;
 static volatile sig_atomic_t g_winch = 0;
 static volatile sig_atomic_t g_stop = 0;
 
-// A pipe each signal handler writes a byte to, which quad_poll and quad_read
+// A pipe each signal handler writes a byte to, which quad_poll_rw and quad_read
 // wait on too: a signal wakes them whichever thread it lands on (the
 // Rust half's threads, Scheme's, or the main one), where EINTR only reaches
 // the thread it interrupts.
@@ -109,12 +123,11 @@ static int g_signal_pipe[2] = {-1, -1};
 static void
 signal_pipe_open(void)
 {
-  if (pipe(g_signal_pipe) != 0) {
+  if (cloexec_pipe(g_signal_pipe) != 0) {
     g_signal_pipe[0] = g_signal_pipe[1] = -1;
     return;
   }
   for (int i = 0; i < 2; i++) {
-    fcntl(g_signal_pipe[i], F_SETFD, FD_CLOEXEC);
     fcntl(g_signal_pipe[i], F_SETFL, fcntl(g_signal_pipe[i], F_GETFL) | O_NONBLOCK);
   }
 }
@@ -135,17 +148,10 @@ signal_drain(void)
   while (g_signal_pipe[0] >= 0 && read(g_signal_pipe[0], buf, sizeof(buf)) > 0) {}
 }
 
+// A resize; or, after a stop (SIGCONT), the size may have changed: treat
+// it as one.
 static void
 on_winch(int sig)
-{
-  (void)sig;
-  g_winch = 1;
-  signal_wake();
-}
-
-// After a stop, the size may have changed: treat it as a resize.
-static void
-on_cont(int sig)
 {
   (void)sig;
   g_winch = 1;
@@ -239,18 +245,18 @@ quad_tty_pixels(int fd)
   return ((int)ws.ws_xpixel << 16) | ws.ws_ypixel;
 }
 
+int quad_poll_rw(const int* fds, const int* events, int n, int timeout_ms, int* ready);
+
 // Wait up to timeout_ms (forever if negative) for input, then read up to n
-// bytes into buf. Returns the count read, 0 on timeout, -2 if interrupted by
-// a signal (a resize, say), and -1 on error or end of file.
+// bytes into buf (quad_poll_rw's wait). Returns the count read, 0 on
+// timeout, -2 if interrupted by a signal (a resize, say), and -1 on error or
+// end of file.
 int
 quad_read(int fd, unsigned char* buf, int n, int timeout_ms)
 {
-  struct pollfd p[2] = {{.fd = fd, .events = POLLIN}, {.fd = g_signal_pipe[0], .events = POLLIN}};
-  int r = poll(p, 2, timeout_ms);
-  if (r < 0) return errno == EINTR ? -2 : -1;
-  if (r == 0) return 0;
-  if (p[1].revents) signal_drain();
-  if (!p[0].revents) return -2;
+  int readable = 1, ready = 0;
+  int r = quad_poll_rw(&fd, &readable, 1, timeout_ms, &ready);
+  if (r <= 0) return r;
   ssize_t got = read(fd, buf, n);
   if (got < 0) return (errno == EINTR || errno == EAGAIN) ? -2 : -1;
   if (got == 0) return -1;
@@ -299,7 +305,7 @@ quad_suspend(void)
 
 // Clients reach the editor over byte streams. The server polls every
 // descriptor it serves -- the terminal, the listening socket, each client's
-// connection -- through quad_poll. Other transports (Iroh, from the Rust half)
+// connection -- through quad_poll_rw. Other transports (Iroh, from the Rust half)
 // join by handing Scheme a descriptor for each stream, a socketpair end.
 
 // Wait up to timeout_ms (forever if negative) for any of fds[0..n) to be
@@ -343,26 +349,13 @@ quad_poll_rw(const int* fds, const int* events, int n, int timeout_ms, int* read
   return count;
 }
 
-// quad_poll_rw, waiting for each of fds to be readable.
+// Write what of buf[start..start+n) a socket takes now, without waiting:
+// the count written (0 if it takes none now), or -1 on error.
 int
-quad_poll(const int* fds, int n, int timeout_ms, int* ready)
-{
-  int small[64];
-  int* events = n <= 64 ? small : malloc((size_t)n * sizeof(int));
-  if (!events) return -1;
-  for (int i = 0; i < n; i++) events[i] = 1;
-  int r = quad_poll_rw(fds, events, n, timeout_ms, ready);
-  if (events != small) free(events);
-  return r;
-}
-
-// Write what of buf[0..n) a socket takes now, without waiting: the count
-// written (0 if it takes none now), or -1 on error.
-int
-quad_write_some(int fd, const unsigned char* buf, int n)
+quad_write_some(int fd, const unsigned char* buf, int start, int n)
 {
   for (;;) {
-    ssize_t r = send(fd, buf, (size_t)n, MSG_DONTWAIT);
+    ssize_t r = send(fd, buf + start, (size_t)n, MSG_DONTWAIT);
     if (r >= 0) return (int)r;
     if (errno == EINTR) continue;
     return (errno == EAGAIN || errno == EWOULDBLOCK) ? 0 : -1;
@@ -448,14 +441,16 @@ quad_lock(const char* path)
 }
 
 // What file path is, as "device:inode" (written to out, of n bytes): to
-// tell later whether path is still that file. 0, or -1 if there is none.
+// tell later whether path is still that file. Its length, or -1 if there is
+// none.
 int
 quad_file_key(const char* path, char* out, int n)
 {
   struct stat st;
   if (stat(path, &st) != 0) return -1;
-  snprintf(out, (size_t)n, "%llu:%llu", (unsigned long long)st.st_dev, (unsigned long long)st.st_ino);
-  return 0;
+  int w = snprintf(out, (size_t)n, "%llu:%llu", (unsigned long long)st.st_dev,
+                   (unsigned long long)st.st_ino);
+  return w < 0 || w >= n ? -1 : w;
 }
 
 int
@@ -515,9 +510,7 @@ quad_fork_detached(int* fd)
     return 0;
   }
   int p[2];
-  if (pipe(p) != 0) return -1;
-  fcntl(p[0], F_SETFD, FD_CLOEXEC);
-  fcntl(p[1], F_SETFD, FD_CLOEXEC);
+  if (cloexec_pipe(p) != 0) return -1;
   // The environment, naming the child's end of the pipe.
   size_t n = 0;
   while (environ[n]) n++;
@@ -626,7 +619,6 @@ quad_launched_as_app(void)
   _(quad_self_path)   \
   _(quad_hostname)    \
   _(quad_launched_as_app) \
-  _(quad_poll)        \
   _(quad_poll_rw)     \
   _(quad_write_some)  \
   _(quad_unix_listen) \
@@ -707,7 +699,6 @@ main(int ac, const char* av[])
   sa.sa_handler = on_winch;
   sigemptyset(&sa.sa_mask);
   sigaction(SIGWINCH, &sa, NULL);
-  sa.sa_handler = on_cont;
   sigaction(SIGCONT, &sa, NULL);
   sa.sa_handler = on_stop;
   sigaction(SIGTERM, &sa, NULL);

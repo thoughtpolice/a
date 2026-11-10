@@ -3,14 +3,16 @@
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
 (library (quad util)
-  (export at-load clamp string-prefix? string-suffix? string-index string-contains
+  (export at-load ignore condition->string clamp string-prefix? string-suffix? string-index string-contains
+          string-splice string-first-line string-clip
           string-join string-split string-trim-left string-trim-right string-trim
           char-width string-width grapheme-end grapheme-start grapheme-columns
-          string-graphemes fuzzy-score
-          list-index take drop last-pair* filter-map delete-duplicates*
-          bytevector-append bytevector->hex
-          path-join path-basename path-dirname expand-home
-          sort-strings macos?)
+          string-graphemes string-grapheme-before string-grapheme-after fuzzy-score
+          list-index take drop filter-map
+          bytevector-append bytevector->hex percent-decode
+          path-join path-basename path-dirname ancestor-dirs expand-home absolute-path
+          make-directories! find-executable
+          sort-strings sort-symbols macos?)
   (import (chezscheme))
 
   ;; Chez Scheme allows no definitions after an expression in a library
@@ -20,15 +22,42 @@
     (syntax-rules ()
       [(_ e ...) (define ignored (begin e ... #f))]))
 
+  ;; Takes anything and does nothing: a callback for what is not needed.
+  ;; (Chez Scheme's void takes nothing.)
+  (define (ignore . _) (void))
+
+  ;; What went wrong, as a message: a condition as Chez Scheme displays
+  ;; it, anything else raised as display shows it.
+  (define (condition->string e)
+    (if (condition? e)
+        (call-with-string-output-port (lambda (p) (display-condition e p)))
+        (format "~a" e)))
+
   (define (clamp x lo hi) (max lo (min hi x)))
 
-  (define (string-prefix? p s)
+  ;; Whether s has p's characters from `at` on.
+  (define (string-at? p s at)
     (let ([n (string-length p)])
-      (and (<= n (string-length s)) (string=? p (substring s 0 n)))))
+      (and (<= 0 at) (<= (+ at n) (string-length s))
+           (let loop ([i 0])
+             (or (= i n)
+                 (and (char=? (string-ref p i) (string-ref s (+ at i))) (loop (+ i 1))))))))
 
-  (define (string-suffix? p s)
-    (let ([n (string-length p)] [m (string-length s)])
-      (and (<= n m) (string=? p (substring s (- m n) m)))))
+  (define (string-prefix? p s) (string-at? p s 0))
+
+  ;; s up to its first newline.
+  (define (string-first-line s)
+    (let ([i (string-index s #\newline)]) (if i (substring s 0 i) s)))
+
+  ;; s, at most n characters: past that, its first n - 1 and an ellipsis.
+  (define (string-clip s n)
+    (if (> (string-length s) n) (string-append (substring s 0 (- n 1)) "…") s))
+
+  ;; s with its characters from start to end replaced by new.
+  (define (string-splice s start end new)
+    (string-append (substring s 0 start) new (substring s end (string-length s))))
+
+  (define (string-suffix? p s) (string-at? p s (- (string-length s) (string-length p))))
 
   ;; Whether this is macOS: Chez Scheme's machine types for it end so
   ;; (tarm64osx, ta6osx).
@@ -174,9 +203,13 @@
                     j))))))
 
   ;; The start of the cluster that index i is in, finding clusters from
-  ;; `start` (a line's start, where one surely begins).
-  (define (grapheme-start ref i start)
-    (let loop ([c start])
+  ;; the last ASCII character at or before i (a newline, at the furthest):
+  ;; one never continues a cluster (extends?), so one begins there.
+  (define (grapheme-start ref i)
+    (let loop ([c (let back ([k i])
+                    (cond [(<= k 0) 0]
+                          [(< (char->integer (ref k)) #x80) k]
+                          [else (back (- k 1))]))])
       (let ([e (grapheme-end ref c (+ i 1))])
         (if (or (> e i) (= e c)) c (loop e)))))
 
@@ -201,6 +234,12 @@
             (let ([j (grapheme-end ref i n)])
               (loop j (cons (substring s i j) acc)))))))
 
+  ;; Where the cluster before or after index c of string s starts or ends.
+  (define (string-grapheme-before s c)
+    (if (<= c 0) 0 (grapheme-start (lambda (i) (string-ref s i)) (- c 1))))
+  (define (string-grapheme-after s c)
+    (grapheme-end (lambda (i) (string-ref s i)) c (string-length s)))
+
   (define (string-width s)
     (let ([ref (lambda (i) (string-ref s i))] [n (string-length s)])
       (let loop ([i 0] [w 0])
@@ -214,6 +253,24 @@
     (let-values ([(out extract) (open-bytevector-output-port)])
       (for-each (lambda (bv) (put-bytevector out bv)) bvs)
       (extract)))
+
+  (define (hex-digit c) (string->number (string c) 16))
+
+  ;; %XX escapes decoded, as UTF-8.
+  (define (percent-decode s)
+    (let ([n (string-length s)])
+      (if (not (string-index s #\%))
+          s
+          (let-values ([(out extract) (open-bytevector-output-port)])
+            (let loop ([i 0])
+              (when (< i n)
+                (let ([c (string-ref s i)])
+                  (if (and (char=? c #\%) (< (+ i 2) n)
+                           (hex-digit (string-ref s (+ i 1))) (hex-digit (string-ref s (+ i 2))))
+                      (begin (put-u8 out (+ (* 16 (hex-digit (string-ref s (+ i 1)))) (hex-digit (string-ref s (+ i 2)))))
+                             (loop (+ i 3)))
+                      (begin (put-bytevector out (string->utf8 (string c))) (loop (+ i 1)))))))
+            (utf8->string (extract))))))
 
   ;; bv's bytes in lowercase hex, two digits each.
   (define (bytevector->hex bv)
@@ -245,20 +302,12 @@
 
   (define (take l n) (if (or (= n 0) (null? l)) '() (cons (car l) (take (cdr l) (- n 1)))))
   (define (drop l n) (if (or (= n 0) (null? l)) l (drop (cdr l) (- n 1))))
-  (define (last-pair* l) (if (null? (cdr l)) l (last-pair* (cdr l))))
 
   (define (filter-map f l)
     (let loop ([l l])
       (if (null? l)
           '()
           (let ([v (f (car l))]) (if v (cons v (loop (cdr l))) (loop (cdr l)))))))
-
-  (define (delete-duplicates* l same?)
-    (let loop ([l l] [acc '()])
-      (cond
-       [(null? l) (reverse acc)]
-       [(exists (lambda (x) (same? x (car l))) acc) (loop (cdr l) acc)]
-       [else (loop (cdr l) (cons (car l) acc))])))
 
   (define (path-join a b)
     (cond
@@ -278,9 +327,36 @@
             [(char=? (string-ref p (- i 1)) #\/) (if (= i 1) "/" (substring p 0 (- i 1)))]
             [else (loop (- i 1))])))
 
+  ;; dir, then the directories it is in, out to the last.
+  (define (ancestor-dirs dir)
+    (let loop ([d dir] [acc '()])
+      (let ([up (path-dirname d)])
+        (if (string=? up d) (reverse (cons d acc)) (loop up (cons d acc))))))
+
   (define (expand-home p)
     (if (and (string-prefix? "~/" p) (getenv "HOME"))
         (path-join (getenv "HOME") (substring p 2 (string-length p)))
         p))
 
-  (define (sort-strings l) (sort string<? l)))
+  ;; p, from the current directory if it is relative.
+  (define (absolute-path p)
+    (if (string-prefix? "/" p) p (path-join (current-directory) p)))
+
+  ;; Makes directory dir, and those it is in, unless they exist.
+  (define (make-directories! dir)
+    (unless (or (string=? dir "") (file-exists? dir))
+      (make-directories! (path-dirname dir))
+      (mkdir dir)))
+
+  ;; Where program is: itself, if it names a directory, else the first
+  ;; file of that name in a directory of PATH; or #f.
+  (define (find-executable program)
+    (if (string-index program #\/)
+        (and (file-exists? program) program)
+        (exists (lambda (dir)
+                  (let ([f (path-join (if (string=? dir "") "." dir) program)])
+                    (and (file-exists? f) (not (file-directory? f)) f)))
+                (string-split (or (getenv "PATH") "") #\:))))
+
+  (define (sort-strings l) (sort string<? l))
+  (define (sort-symbols l) (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b))) l)))

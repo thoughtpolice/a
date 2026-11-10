@@ -120,15 +120,18 @@ impl<T> Sender<T> {
         if self.inner.closed.load(Ordering::Acquire) {
             return Err(value);
         }
-        self.inner.queue.lock().unwrap().push_back(value);
-        let b = 1u8;
-        // A full pipe already says there is something to read.
-        unsafe { libc::write(self.inner.write_fd, (&b as *const u8).cast(), 1) };
+        let mut queue = self.inner.queue.lock().unwrap();
+        let first = queue.is_empty();
+        queue.push_back(value);
+        drop(queue);
+        // Only the first value waiting wakes the reader: the others are
+        // taken with it. The reader empties the pipe before the queue, so
+        // a wake can come with nothing to take, but never be missed.
+        if first {
+            let b = 1u8;
+            // A full pipe already says there is something to read.
+            unsafe { libc::write(self.inner.write_fd, (&b as *const u8).cast(), 1) };
+        }
         Ok(())
-    }
-
-    /// Whether the mailbox is gone.
-    pub fn is_closed(&self) -> bool {
-        self.inner.closed.load(Ordering::Acquire)
     }
 }

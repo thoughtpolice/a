@@ -14,14 +14,12 @@ pub(super) const ALT: u32 = 2;
 /// Text an input method is composing, drawn over the cells from `cursor`
 /// on as a terminal would show it: underlined, in `foreground` on
 /// `background`. Returns rectangles (its background), cells (as font/
-/// reads them) and their text, which follows `text_offset` bytes of
-/// others'.
+/// reads them) and their text.
 pub(super) fn preedit_cells(
     preedit: &str,
     (row, col): (u32, u32),
     foreground: u32,
     background: u32,
-    text_offset: usize,
 ) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     use unicode_width::UnicodeWidthChar;
     let (mut rects, mut cells, mut text) = (Vec::new(), Vec::new(), Vec::new());
@@ -31,7 +29,7 @@ pub(super) fn preedit_cells(
         if width == 0 {
             continue;
         }
-        let start = (text_offset + text.len()) as u32;
+        let start = text.len() as u32;
         let mut buf = [0; 4];
         text.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
         // Underlined (4).
@@ -97,19 +95,19 @@ mod tests {
 
     #[test]
     fn text_being_composed_covers_the_cells_after_the_cursor() {
-        let (rects, cells, text) = preedit_cells("にほ", (3, 5), 0x00ffffff, 0x00102030, 7);
+        let (rects, cells, text) = preedit_cells("にほ", (3, 5), 0x00ffffff, 0x00102030);
         assert_eq!(text, "にほ".as_bytes());
-        // Two wide cells, from column 5, underlined, after 7 bytes of text.
+        // Two wide cells, from column 5, underlined.
         let words: Vec<u32> = cells
             .chunks_exact(4)
             .map(|w| u32::from_ne_bytes(w.try_into().unwrap()))
             .collect();
         assert_eq!(
             words[..7],
-            [3 << 16 | 5, 2 << 16 | 4, 0xffffffff, 0x102030, 0, 7, 3]
+            [3 << 16 | 5, 2 << 16 | 4, 0xffffffff, 0x102030, 0, 0, 3]
         );
         assert_eq!(words[7..9], [3 << 16 | 7, 2 << 16 | 4]);
-        assert_eq!(words[12], 10);
+        assert_eq!(words[12], 3);
         // One background rectangle over the four columns.
         let bounds: Vec<f32> = rects[..16]
             .chunks_exact(4)

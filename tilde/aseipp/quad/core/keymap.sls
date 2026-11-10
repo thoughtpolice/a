@@ -33,8 +33,7 @@
     name)
 
   (define (find-command name) (hashtable-ref commands name #f))
-  (define (command-names) (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b)))
-                                (vector->list (hashtable-keys commands))))
+  (define (command-names) (sort-symbols (vector->list (hashtable-keys commands))))
 
   ;; Run a command (a name or a procedure). In normal mode each command is
   ;; one undo step; one that enters insert mode extends the step until the

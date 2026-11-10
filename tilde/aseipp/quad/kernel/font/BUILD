@@ -12,7 +12,6 @@ DEPS = [
     "third-party//rust:fontique",
     "third-party//rust:harfrust",
     "third-party//rust:skrifa",
-    "third-party//rust:unicode-width",
 ]
 
 # The window's default font, beside lib.rs, which includes it.

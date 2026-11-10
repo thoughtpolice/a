@@ -117,9 +117,7 @@
   (define-syntax check
     (syntax-rules ()
       [(_ name expr)
-       (let ([v (guard (e [#t (list 'error (if (condition? e)
-                                               (call-with-string-output-port (lambda (p) (display-condition e p)))
-                                               e))])
+       (let ([v (guard (e [#t (list 'error (condition->string e))])
                   (if expr #t #f))])
          (if (eq? v #t)
              (begin (pass!) (printf "ok   ~a\n" name))
@@ -198,8 +196,7 @@
 
   ;; Write text to path, making the directories it is in.
   (define (write-file! path text)
-    (let mkdir-p ([d (path-dirname path)])
-      (unless (file-exists? d) (mkdir-p (path-dirname d)) (mkdir d)))
+    (make-directories! (path-dirname path))
     (call-with-output-file path (lambda (p) (display text p)) 'replace))
 
   ;; A client named name, rows by cols, with these capabilities, that keeps
@@ -213,7 +210,7 @@
   ;; Frames drawn with no window (gui-headless), or the test skipped where
   ;; nothing can draw them.
   (define (headless-gpu family points system-fonts?)
-    (guard (e [#t (printf "SKIP: ~a\n" (if (condition? e) (condition->string e) e))
+    (guard (e [#t (printf "SKIP: ~a\n" (condition->string e))
                   (exit 0)])
       (gui-headless family points system-fonts?)))
 
@@ -244,10 +241,7 @@
              (lambda (file)
                (printf "~a\n" file)
                (guard (e [#t (failure!)
-                             (printf "FAIL ~a: ~a\n" file
-                                     (if (condition? e)
-                                         (call-with-string-output-port (lambda (p) (display-condition e p)))
-                                         e))])
+                             (printf "FAIL ~a: ~a\n" file (condition->string e))])
                  (load file (lambda (x) (eval x (quad-environment))))))
              files)
             (remove-test-dirs!)

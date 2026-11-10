@@ -136,9 +136,8 @@
     (let* ([send (frame-sender fd)]
            [r (make-relay fd session send (make-frame-reader) #f
                           (if (and target (not (string=? target ""))) target "this machine's daemon"))])
-      (send (list "hello" protocol-version (client-name c) (client-rows c) (client-cols c)
-                  (client-capabilities c)))
-      (send (list "user" (client-user c)))
+      (frontend-hello! send (client-name c) (client-rows c) (client-cols c)
+                       (client-capabilities c) (client-user c) '() #f)
       (client-local-set! c 'relay r)
       (client-divert! c (route-to r c))
       ;; What c did here that the other editor would do too (voice:
@@ -176,6 +175,5 @@
                 (when t (message "Connecting over ~a..." (transport-label t))))
               (relay-connect-later! c (string-trim target)
                                     (lambda (why)
-                                      (when (memq c (clients))
-                                        (with-client c (lambda () (message-error "~a" why))))))))))))
+                                      (with-client-if-here c (lambda () (message-error "~a" why)))))))))))
    (define-key (keymap-lookup-target space-keymap "j") "o" 'connect "Connect")))

@@ -33,6 +33,9 @@
   ;; col rows cols) -> its cursor, or #f.
   (define-record-type widget (fields measure paint))
 
+  ;; x, or what it gives if it is a thunk: what widgets take.
+  (define (now x) (if (procedure? x) (x) x))
+
   (define (widget-rows w cols) ((widget-measure w) cols))
   (define (widget-draw! w g row col rows cols)
     (and (> rows 0) (> cols 0) ((widget-paint w) g row col rows cols)))
@@ -51,11 +54,11 @@
     (case-lambda
      [(title child) (framed title child '())]
      [(title child options)
-      (let ([opt (lambda (k) (let ([v (assq k options)]) (and v (if (procedure? (cdr v)) ((cdr v)) (cdr v)))))])
+      (let ([opt (lambda (k) (let ([v (assq k options)]) (and v (now (cdr v)))))])
         (make-widget
          (lambda (cols) (+ 2 (widget-rows child (- cols 2))))
          (lambda (g row col rows cols)
-           (draw-box! g row col rows cols (if (procedure? title) (title) title))
+           (draw-box! g row col rows cols (now title))
            (let ([right (opt 'right)] [footer (opt 'footer)] [border (UI 'ui.popup.border)])
              (when right
                (put-string! g row (- (+ col cols) 2 (string-length right)) right border))
@@ -89,7 +92,7 @@
       (let ([wrapped (lambda (cols)
                        (apply append
                               (map (lambda (l) (map (lambda (t) (cons t (cdr l))) (wrap-text (car l) (- cols 2))))
-                                   (if (procedure? lines) (lines) lines))))])
+                                   (now lines))))])
         (make-widget
          (lambda (cols) (length (wrapped cols)))
          (lambda (g row col rows cols)
@@ -104,21 +107,19 @@
   ;; A line of input: prefix (in prefix-face), then text (in face), the
   ;; cursor at index cursor of it. Each may be a thunk.
   (define (input-line prefix prefix-face text cursor face)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))])
-      (make-widget
-       (lambda (cols) 1)
-       (lambda (g row col rows cols)
-         (let* ([text (now text)]
-                [c (put-string! g row (+ col 1) (now prefix) prefix-face)])
-           (put-string! g row c text face (+ col cols -1))
-           (list row (+ c (string-width (substring text 0 (min (now cursor) (string-length text))))) 'bar))))))
+    (make-widget
+     (lambda (cols) 1)
+     (lambda (g row col rows cols)
+       (let* ([text (now text)]
+              [c (put-string! g row (+ col 1) (now prefix) prefix-face)])
+         (put-string! g row c text face (+ col cols -1))
+         (list row (+ c (string-width (substring text 0 (min (now cursor) (string-length text))))) 'bar)))))
 
   ;; Text being written, wrapping, a line at most, at least min-rows and at
   ;; most max-rows of it shown, scrolled to keep the cursor in view; hint
   ;; (in hint-face) while there is none. text and cursor may be thunks.
   (define (text-area text cursor face hint hint-face min-rows max-rows)
-    (let* ([now (lambda (x) (if (procedure? x) (x) x))]
-           [starts (lambda (cols) (list->vector (wrap-starts (now text) (- cols 2))))])
+    (let ([starts (lambda (cols) (list->vector (wrap-starts (now text) (- cols 2))))])
       (make-widget
        (lambda (cols) (max 1 (min (max min-rows (vector-length (starts cols))) max-rows)))
        (lambda (g row col rows cols)
@@ -162,8 +163,7 @@
     (case-lambda
      [(items index) (item-list items index '())]
      [(items index options)
-      (let* ([now (lambda (x) (if (procedure? x) (x) x))]
-             [opt (lambda (k d) (let ([v (assq k options)]) (if v (cdr v) d)))]
+      (let* ([opt (lambda (k d) (let ([v (assq k options)]) (if v (cdr v) d)))]
              [scroll (opt 'scroll 'follow)] [style (opt 'style 'boxed)] [empty (opt 'empty #f)])
         (make-widget
          (lambda (cols) (max (if empty 1 0) (length (now items))))
@@ -223,15 +223,20 @@
     (make-widget
      (lambda (cols) (apply + (map (lambda (p) (or (car p) (widget-rows (cdr p) cols))) parts)))
      (lambda (g row col rows cols)
-       (let* ([fixed (apply + (map (lambda (p) (or (car p) 0)) parts))]
-              [flexible (length (filter (lambda (p) (not (car p))) parts))]
-              [share (if (zero? flexible) 0 (quotient (max 0 (- rows fixed)) flexible))])
-         (let loop ([ps parts] [r row] [cursor #f])
-           (if (or (null? ps) (>= r (+ row rows)))
-               cursor
-               (let* ([h (min (or (car (car ps)) share) (- (+ row rows) r))]
-                      [c (widget-draw! (cdr (car ps)) g r col h cols)])
-                 (loop (cdr ps) (+ r h) (or c cursor)))))))))
+       (let loop ([ps parts] [hs (part-sizes parts rows)] [r row] [cursor #f])
+         (if (or (null? ps) (>= r (+ row rows)))
+             cursor
+             (let* ([h (min (car hs) (- (+ row rows) r))]
+                    [c (widget-draw! (cdr (car ps)) g r col h cols)])
+               (loop (cdr ps) (cdr hs) (+ r h) (or c cursor))))))))
+
+  ;; The sizes of parts, each (size . widget), in total: those with no
+  ;; size of their own share what the others leave.
+  (define (part-sizes parts total)
+    (let* ([fixed (apply + (map (lambda (p) (or (car p) 0)) parts))]
+           [flexible (length (filter (lambda (p) (not (car p))) parts))]
+           [share (if (zero? flexible) 0 (quotient (max 0 (- total fixed)) flexible))])
+      (map (lambda (p) (or (car p) share)) parts)))
 
   ;; Widgets one above another, each as tall as it wants at the width, as
   ;; far as there is room.
@@ -253,11 +258,7 @@
   ;; (cols . widget), cols a number or
   ;; #f, the #f ones sharing what the others leave. As tall as the tallest.
   (define (beside . parts)
-    (let ([widths (lambda (cols)
-                    (let* ([fixed (apply + (map (lambda (p) (or (car p) 0)) parts))]
-                           [flexible (length (filter (lambda (p) (not (car p))) parts))]
-                           [share (if (zero? flexible) 0 (quotient (max 0 (- cols fixed)) flexible))])
-                      (map (lambda (p) (or (car p) share)) parts)))])
+    (let ([widths (lambda (cols) (part-sizes parts cols))])
       (make-widget
        (lambda (cols) (apply max 0 (map (lambda (p w) (widget-rows (cdr p) w)) parts (widths cols))))
        (lambda (g row col rows cols)
@@ -306,33 +307,32 @@
   ;; of cells, each a string or (string . face); the one at index selected
   ;; (#f: none), kept in view. rows and index may be thunks.
   (define (table columns rows index)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))])
-      (make-widget
-       (lambda (cols) (+ 1 (length (now rows))))
-       (lambda (g row col height cols)
-         (let* ([rows (now rows)] [index (now index)]
-                [widths (map (lambda (c i)
-                               (or (cadr c)
-                                   (apply max (string-width (car c))
-                                          (map (lambda (r) (string-width (cell-text (list-ref r i)))) rows))))
-                             columns (iota (length columns)))]
-                [draw-row
-                 (lambda (r cells base)
-                   (fill-row! g r col (+ col cols) base)
-                   (let loop ([cs cells] [specs columns] [ws widths] [c (+ col 1)])
-                     (when (and (pair? cs) (pair? specs) (< c (+ col cols)))
-                       (let* ([text (cell-text (car cs))] [w (car ws)]
-                              [x (if (eq? (caddr (car specs)) 'right) (+ c (max 0 (- w (string-width text)))) c)])
-                         (put-string! g r x text (cell-face (car cs) base) (min (+ c w) (+ col cols)))
-                         (loop (cdr cs) (cdr specs) (cdr ws) (+ c w 2))))))]
-                [shown (max 0 (- height 1))]
-                [first (if index (list-window 'follow (length rows) index shown) 0)])
-           (draw-row row (map car columns) (face-merge (UI 'ui.menu) (F 'ui.text.focus)))
-           (let loop ([rs (drop rows (min first (length rows)))] [i first] [r (+ row 1)])
-             (when (and (pair? rs) (< r (+ row height)))
-               (draw-row r (car rs) (UI (if (eqv? i index) 'ui.menu.selected 'ui.menu)))
-               (loop (cdr rs) (+ i 1) (+ r 1)))))
-         #f))))
+    (make-widget
+     (lambda (cols) (+ 1 (length (now rows))))
+     (lambda (g row col height cols)
+       (let* ([rows (now rows)] [index (now index)]
+              [widths (map (lambda (c i)
+                             (or (cadr c)
+                                 (apply max (string-width (car c))
+                                        (map (lambda (r) (string-width (cell-text (list-ref r i)))) rows))))
+                           columns (iota (length columns)))]
+              [draw-row
+               (lambda (r cells base)
+                 (fill-row! g r col (+ col cols) base)
+                 (let loop ([cs cells] [specs columns] [ws widths] [c (+ col 1)])
+                   (when (and (pair? cs) (pair? specs) (< c (+ col cols)))
+                     (let* ([text (cell-text (car cs))] [w (car ws)]
+                            [x (if (eq? (caddr (car specs)) 'right) (+ c (max 0 (- w (string-width text)))) c)])
+                       (put-string! g r x text (cell-face (car cs) base) (min (+ c w) (+ col cols)))
+                       (loop (cdr cs) (cdr specs) (cdr ws) (+ c w 2))))))]
+              [shown (max 0 (- height 1))]
+              [first (if index (list-window 'follow (length rows) index shown) 0)])
+         (draw-row row (map car columns) (face-merge (UI 'ui.menu) (F 'ui.text.focus)))
+         (let loop ([rs (drop rows (min first (length rows)))] [i first] [r (+ row 1)])
+           (when (and (pair? rs) (< r (+ row height)))
+             (draw-row r (car rs) (UI (if (eqv? i index) 'ui.menu.selected 'ui.menu)))
+             (loop (cdr rs) (+ i 1) (+ r 1)))))
+       #f)))
 
   ;; The rows a tree shows: each root, and under each node open? says is
   ;; open its children, (children node) a list, as (guides label node) each:
@@ -352,63 +352,60 @@
   ;; the guides in face guide-face, a closed node with children marked ▸,
   ;; an open one ▾ (has-children? says which have).
   (define (tree rows index has-children? open?)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))])
-      (make-widget
-       (lambda (cols) (length (now rows)))
-       (lambda (g row col height cols)
-         (let* ([rows (now rows)] [index (now index)]
-                [first (if index (list-window 'follow (length rows) index height) 0)])
-           (let loop ([rs (drop rows (min first (length rows)))] [i first] [r row])
-             (when (and (pair? rs) (< r (+ row height)))
-               (let* ([x (car rs)] [base (UI (if (eqv? i index) 'ui.menu.selected 'ui.menu))]
-                      [mark (cond [(not (has-children? (caddr x))) "  "] [(open? (caddr x)) "▾ "] [else "▸ "])])
-                 (fill-row! g r col (+ col cols) base)
-                 (let* ([c (put-string! g r (+ col 1) (car x) (face-merge base (F 'ui.text.dim)) (+ col cols))]
-                        [c (put-string! g r c mark (face-merge base (F 'ui.popup.key)) (+ col cols))])
-                   (put-string! g r c (cell-text (cadr x)) (cell-face (cadr x) base) (+ col cols))))
-               (loop (cdr rs) (+ i 1) (+ r 1)))))
-         #f))))
+    (make-widget
+     (lambda (cols) (length (now rows)))
+     (lambda (g row col height cols)
+       (let* ([rows (now rows)] [index (now index)]
+              [first (if index (list-window 'follow (length rows) index height) 0)])
+         (let loop ([rs (drop rows (min first (length rows)))] [i first] [r row])
+           (when (and (pair? rs) (< r (+ row height)))
+             (let* ([x (car rs)] [base (UI (if (eqv? i index) 'ui.menu.selected 'ui.menu))]
+                    [mark (cond [(not (has-children? (caddr x))) "  "] [(open? (caddr x)) "▾ "] [else "▸ "])])
+               (fill-row! g r col (+ col cols) base)
+               (let* ([c (put-string! g r (+ col 1) (car x) (face-merge base (F 'ui.text.dim)) (+ col cols))]
+                      [c (put-string! g r c mark (face-merge base (F 'ui.popup.key)) (+ col cols))])
+                 (put-string! g r c (cell-text (cadr x)) (cell-face (cadr x) base) (+ col cols))))
+             (loop (cdr rs) (+ i 1) (+ r 1)))))
+       #f)))
 
   ;; A row of tabs, titles, the one at index current.
   (define (tabs titles index)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))])
-      (make-widget
-       (lambda (cols) 1)
-       (lambda (g row col rows cols)
-         (fill-row! g row col (+ col cols) (UI 'ui.statusline))
-         (let loop ([ts (now titles)] [i 0] [c col])
-           (when (and (pair? ts) (< c (+ col cols)))
-             (let ([next (put-string! g row c (string-append " " (car ts) " ")
-                                      (UI (if (= i (now index)) 'ui.statusline.normal 'ui.statusline))
-                                      (+ col cols))])
-               (loop (cdr ts) (+ i 1) next))))
-         #f))))
+    (make-widget
+     (lambda (cols) 1)
+     (lambda (g row col rows cols)
+       (fill-row! g row col (+ col cols) (UI 'ui.statusline))
+       (let loop ([ts (now titles)] [i 0] [c col])
+         (when (and (pair? ts) (< c (+ col cols)))
+           (let ([next (put-string! g row c (string-append " " (car ts) " ")
+                                    (UI (if (= i (now index)) 'ui.statusline.normal 'ui.statusline))
+                                    (+ col cols))])
+             (loop (cdr ts) (+ i 1) next))))
+       #f)))
 
   ;; ---------------------------------------------------------------------------
   ;; Progress
 
   ;; A bar filled to fraction (0 to 1; a thunk, too), with label after it.
   (define (progress fraction label)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))])
-      (make-widget
-       (lambda (cols) 1)
-       (lambda (g row col rows cols)
-         (let* ([text (let ([l (now label)]) (if l (string-append " " l) ""))]
-                [bar (max 1 (- cols 2 (string-width text)))]
-                [f (max 0 (min 1 (now fraction)))]
-                ;; Eighths of a cell, as block elements draw them.
-                [eighths (exact (round (* f bar 8)))])
-           (do ([i 0 (+ i 1)]) ((= i bar))
-             (let ([e (max 0 (min 8 (- eighths (* i 8))))])
-               (put! g row (+ col 1 i)
-                     (if (= e 0) #\x2591 (string-ref "▏▎▍▌▋▊▉█" (- e 1)))
-                     (UI (if (= e 0) 'ui.text.dim 'ui.popup.key)))))
-           (put-string! g row (+ col 1 bar) text (UI 'ui.popup) (+ col cols)))
-         #f))))
+    (make-widget
+     (lambda (cols) 1)
+     (lambda (g row col rows cols)
+       (let* ([text (let ([l (now label)]) (if l (string-append " " l) ""))]
+              [bar (max 1 (- cols 2 (string-width text)))]
+              [f (max 0 (min 1 (now fraction)))]
+              ;; Eighths of a cell, as block elements draw them.
+              [eighths (exact (round (* f bar 8)))])
+         (do ([i 0 (+ i 1)]) ((= i bar))
+           (let ([e (max 0 (min 8 (- eighths (* i 8))))])
+             (put! g row (+ col 1 i)
+                   (if (= e 0) #\x2591 (string-ref "▏▎▍▌▋▊▉█" (- e 1)))
+                   (UI (if (= e 0) 'ui.text.dim 'ui.popup.key)))))
+         (put-string! g row (+ col 1 bar) text (UI 'ui.popup) (+ col cols)))
+       #f)))
 
   ;; Something happening: a turning mark (by the time), then label.
   (define (spinner label)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))] [frames "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"])
+    (let ([frames "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"])
       (make-widget
        (lambda (cols) 1)
        (lambda (g row col rows cols)
@@ -421,20 +418,19 @@
   ;; first) it shows; nothing when it shows them all. first and total may
   ;; be thunks.
   (define (scrollbar w first total)
-    (let ([now (lambda (x) (if (procedure? x) (x) x))])
-      (make-widget
-       (lambda (cols) (widget-rows w (- cols 1)))
-       (lambda (g row col rows cols)
-         (let ([cursor (widget-draw! w g row col rows (- cols 1))]
-               [total (now total)] [first (now first)])
-           (when (> total rows)
-             (let* ([size (max 1 (quotient (* rows rows) total))]
-                    [at (min (- rows size) (quotient (* first rows) total))])
-               (do ([r 0 (+ r 1)]) ((= r rows))
-                 (put! g (+ row r) (+ col cols -1)
-                       (if (<= at r (+ at size -1)) #\x2503 #\x2502)
-                       (UI (if (<= at r (+ at size -1)) 'ui.popup.key 'ui.popup.border))))))
-           cursor)))))
+    (make-widget
+     (lambda (cols) (widget-rows w (- cols 1)))
+     (lambda (g row col rows cols)
+       (let ([cursor (widget-draw! w g row col rows (- cols 1))]
+             [total (now total)] [first (now first)])
+         (when (> total rows)
+           (let* ([size (max 1 (quotient (* rows rows) total))]
+                  [at (min (- rows size) (quotient (* first rows) total))])
+             (do ([r 0 (+ r 1)]) ((= r rows))
+               (put! g (+ row r) (+ col cols -1)
+                     (if (<= at r (+ at size -1)) #\x2503 #\x2502)
+                     (UI (if (<= at r (+ at size -1)) 'ui.popup.key 'ui.popup.border))))))
+         cursor))))
 
   ;; ---------------------------------------------------------------------------
   ;; Controls: what forms are made of (form.sls), each drawn focused or not

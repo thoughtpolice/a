@@ -213,7 +213,9 @@ struct GlyphVertex
     float2 texcoord : TEXCOORD0;                // em-space sample coordinates
     nointerpolation float4 banding : TEXCOORD1; // band scale and offset, constant over the glyph
     nointerpolation uint4 glyph : TEXCOORD2;    // (location, band max x, band max y, 0)
-    nointerpolation float4 background : COLOR1;
+    // The background's luminance, and it unlinearized: the same over the
+    // glyph, so worked out once for it.
+    nointerpolation float2 background : COLOR1;
 };
 
 // The quad is the glyph's bounds, already a pixel wider on each side for
@@ -228,7 +230,8 @@ GlyphVertex glyphVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID
     output.position = clipPosition(glyph.rect.xy + c * glyph.rect.zw);
     output.texcoord = lerp(glyph.em.xy, glyph.em.zw, c);
     output.color = unpackColor(glyph.color);
-    output.background = unpackColor(glyph.background | 0xFF000000);
+    float bg = luminance(unpackColor(glyph.background | 0xFF000000).rgb);
+    output.background = float2(bg, unlinearize(bg));
     output.banding = glyph.banding;
     output.glyph = uint4(glyph.location, glyph.bandMax & 0xFFFF, glyph.bandMax >> 16, 0);
     return output;
@@ -492,10 +495,10 @@ float4 glyphFragment(GlyphVertex input) : SV_Target0
     if (params.linear != 0)
     {
         float fg = luminance(ink);
-        float bg = luminance(input.background.rgb);
+        float bg = input.background.x;
         if (abs(fg - bg) > 0.001)
         {
-            float blended = linearize(unlinearize(fg) * a + unlinearize(bg) * (1.0 - a));
+            float blended = linearize(unlinearize(fg) * a + input.background.y * (1.0 - a));
             a = saturate((blended - bg) / (fg - bg));
         }
     }

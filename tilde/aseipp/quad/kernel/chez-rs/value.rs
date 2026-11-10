@@ -264,33 +264,16 @@ impl<'s> Value<'s> {
         })
     }
 
-    /// A bytevector's bytes, to write.
-    ///
-    /// # Safety
-    ///
-    /// Nothing else may read or write the bytevector's bytes while the slice
-    /// is live: Scheme values are shared, so two copies of one value would
-    /// give two slices.
-    pub unsafe fn bytes_mut(self) -> Option<&'s mut [u8]> {
-        self.is_bytevector().then(|| unsafe {
-            let n = sys::chez_bytevector_length(self.raw) as usize;
-            if n == 0 {
-                &mut [][..]
-            } else {
-                std::slice::from_raw_parts_mut(sys::chez_bytevector_data(self.raw), n)
-            }
-        })
-    }
-
     /// A string's characters, as UTF-8.
     pub fn string(self) -> Option<String> {
         self.is_string().then(|| {
-            let n = unsafe { sys::chez_string_length(self.raw) };
-            (0..n)
-                .map(|i| {
-                    char::from_u32(unsafe { sys::chez_string_ref(self.raw, i) })
-                        .unwrap_or('\u{fffd}')
-                })
+            let n = unsafe { sys::chez_string_length(self.raw) } as usize;
+            let mut chars = vec![0u32; n];
+            // SAFETY: a string of `n` characters, and room for them.
+            unsafe { sys::chez_string_chars(self.raw, chars.as_mut_ptr()) };
+            chars
+                .into_iter()
+                .map(|c| char::from_u32(c).unwrap_or('\u{fffd}'))
                 .collect()
         })
     }
@@ -383,8 +366,11 @@ impl Scope {
     pub fn cons<'a>(&'a self, car: Value<'a>, cdr: Value<'a>) -> Value<'a> {
         self.wrap(unsafe { sys::Scons(car.raw, cdr.raw) })
     }
-    pub fn list<'a>(&'a self, items: impl IntoIterator<Item = Value<'a>>) -> Value<'a> {
-        let items: Vec<_> = items.into_iter().collect();
+    pub fn list<'a, I>(&'a self, items: I) -> Value<'a>
+    where
+        I: IntoIterator<Item = Value<'a>>,
+        I::IntoIter: DoubleEndedIterator,
+    {
         items
             .into_iter()
             .rev()

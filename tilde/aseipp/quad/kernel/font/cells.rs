@@ -58,12 +58,18 @@ impl<'t> Cell<'t> {
     }
 }
 
+/// The cells of `cells` ([`CELL_BYTES`] each, with their texts in `text`)
+/// that read as cells.
+pub(super) fn parse_all<'t>(cells: &[u8], text: &'t [u8]) -> impl Iterator<Item = Cell<'t>> {
+    cells
+        .chunks_exact(CELL_BYTES)
+        .filter_map(move |b| Cell::parse(b, text))
+}
+
 /// The characters of `cells` ([`CELL_BYTES`] each, with their texts in
 /// `text`): each one's column, width in cells, and text.
 pub fn characters(cells: &[u8], text: &[u8]) -> Vec<(u32, u32, String)> {
-    cells
-        .chunks_exact(CELL_BYTES)
-        .filter_map(|b| Cell::parse(b, text))
+    parse_all(cells, text)
         .map(|c| (c.col, c.width, c.text.to_string()))
         .collect()
 }

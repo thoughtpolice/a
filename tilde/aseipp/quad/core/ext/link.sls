@@ -115,24 +115,41 @@
   ;; The links on buffer b's lines from first to last: (start end url
   ;; face) lists, positions in the buffer.
   (define (lines-links b first last)
+    (let loop ([line first] [acc '()])
+      (if (> line last)
+          acc
+          (loop (+ line 1)
+                (fold-left (lambda (acc l)
+                             (cons (list (car l) (cadr l) (caddr l) (link-face (caddr l) (face-ref (cadddr l))))
+                                   acc))
+                           acc (line-links b line))))))
+
+  ;; The links on line `line` of buffer b, as (start end url face-name):
+  ;; found once for each version of the text (and path, which relative
+  ;; links are from, and mode, whose finder finds them), as the lines are
+  ;; drawn every frame. (Their faces are not kept, which a theme changes.)
+  (define (line-links b line)
     (let* ([t (buffer-text b)]
-           [finder (hashtable-ref finders (major-mode-name (buffer-major-mode b)) #f)])
-      (let loop ([line first] [acc '()])
-        (if (> line last)
-            acc
-            (let* ([s (text-line-start t line)]
-                   [str (text-substring t s (text-line-end t line))]
-                   [found (append
-                           (map (lambda (u) (list (car u) (cadr u) (caddr u) 'ui.link)) (find-urls str))
-                           (if finder (guard (e [#t '()]) (finder str)) '()))])
-              (loop (+ line 1)
-                    (fold-left
-                     (lambda (acc l)
-                       (let ([url (resolve b (caddr l))])
-                         (if url
-                             (cons (list (+ s (car l)) (+ s (cadr l)) url (link-face url (face-ref (cadddr l)))) acc)
-                             acc)))
-                     acc found)))))))
+           [stamp (list (text-version t) (buffer-path b) (buffer-major-mode b))]
+           [kept (let ([k (buffer-local b 'links #f)])
+                   (if (and k (equal? (car k) stamp))
+                       (cdr k)
+                       (let ([h (make-eqv-hashtable)])
+                         (buffer-local-set! b 'links (cons stamp h))
+                         h)))])
+      (or (hashtable-ref kept line #f)
+          (let* ([finder (hashtable-ref finders (major-mode-name (buffer-major-mode b)) #f)]
+                 [s (text-line-start t line)]
+                 [str (text-substring t s (text-line-end t line))]
+                 [found (append
+                         (map (lambda (u) (list (car u) (cadr u) (caddr u) 'ui.link)) (find-urls str))
+                         (if finder (guard (e [#t '()]) (finder str)) '()))]
+                 [links (filter-map (lambda (l)
+                                      (let ([url (resolve b (caddr l))])
+                                        (and url (list (+ s (car l)) (+ s (cadr l)) url (cadddr l)))))
+                                    found)])
+            (hashtable-set! kept line links)
+            links))))
 
   ;; The links between positions start and end of buffer b.
   (define (buffer-links b start end)
@@ -190,24 +207,6 @@
 
   ;; ---------------------------------------------------------------------------
   ;; Following links
-
-  (define (hex-digit c) (and c (string->number (string c) 16)))
-
-  ;; %XX escapes decoded, as UTF-8.
-  (define (percent-decode s)
-    (let ([n (string-length s)])
-      (if (not (string-index s #\%))
-          s
-          (let-values ([(out extract) (open-bytevector-output-port)])
-            (let loop ([i 0])
-              (when (< i n)
-                (let ([c (string-ref s i)])
-                  (if (and (char=? c #\%) (< (+ i 2) n)
-                           (hex-digit (string-ref s (+ i 1))) (hex-digit (string-ref s (+ i 2))))
-                      (begin (put-u8 out (+ (* 16 (hex-digit (string-ref s (+ i 1)))) (hex-digit (string-ref s (+ i 2)))))
-                             (loop (+ i 3)))
-                      (begin (put-bytevector out (string->utf8 (string c))) (loop (+ i 1)))))))
-            (utf8->string (extract))))))
 
   ;; A file: URL's path and line (from #Ln or #n), or #f for another URL.
   (define (file-link-path url)

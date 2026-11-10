@@ -9,7 +9,7 @@
 //! errors and panics become Scheme errors. The kernel registers them at boot
 //! by calling [`quad_native_register`].
 //!
-//! Components that run threads of their own -- iroh (mesh.rs), GUI windows
+//! Components that run threads of their own -- iroh (mesh/), GUI windows
 //! (gui/) -- hand Scheme
 //! an object holding a [`Mailbox`], whose file descriptor the editor's event
 //! loop polls; the ticker below is the smallest such component.
@@ -29,7 +29,6 @@ use chez::{ByteVec, Bytes, Mailbox, Object, Ref, RefMut};
 
 use quad_diff as diff;
 use quad_files as files;
-use quad_font as font;
 use quad_fx as fx;
 use quad_gui as gui;
 use quad_gui::screen;
@@ -122,6 +121,30 @@ impl Drop for Process {
     }
 }
 
+/// A command to run `argv` (the program, then its arguments, searched for
+/// in PATH) in directory `cwd` (None: the editor's); `who` is the native
+/// that asks, for its error.
+fn command(who: &str, argv: &[String], cwd: Option<String>) -> Result<Command, String> {
+    let (program, args) = argv
+        .split_first()
+        .ok_or_else(|| format!("{who}: an empty command"))?;
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    Ok(cmd)
+}
+
+/// An exit status as Scheme has it: the code, or a signal's number,
+/// negated, if one killed it.
+fn status_number(status: std::process::ExitStatus) -> i32 {
+    use std::os::unix::process::ExitStatusExt;
+    status
+        .code()
+        .unwrap_or_else(|| -status.signal().unwrap_or(0))
+}
+
 /// Run `argv` (the program, then its arguments, searched for in PATH) in
 /// directory `cwd` (#f: the editor's), its standard error appended to the
 /// file `stderr` (#f: discarded).
@@ -131,14 +154,8 @@ fn spawn_process(
     cwd: Option<String>,
     stderr: Option<String>,
 ) -> Result<Object<Process>, String> {
-    let (program, args) = argv
-        .split_first()
-        .ok_or("spawn-process: an empty command")?;
-    let mut cmd = Command::new(program);
-    cmd.args(args).stdin(Stdio::piped()).stdout(Stdio::piped());
-    if let Some(dir) = cwd {
-        cmd.current_dir(dir);
-    }
+    let mut cmd = command("spawn-process", &argv, cwd)?;
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     cmd.stderr(match stderr {
         Some(path) => File::options()
             .create(true)
@@ -148,7 +165,7 @@ fn spawn_process(
             .into(),
         None => Stdio::null(),
     });
-    let mut child = cmd.spawn().map_err(|e| format!("{program}: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("{}: {e}", argv[0]))?;
     let stdin = child.stdin.take();
     let stdout = child.stdout.take().expect("stdout is piped");
     Ok(Object(Process {
@@ -207,16 +224,12 @@ fn timing_mark(step: String) {
 /// zombie.
 #[chez::procedure(name = "launch-process")]
 fn launch_process(argv: Vec<String>) -> Result<(), String> {
-    let (program, args) = argv
-        .split_first()
-        .ok_or("launch-process: an empty command")?;
-    let mut child = Command::new(program)
-        .args(args)
+    let mut child = command("launch-process", &argv, None)?
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("{program}: {e}"))?;
+        .map_err(|e| format!("{}: {e}", argv[0]))?;
     std::thread::spawn(move || {
         let _ = child.wait();
     });
@@ -258,15 +271,8 @@ fn command_start(
     cwd: Option<String>,
     env: Vec<String>,
 ) -> Result<Object<Run>, String> {
-    use std::os::unix::process::ExitStatusExt;
-    let (program, args) = argv
-        .split_first()
-        .ok_or("command-start: an empty command")?;
-    let mut cmd = Command::new(program);
-    cmd.args(args).stdin(Stdio::null());
-    if let Some(dir) = cwd {
-        cmd.current_dir(dir);
-    }
+    let mut cmd = command("command-start", &argv, cwd)?;
+    cmd.stdin(Stdio::null());
     for kv in &env {
         let (k, v) = kv
             .split_once('=')
@@ -274,14 +280,11 @@ fn command_start(
         cmd.env(k, v);
     }
     let (tx, done) = Mailbox::new().map_err(|e| e.to_string())?;
-    let program = program.clone();
+    let program = argv[0].clone();
     std::thread::spawn(move || {
         let _ = tx.send(match cmd.output() {
             Ok(o) => RunDone {
-                status: o
-                    .status
-                    .code()
-                    .unwrap_or_else(|| -o.status.signal().unwrap_or(0)),
+                status: status_number(o.status),
                 out: String::from_utf8_lossy(&o.stdout).into_owned(),
                 err: String::from_utf8_lossy(&o.stderr).into_owned(),
             },
@@ -330,9 +333,8 @@ fn process_close_input(mut p: RefMut<Process>) {
 /// if one killed it), else #f.
 #[chez::procedure]
 fn process_status(mut p: RefMut<Process>) -> Result<Option<i32>, String> {
-    use std::os::unix::process::ExitStatusExt;
     let status = p.child.try_wait().map_err(|e| e.to_string())?;
-    Ok(status.map(|s| s.code().unwrap_or_else(|| -s.signal().unwrap_or(0))))
+    Ok(status.map(status_number))
 }
 
 /// Stop the process: close its input, wait up to `grace-ms` for it to exit,
@@ -343,7 +345,7 @@ fn process_stop(mut p: RefMut<Process>, grace_ms: u64) {
 }
 
 // ---------------------------------------------------------------------------
-// Buffer text (text.rs, for core/text.sls): positions in characters, lines
+// Buffer text (text/, for core/text.sls): positions in characters, lines
 // ending at "\n".
 
 #[chez::procedure(name = "rope-new")]
@@ -401,18 +403,6 @@ fn rope_remove(mut t: RefMut<text::Text>, start: usize, end: usize) {
     t.remove(start, end);
 }
 
-/// Where needle first occurs at or after from, or #f.
-#[chez::procedure]
-fn rope_find_forward(t: Ref<text::Text>, needle: String, from: usize) -> Option<usize> {
-    t.find_forward(&needle, from)
-}
-
-/// Where needle last occurs starting at or before from, or #f.
-#[chez::procedure]
-fn rope_find_backward(t: Ref<text::Text>, needle: String, from: usize) -> Option<usize> {
-    t.find_backward(&needle, from)
-}
-
 /// A search for pattern (a regular expression if regex, else the text
 /// itself), ignoring case with fold: an error says what is wrong with a
 /// pattern that is not one.
@@ -421,7 +411,7 @@ fn search_new(pattern: String, regex: bool, fold: bool) -> Result<Object<search:
     search::Search::new(&pattern, regex, fold).map(Object)
 }
 
-/// The first match at or after pos, as (start end); with wrap, else the
+/// The first match at or after pos, as (start . end); with wrap, else the
 /// first in the text; or #f.
 #[chez::procedure]
 fn search_next(
@@ -429,8 +419,8 @@ fn search_next(
     t: Ref<text::Text>,
     pos: usize,
     wrap: bool,
-) -> Option<Vec<usize>> {
-    s.next(&t, pos, wrap).map(|(a, b)| vec![a, b])
+) -> Option<(usize, usize)> {
+    s.next(&t, pos, wrap)
 }
 
 /// The match starting nearest before pos, or at it; with wrap, else the
@@ -441,18 +431,23 @@ fn search_prev(
     t: Ref<text::Text>,
     pos: usize,
     wrap: bool,
-) -> Option<Vec<usize>> {
-    s.prev(&t, pos, wrap).map(|(a, b)| vec![a, b])
+) -> Option<(usize, usize)> {
+    s.prev(&t, pos, wrap)
 }
 
-/// The matches from start to end, apart: (start end start end ...).
+/// The matches from start to end, apart: ((start . end) ...).
 #[chez::procedure]
-fn search_all(s: Ref<search::Search>, t: Ref<text::Text>, start: usize, end: usize) -> Vec<usize> {
+fn search_all(
+    s: Ref<search::Search>,
+    t: Ref<text::Text>,
+    start: usize,
+    end: usize,
+) -> Vec<(usize, usize)> {
     s.all(&t, start, end)
 }
 
 // ---------------------------------------------------------------------------
-// A project's files (files.rs)
+// A project's files (files/)
 
 /// The files under dir that its ignore files do not ignore, relative to
 /// it, at most limit of them.
@@ -511,11 +506,6 @@ fn diff_base(text: String) -> Object<DiffBase> {
     })
 }
 
-#[chez::procedure(name = "diff-base-line-count")]
-fn diff_base_line_count(b: Ref<DiffBase>) -> usize {
-    b.starts.len()
-}
-
 /// The base's lines from `start`, `count` of them, with their newlines.
 #[chez::procedure(name = "diff-base-lines")]
 fn diff_base_lines(b: Ref<DiffBase>, start: usize, count: usize) -> String {
@@ -530,6 +520,9 @@ fn diff_base_lines(b: Ref<DiffBase>, start: usize, count: usize) -> String {
 /// line has none of its own), so that a hunk at the end can be put back.
 #[chez::procedure(name = "diff-base-block")]
 fn diff_base_block(b: Ref<DiffBase>, start: usize, count: usize) -> String {
+    if count == 0 {
+        return String::new();
+    }
     let n = b.starts.len();
     let start = start.min(n);
     let end = start.saturating_add(count);
@@ -542,14 +535,24 @@ fn diff_base_block(b: Ref<DiffBase>, start: usize, count: usize) -> String {
     }
 }
 
-/// Where the lines of `t` differ from the base's: a list of hunks, each
-/// (old-start old-length new-start new-length) in lines, in order.
+/// Where the lines of `t` differ from the base's: a vector of hunks, each
+/// #(old-start old-length new-start new-length) in lines, in order.
 #[chez::procedure(name = "diff-hunks")]
-fn diff_hunks(b: Ref<DiffBase>, mut t: RefMut<text::Text>) -> Vec<Vec<usize>> {
-    diff::diff(&b.hashes, t.line_hashes())
-        .into_iter()
-        .map(|h| vec![h.old_start, h.old_len, h.new_start, h.new_len])
-        .collect()
+fn diff_hunks(b: Ref<DiffBase>, mut t: RefMut<text::Text>) -> Hunks {
+    Hunks(diff::diff(&b.hashes, t.line_hashes()))
+}
+
+pub struct Hunks(Vec<diff::Hunk>);
+
+impl chez::IntoScheme for Hunks {
+    fn into_scheme(self, s: &chez::Scope) -> chez::Result<chez::Value<'_>> {
+        let n = |x: usize| s.unsigned(x as u64);
+        Ok(s.vector(
+            self.0
+                .iter()
+                .map(|h| s.vector([n(h.old_start), n(h.old_len), n(h.new_start), n(h.new_len)])),
+        ))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -561,18 +564,13 @@ fn fx_easing_names() -> Vec<String> {
     fx::easing_names()
 }
 
-/// The eased progress of `timing` (see fx::Timing::from_numbers) at
-/// `elapsed` milliseconds, or #f for a timing that is not one.
-#[chez::procedure(name = "fx-progress")]
-fn fx_progress(timing: Vec<f64>, elapsed: f64) -> Option<f64> {
-    fx::Timing::from_numbers(&timing).map(|t| t.progress(elapsed))
-}
-
-/// Milliseconds from `elapsed` until `timing`'s progress next changes: 0
-/// while it moves; #f once it is done.
-#[chez::procedure(name = "fx-next-change")]
-fn fx_next_change(timing: Vec<f64>, elapsed: f64) -> Option<f64> {
-    fx::Timing::from_numbers(&timing).and_then(|t| t.next_change(elapsed))
+/// Where `timing` (see fx::Timing::from_numbers) is at `elapsed`
+/// milliseconds: (progress . next), its eased progress and the
+/// milliseconds until that next changes (0 while it moves; #f once it is
+/// done); or #f for a timing that is not one.
+#[chez::procedure(name = "fx-sample")]
+fn fx_sample(timing: Vec<f64>, elapsed: f64) -> Option<(f64, Option<f64>)> {
+    fx::Timing::from_numbers(&timing).map(|t| (t.progress(elapsed), t.next_change(elapsed)))
 }
 
 fn effect_of(kind: u32, params: &[f64], color: u32) -> fx::Effect {
@@ -587,28 +585,37 @@ fn effect_of(kind: u32, params: &[f64], color: u32) -> fx::Effect {
     }
 }
 
-/// Ink `ink` (0xRRGGBB) at (x, y), with the effect `kind` (1, a sheen) of
-/// `params` and `color` at `progress`, over a rectangle `w` by `h`: points
-/// and sizes in cell widths.
-#[chez::procedure(name = "fx-shade")]
+/// The inks of `cols` by `rows` cells with the effect `kind` (1, a sheen)
+/// of `params` and `color` at `progress` over them, each at its cell's
+/// middle, a cell being twice as high as it is wide: `inks`, and what this
+/// gives, are a native u32 0xRRGGBB for each, row by row, and 0xFFFFFFFF
+/// for a cell with none.
+#[chez::procedure(name = "fx-shade-cells")]
 #[allow(clippy::too_many_arguments)]
-fn fx_shade(
+fn fx_shade_cells(
     kind: u32,
     params: Vec<f64>,
     color: u32,
     progress: f64,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
-    ink: u32,
-) -> u32 {
-    effect_of(kind, &params, color).shade(
-        progress as f32,
-        [x as f32, y as f32],
-        [w as f32, h as f32],
-        ink,
-    )
+    cols: usize,
+    rows: usize,
+    inks: Bytes,
+) -> Result<ByteVec, String> {
+    if inks.len() != cols * rows * 4 {
+        return Err("fx-shade-cells: an ink for each cell".into());
+    }
+    let amount =
+        effect_of(kind, &params, color).amounts(progress as f32, [cols as f32, 2.0 * rows as f32]);
+    let mut out = inks.to_vec();
+    for (i, ink) in out.chunks_exact_mut(4).enumerate() {
+        let v = u32::from_ne_bytes(ink.try_into().unwrap());
+        if v != u32::MAX {
+            let (k, r) = ((i % cols) as f32, (i / cols) as f32);
+            let shaded = fx::mix(v, color, amount([k + 0.5, 2.0 * (r + 0.5)]));
+            ink.copy_from_slice(&shaded.to_ne_bytes());
+        }
+    }
+    Ok(ByteVec(out))
 }
 
 /// Cells (`texts`, and `colors`, each one's foreground then background),
@@ -646,12 +653,12 @@ fn fx_raster(
         return Ok(None);
     };
     let rows = texts.len().div_ceil(cols);
-    image::encode((cols * cell_w) as u32, (rows * cell_h) as u32, &rgba)
+    image::encode_fast((cols * cell_w) as u32, (rows * cell_h) as u32, &rgba)
         .map(|png| Some(ByteVec(png)))
 }
 
 // ---------------------------------------------------------------------------
-// Editors and clients over iroh (mesh.rs)
+// Editors and clients over iroh (mesh/)
 
 /// An editor accepting clients over iroh, with a new identity and join
 /// key, and (with `code?`) a new join code it announces itself under, all
@@ -993,11 +1000,11 @@ chez::library! {
     pub fn native() -> "quad native" {
         blake3, version, timing_mark, png_file_write, png_file_read, make_ticker, ticker_fd, ticker_take,
         rope_new, rope_read, rope_length, rope_line_count, rope_line_start, rope_line_end, rope_line_of, rope_slice,
-        rope_insert, rope_remove, rope_find_forward, rope_find_backward,
+        rope_insert, rope_remove,
         search_new, search_next, search_prev, search_all,
         project_files, grep_start, grep_fd, grep_take,
-        diff_base, diff_base_line_count, diff_base_lines, diff_base_block, diff_hunks,
-        fx_easing_names, fx_progress, fx_next_change, fx_shade, fx_raster,
+        diff_base, diff_base_lines, diff_base_block, diff_hunks,
+        fx_easing_names, fx_sample, fx_shade_cells, fx_raster,
         spawn_process, launch_process, process_input_fd, process_output_fd,
         command_start, command_fd, command_take,
         process_close_input, process_status, process_stop,

@@ -29,7 +29,7 @@
     (run-until "the server's text" (lambda () r))
     r))
 
-(define (work-file! name text) (call-with-output-file (path-join work name) (lambda (p) (display text p)) 'replace))
+(define (work-file! name text) (write-file! (path-join work name) text))
 (work-file! ".fakeroot" "")
 (work-file! "a.fake" "def top\n  def inner\nfoo = 1\n😀 bad meh foo\nprint(foo)   \n")
 (work-file! "b.fake" "use foo\n")

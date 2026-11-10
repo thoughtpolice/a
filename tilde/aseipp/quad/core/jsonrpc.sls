@@ -51,7 +51,8 @@
       (unless (memq framing '(lines headers)) (errorf 'jsonrpc-start "unknown framing ~s" framing))
       (let* ([proc (spawn-process argv cwd stderr)]
              [rpc (make-jsonrpc proc #f 1 (make-eqv-hashtable)
-                                on-notification on-request on-exit #vu8() framing)])
+                                on-notification on-request on-exit
+                                (make-incoming (make-bytevector 4096) 0 0) framing)])
         (jsonrpc-source-set! rpc (watch-fd! (process-output-fd proc) (lambda () (readable! rpc))))
         rpc)]))
 
@@ -107,10 +108,11 @@
         (process-stop! (jsonrpc-process rpc) 1000)
         (exited! rpc)]
        [(> (bytevector-length got) 0)
-        (let* ([data (bytevector-append (jsonrpc-partial rpc) got)]
+        (let* ([in (jsonrpc-partial rpc)]
+               [_ (incoming-add! in got)]
                [messages (if (eq? (jsonrpc-framing rpc) 'headers)
-                             (split-framed! rpc data)
-                             (split-lines! rpc data))])
+                             (split-framed! in)
+                             (split-lines! in))])
           ;; Every message is handled, even after one fails; the first
           ;; failure is then raised.
           (let ([failure #f])
@@ -122,30 +124,57 @@
              messages)
             (when failure (raise failure))))])))
 
-  ;; The whole messages in data; what follows the last waits for more.
-  (define (split-lines! rpc data)
-    (let loop ([start 0])
-      (let ([nl (bytevector-index data 10 start)])
-        (if nl
-            (cons (subbytevector data start nl) (loop (+ nl 1)))
-            (begin
-              (jsonrpc-partial-set! rpc (subbytevector data start (bytevector-length data)))
-              '())))))
+  ;; What has come and is not a whole message yet: buf's first len bytes,
+  ;; the first `scanned` of which hold no end of one. A message coming in
+  ;; many reads is copied and searched once, not once a read.
+  (define-record-type incoming (fields (mutable buf) (mutable len) (mutable scanned)))
+
+  (define (incoming-add! in got)
+    (let ([len (incoming-len in)] [n (bytevector-length got)])
+      (when (> (+ len n) (bytevector-length (incoming-buf in)))
+        (let ([new (make-bytevector (max (* 2 (bytevector-length (incoming-buf in))) (+ len n)))])
+          (bytevector-copy! (incoming-buf in) 0 new 0 len)
+          (incoming-buf-set! in new)))
+      (bytevector-copy! got 0 (incoming-buf in) len n)
+      (incoming-len-set! in (+ len n))))
+
+  ;; Messages were taken up to start, and what is from there on was looked
+  ;; through up to scanned: it moves to the front, to wait for more.
+  (define (incoming-keep! in start scanned)
+    (let ([buf (incoming-buf in)] [rest (- (incoming-len in) start)])
+      (unless (zero? start)
+        (bytevector-copy! buf start buf 0 rest))
+      (incoming-len-set! in rest)
+      (incoming-scanned-set! in (max 0 (- scanned start)))))
+
+  ;; The whole messages that have come; what follows the last waits for
+  ;; more. Each is copied out before the rest moves (incoming-keep!).
+  (define (split-lines! in)
+    (let ([buf (incoming-buf in)] [len (incoming-len in)])
+      (let loop ([start 0] [from (incoming-scanned in)])
+        (let ([nl (bytevector-index buf 10 from len)])
+          (if nl
+              (let ([m (subbytevector buf start nl)]) (cons m (loop (+ nl 1) (+ nl 1))))
+              (begin (incoming-keep! in start len) '()))))))
 
   ;; Headers, a blank line, then Content-Length bytes of message.
-  (define (split-framed! rpc data)
-    (let loop ([start 0])
-      (let ([end (bytevector-search data #vu8(13 10 13 10) start)])
-        (let ([length (and end (content-length (utf8->string (subbytevector data start end))))])
+  (define (split-framed! in)
+    (let ([buf (incoming-buf in)] [len (incoming-len in)])
+      (let loop ([start 0] [from (incoming-scanned in)])
+        (let* ([end (bytevector-search buf #vu8(13 10 13 10) (max start from) len)]
+               [length (and end (content-length (utf8->string (subbytevector buf start end))))])
           (cond
            [(and end (not length))
             (errorf 'jsonrpc "a message without a Content-Length: ~s"
-                    (utf8->string (subbytevector data start end)))]
-           [(and end (<= (+ end 4 length) (bytevector-length data)))
-            (cons (subbytevector data (+ end 4) (+ end 4 length)) (loop (+ end 4 length)))]
-           [else
-            (jsonrpc-partial-set! rpc (subbytevector data start (bytevector-length data)))
-            '()])))))
+                    (utf8->string (subbytevector buf start end)))]
+           [(and end (<= (+ end 4 length) len))
+            (let ([m (subbytevector buf (+ end 4) (+ end 4 length))])
+              (cons m (loop (+ end 4 length) (+ end 4 length))))]
+           ;; Its headers are whole, its body not yet: they are found again
+           ;; (a few bytes) once more comes.
+           [end (incoming-keep! in start start) '()]
+           ;; No end of headers yet: the last three bytes may begin one.
+           [else (incoming-keep! in start (max start (- len 3))) '()])))))
 
   (define (content-length headers)
     (exists (lambda (line)
@@ -180,15 +209,15 @@
   ;; ---------------------------------------------------------------------------
   ;; Bytes
 
-  (define (bytevector-index bv byte start)
-    (let ([n (bytevector-length bv)])
-      (let loop ([i start])
-        (cond [(= i n) #f]
-              [(= (bytevector-u8-ref bv i) byte) i]
-              [else (loop (+ i 1))]))))
+  ;; Where byte (or pat) first is in bv from start, before n; or #f.
+  (define (bytevector-index bv byte start n)
+    (let loop ([i start])
+      (cond [(>= i n) #f]
+            [(= (bytevector-u8-ref bv i) byte) i]
+            [else (loop (+ i 1))])))
 
-  (define (bytevector-search bv pat start)
-    (let ([n (bytevector-length bv)] [m (bytevector-length pat)])
+  (define (bytevector-search bv pat start n)
+    (let ([m (bytevector-length pat)])
       (let loop ([i start])
         (cond [(> (+ i m) n) #f]
               [(let match ([j 0]) (or (= j m) (and (= (bytevector-u8-ref bv (+ i j)) (bytevector-u8-ref pat j))

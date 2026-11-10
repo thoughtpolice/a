@@ -6,6 +6,7 @@
 
 use super::*;
 
+// Fields drop in order: the renderer before the window it draws to.
 pub(super) struct Win {
     pub(super) renderer: Renderer,
     /// Shared with its renderer's surface, which draws to it.
@@ -20,7 +21,16 @@ pub(super) struct Win {
     /// compositor; None, everything.
     pub(super) damage: Option<Vec<bool>>,
     pub(super) images: Images,
-    pub(super) pixels: FramePixels,
+    /// The frame last laid out, while what it is laid out from (the
+    /// screen, its fonts and images, the text being composed) is the same:
+    /// a frame of effects moving draws it again with only them new.
+    pub(super) frame: Option<Frame>,
+    /// Where the input method was last told the cursor is: (x, y, width,
+    /// height), in pixels.
+    pub(super) ime_area: Option<[f32; 4]>,
+    /// Whether it draws each frame at once, for snapshots
+    /// (QUAD_GUI_SNAPSHOT), not at the compositor's next frame callback.
+    pub(super) snapshot: bool,
     /// Cells the window holds, (rows, cols), as last told to Scheme.
     pub(super) grid: (u32, u32),
     pub(super) modifiers: ModifiersState,
@@ -47,6 +57,7 @@ impl Win {
     // one can see draws nothing. Snapshots draw at once, since a hidden
     // window gets no callbacks.
     pub(super) fn paint(&mut self, update: Update) {
+        self.frame = None;
         let placed = std::mem::take(&mut self.screen.placements);
         // A whole frame can change what is around the rows too: the
         // padding, in a new background.
@@ -70,7 +81,7 @@ impl Win {
                 *d |= c;
             }
         }
-        if std::env::var_os("QUAD_GUI_SNAPSHOT").is_some() {
+        if self.snapshot {
             self.draw();
         } else {
             self.window.request_redraw();
@@ -92,7 +103,6 @@ impl Win {
         }
         // The grid holds as many cells of the new size as fit.
         self.grid = (0, 0);
-        self.damage = None;
         self.resized(self.window.inner_size());
         self.window.request_redraw();
     }
@@ -115,7 +125,14 @@ impl Win {
             WindowEvent::DroppedFile(path) => {
                 self.send(Event::Dropped(path.to_string_lossy().into_owned()))
             }
-            WindowEvent::Focused(focused) => self.send(Event::Focus(focused)),
+            WindowEvent::Focused(focused) => {
+                // An input method in the window again learns where the
+                // cursor is at the next frame.
+                if focused {
+                    self.ime_area = None;
+                }
+                self.send(Event::Focus(focused))
+            }
             WindowEvent::CursorMoved { position, .. } => self.pointer_moved(position),
             WindowEvent::CursorLeft { .. } => {
                 // A move to a cell past the screen: the pointer is over
@@ -154,6 +171,7 @@ impl Win {
 
     pub(super) fn resized(&mut self, size: PhysicalSize<u32>) {
         self.damage = None;
+        self.frame = None;
         if self.fonts.set_scale(font_scale(self.window.scale_factor())) {
             self.window.request_redraw();
         }
@@ -265,9 +283,13 @@ impl Win {
                 self.preedit.clear();
                 self.type_text(&text, 0, "press");
             }
-            Ime::Enabled | Ime::Disabled => self.preedit.clear(),
+            Ime::Enabled | Ime::Disabled => {
+                self.preedit.clear();
+                self.ime_area = None;
+            }
         }
         self.damage = None;
+        self.frame = None;
         self.window.request_redraw();
     }
 
@@ -321,39 +343,19 @@ impl Win {
     }
 
     pub(super) fn draw(&mut self) {
-        let (mut rects, mut laid) = self.screen.layout(&mut self.fonts);
-        // Text being composed covers the cells after the cursor.
-        if let Some(cursor) = self.screen.cursor.filter(|_| !self.preedit.is_empty()) {
-            let (more_rects, cells, text) = preedit_cells(
-                &self.preedit,
-                cursor,
-                self.screen.foreground,
-                self.screen.background,
-                0,
-            );
-            rects.extend_from_slice(&more_rects);
-            let more = self.fonts.layout(&cells, &text);
-            laid.glyphs.extend_from_slice(&more.glyphs);
-            laid.rects.extend_from_slice(&more.rects);
-            laid.pictures.extend_from_slice(&more.pictures);
-        }
         // The input method's candidates go by the cursor.
         if let Some((row, col)) = self.screen.cursor {
-            let window = &self.window;
             let [w, h] = self.fonts.metrics.cell;
             let pad = self.fonts.metrics.padding;
-            window.set_ime_cursor_area(
-                PhysicalPosition::new(pad + col as f32 * w, pad + row as f32 * h),
-                PhysicalSize::new(w, h),
-            );
+            let area = [pad + col as f32 * w, pad + row as f32 * h, w, h];
+            if self.ime_area != Some(area) {
+                self.ime_area = Some(area);
+                self.window.set_ime_cursor_area(
+                    PhysicalPosition::new(area[0], area[1]),
+                    PhysicalSize::new(w, h),
+                );
+            }
         }
-        let pictures = self.pixels.pictures(
-            &mut self.images,
-            &self.screen.placements,
-            self.fonts.metrics.cell,
-            &self.fonts.colors,
-            &laid.pictures,
-        );
         // The effects where they are now: the window times them itself.
         let since = self
             .screen
@@ -380,18 +382,36 @@ impl Win {
             }
             None => {}
         }
-        let list = DrawList {
-            rects: &rects,
-            pictures: &pictures,
-            pixels: (&self.pixels.pixels, self.pixels.generation),
-            glyphs: &laid.glyphs,
-            decorations: &laid.rects,
-            atlas: &self.fonts.atlas,
-            background: self.screen.background,
-            cell: self.fonts.metrics.cell,
-            origin: [self.fonts.metrics.padding; 2],
-            effects: &effects,
-        };
+        if self.frame.is_none() {
+            // Text being composed covers the cells after the cursor.
+            let preedit = self
+                .screen
+                .cursor
+                .filter(|_| !self.preedit.is_empty())
+                .map(|cursor| {
+                    preedit_cells(
+                        &self.preedit,
+                        cursor,
+                        self.screen.foreground,
+                        self.screen.background,
+                    )
+                });
+            self.frame = Some(Frame::new(
+                &mut self.screen,
+                &mut self.fonts,
+                &mut self.images,
+                preedit,
+                Vec::new(),
+            ));
+        }
+        let frame = self.frame.as_mut().expect("laid out above");
+        frame.effects = effects;
+        let list = frame.list(
+            &self.screen,
+            &self.fonts,
+            &self.images,
+            [self.fonts.metrics.padding; 2],
+        );
         // Before presenting, so that Wayland asks the compositor for the
         // frame callback that paces the next request_redraw.
         self.window.pre_present_notify();
@@ -491,45 +511,74 @@ pub(super) fn damage_bands(
     bands
 }
 
-/// A frame's pictures, and the pixels they show: the images', then the
-/// color glyphs' (font/'s [`Colors`]), which their pictures find from
-/// the start of the fonts' pixels, and so past the images' here.
-#[derive(Default)]
-pub(super) struct FramePixels {
-    /// The generations of the images' and the glyphs' pixels it holds.
-    pub(super) from: Option<(u64, u64)>,
-    pub(super) pixels: Vec<u32>,
-    pub(super) generation: u64,
+/// A frame laid out from a screen: what its [`DrawList`] points at.
+pub(super) struct Frame {
+    rects: Vec<u8>,
+    laid: Layout,
+    /// The images' pictures, then the color glyphs': [`PICTURE_BYTES`]
+    /// each.
+    pictures: Vec<u8>,
+    effects: Vec<u8>,
 }
 
-impl FramePixels {
-    /// The pictures of `placements`' images and of color glyphs (`glyphs`,
-    /// a layout's): [`PICTURE_BYTES`] each, showing [`FramePixels::pixels`].
-    pub(super) fn pictures(
-        &mut self,
+impl Frame {
+    /// `screen` laid out in `fonts`, with `over` drawn on it (rectangles,
+    /// cells and their text, as [`preedit_cells`] gives them), and
+    /// `effects` (quad_fx's, at their progress now).
+    pub(super) fn new(
+        screen: &mut Screen,
+        fonts: &mut Fonts,
         images: &mut Images,
-        placements: &[Placement],
-        cell: [f32; 2],
-        colors: &Colors,
-        glyphs: &[u8],
-    ) -> Vec<u8> {
-        let mut pictures = images.layout(placements, cell);
+        over: Option<(Vec<u8>, Vec<u8>, Vec<u8>)>,
+        effects: Vec<u8>,
+    ) -> Frame {
+        let (mut rects, mut laid) = screen.layout(fonts);
+        if let Some((more_rects, cells, text)) = over {
+            rects.extend_from_slice(&more_rects);
+            laid.append_moved(&fonts.layout(&cells, &text), 0.0, 0.0);
+        }
+        // The color glyphs' pixels follow the images' (DrawList::pixels):
+        // their pictures, which find them from the start of the fonts',
+        // find them past the images'.
+        let mut pictures = images.layout(&screen.placements, fonts.metrics.cell);
         let base = images.pixels.len() as u32;
         let start = pictures.len();
-        pictures.extend_from_slice(glyphs);
+        pictures.extend_from_slice(&laid.pictures);
         for record in pictures[start..].chunks_exact_mut(PICTURE_BYTES) {
             let offset = u32::from_ne_bytes(record[16..20].try_into().unwrap()) + base;
             record[16..20].copy_from_slice(&offset.to_ne_bytes());
         }
-        let from = (images.generation, colors.generation);
-        if self.from != Some(from) {
-            self.pixels.clear();
-            self.pixels.extend_from_slice(&images.pixels);
-            self.pixels.extend_from_slice(&colors.pixels);
-            self.from = Some(from);
-            self.generation += 1;
+        Frame {
+            rects,
+            laid,
+            pictures,
+            effects,
         }
-        pictures
+    }
+
+    /// What draws it, with the grid's top left at `origin` (pixels).
+    pub(super) fn list<'a>(
+        &'a self,
+        screen: &Screen,
+        fonts: &'a Fonts,
+        images: &'a Images,
+        origin: [f32; 2],
+    ) -> DrawList<'a> {
+        DrawList {
+            rects: &self.rects,
+            pictures: &self.pictures,
+            pixels: [
+                (&images.pixels, images.generation),
+                (&fonts.colors.pixels, fonts.colors.generation),
+            ],
+            glyphs: &self.laid.glyphs,
+            decorations: &self.laid.rects,
+            atlas: &fonts.atlas,
+            background: screen.background,
+            cell: fonts.metrics.cell,
+            origin,
+            effects: &self.effects,
+        }
     }
 }
 

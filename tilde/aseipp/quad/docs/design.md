@@ -44,7 +44,7 @@ caused them. Code with no client of its own (`--eval`, `--batch`, the init
 file) runs as the *background* client, which has no connection.
 
 An edit made through one view remaps the selections of every view of that
-buffer (`map-position`), so other clients' cursors follow the text. Undo
+buffer (`position-mapper`), so other clients' cursors follow the text. Undo
 restores the selections of the view that undoes. Each client sees the
 others' cursors (face `ui.cursor.other`), and its status line counts them.
 
@@ -81,7 +81,7 @@ supports.
 
 A transport is anything that delivers a byte stream on a file descriptor.
 The server's loop (`core/server.sls`) polls descriptors through the kernel
-(`quad_poll`), and `serve-stream!` serves a client on any of them:
+(`quad_poll_rw`), and `serve-stream!` serves a client on any of them:
 
 - **in-process**: the terminal client in the editor's own process exchanges
   message lists directly, with no encoding (`tui-attach!`);

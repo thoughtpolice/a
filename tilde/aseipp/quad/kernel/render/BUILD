@@ -9,6 +9,7 @@ load("//aseipp/quad:defs.bzl", "slang_metal", "slang_shader")
 
 DEPS = [
     "//aseipp/quad/kernel/font:font",
+    "//aseipp/quad/kernel/fx:fx",
     "//aseipp/quad/kernel/image:image",
     "//aseipp/quad/kernel/timing:timing",
     "third-party//rust:winit",
@@ -76,5 +77,5 @@ shims.rust_test(
     crate = "quad_render",
     crate_root = "lib.rs",
     mapped_srcs = SHADERS,
-    deps = DEPS + ["third-party//rust:hegeltest"],
+    deps = DEPS,
 )

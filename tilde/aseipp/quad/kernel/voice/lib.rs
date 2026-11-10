@@ -27,7 +27,7 @@
 #[cfg(target_os = "macos")]
 mod coreaudio;
 mod mix;
-pub mod opus;
+mod opus;
 #[cfg(target_os = "linux")]
 mod pulse;
 
@@ -108,7 +108,7 @@ fn state() -> &'static Mutex<State> {
 /// Where Scheme hears that who is talking changed.
 struct Events {
     tx: Sender<u8>,
-    rx: Mutex<Mailbox<u8>>,
+    rx: Mailbox<u8>,
 }
 
 fn events() -> Result<&'static Events, String> {
@@ -116,10 +116,7 @@ fn events() -> Result<&'static Events, String> {
     EVENTS
         .get_or_init(|| {
             let (tx, rx) = Mailbox::new().map_err(|e| e.to_string())?;
-            Ok(Events {
-                tx,
-                rx: Mutex::new(rx),
-            })
+            Ok(Events { tx, rx })
         })
         .as_ref()
         .map_err(Clone::clone)
@@ -127,14 +124,14 @@ fn events() -> Result<&'static Events, String> {
 
 /// The descriptor that is readable when who is talking changes.
 pub fn events_fd() -> Result<i32, String> {
-    Ok(events()?.rx.lock().unwrap().fd())
+    Ok(events()?.rx.fd())
 }
 
 /// Who is talking: the descriptors of links, and [`LOCAL`] for this
 /// process's own person.
 pub fn talking() -> Vec<i32> {
     if let Ok(e) = events() {
-        e.rx.lock().unwrap().take();
+        e.rx.take();
     }
     let s = state().lock().unwrap();
     talking_in(&s)

@@ -38,7 +38,7 @@
    view-top view-top-set! view-left view-left-set! view-sticky-col view-sticky-col-set!
    view-cursor-start? view-cursor-start?-set! view-extending? view-extending?-set!
    view-last-seen view-last-seen-set! view-local view-local-set!
-   attach-view! detach-view! current-edit-view set-current-edit-view! map-position
+   attach-view! detach-view! current-edit-view set-current-edit-view! position-mapper
    ;; regions
    make-region region? region-start region-end region-props region-get
    buffer-regions buffer-add-region! buffer-clear-regions! buffer-set-regions!
@@ -124,24 +124,43 @@
   (define (current-edit-view) the-edit-view)
   (define (set-current-edit-view! v) (set! the-edit-view v))
 
-  ;; Where position p lands after `changes`, sorted (start end text) in the
-  ;; coordinates before them: positions inside a replaced range keep their
-  ;; offset into the replacement, as far as it reaches.
-  (define (map-position changes p)
-    (let loop ([cs changes] [delta 0])
-      (if (null? cs)
-          (+ p delta)
-          (let* ([c (car cs)] [s (car c)] [e (cadr c)] [n (string-length (caddr c))])
-            (cond
-             [(< p s) (+ p delta)]
-             [(< p e) (+ s delta (min (- p s) n))]
-             [else (loop (cdr cs) (+ delta (- n (- e s))))])))))
+  ;; Where positions land after `changes`, sorted (start end text) in the
+  ;; coordinates before them: a procedure from a position to where it
+  ;; lands, each found by a binary search. Positions inside a replaced range
+  ;; keep their offset into the replacement, as far as it reaches.
+  (define (position-mapper changes)
+    (let* ([n (length changes)]
+           [starts (make-vector n)] [lens (make-vector n)]
+           ;; The shift before each change, and the most any change up to
+           ;; it reaches: a position is moved by the first change that
+           ;; reaches past it, and those reaches only grow.
+           [deltas (make-vector n)] [reach (make-vector n)]
+           [total (let loop ([cs changes] [i 0] [delta 0] [most 0])
+                    (if (null? cs)
+                        delta
+                        (let* ([c (car cs)] [s (car c)] [e (cadr c)] [len (string-length (caddr c))])
+                          (vector-set! starts i s)
+                          (vector-set! lens i len)
+                          (vector-set! deltas i delta)
+                          (vector-set! reach i (max most e))
+                          (loop (cdr cs) (+ i 1) (+ delta (- len (- e s))) (max most e)))))])
+      (lambda (p)
+        (let search ([lo 0] [hi n])
+          (if (< lo hi)
+              (let ([mid (quotient (+ lo hi) 2)])
+                (if (< p (vector-ref reach mid)) (search lo mid) (search (+ mid 1) hi)))
+              (if (= lo n)
+                  (+ p total)
+                  (let ([s (vector-ref starts lo)] [delta (vector-ref deltas lo)])
+                    (if (< p s)
+                        (+ p delta)
+                        (+ s delta (min (- p s) (vector-ref lens lo)))))))))))
 
-  (define (remap-views! b changes)
+  (define (remap-views! b mapped)
     (let ([len (buffer-length b)])
       (for-each
        (lambda (v)
-         (let ([m (lambda (p) (clamp (map-position changes p) 0 len))])
+         (let ([m (lambda (p) (clamp (mapped p) 0 len))])
            (view-sels-set! v (map (lambda (s)
                                     (make-sel (m (sel-start s)) (m (sel-end s))
                                               (let ([a (sel-anchor s)]) (and a (cons (m (car a)) (m (cdr a)))))))
@@ -213,12 +232,12 @@
       (let ([r (find (lambda (r) (assq key (region-props r))) (regions-at b pos))])
         (if r (region-get r key) default))]))
 
-  (define (remap-regions! b changes)
+  (define (remap-regions! b mapped)
     (let ([rs (buffer-regions b)])
       (unless (null? rs)
         (for-each (lambda (r)
-                    (region-start-set! r (map-position changes (region-start r)))
-                    (region-end-set! r (map-position changes (region-end r))))
+                    (region-start-set! r (mapped (region-start r)))
+                    (region-end-set! r (mapped (region-end r))))
                   rs)
         (buffer-regions-set! b (sort region<? (filter (lambda (r) (< (region-start r) (region-end r))) rs))))))
 
@@ -254,13 +273,14 @@
   (define (add-change-listener! f) (set! change-listeners (append change-listeners (list f))))
   (define (remove-change-listener! f) (set! change-listeners (remq f change-listeners)))
 
-  ;; Apply changes, each (start end text), to the text: sorted, applied last
-  ;; to first, recorded as a transaction unless `record?` is false. Returns
-  ;; the list of new start positions, in the order the changes were given.
   (define (newlines s)
     (let loop ([i 0] [n 0])
       (if (= i (string-length s)) n (loop (+ i 1) (if (char=? (string-ref s i) #\newline) (+ n 1) n)))))
 
+  ;; Apply changes, each (start end text), to the text: sorted, applied last
+  ;; to first, recorded as a transaction unless `record?` is false (or they
+  ;; change nothing). Returns the list of new start positions, in the order
+  ;; the changes were given.
   (define (apply-changes! b changes record? sels-before)
     (when (buffer-read-only? b) (errorf 'edit "buffer ~a is read-only" (buffer-name b)))
     (let* ([t (buffer-text b)]
@@ -274,10 +294,11 @@
                                            (and (= (car a) (car b)) (< (cadddr a) (cadddr b)))))
                          indexed)]
            [old-texts (map (lambda (c) (text-substring t (car c) (cadr c))) sorted)]
+           ;; The changes, sorted, as (start end text).
+           [cs (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)]
            [result (make-vector (length changes) 0)])
       (unless (null? sorted)
-        (let ([cs (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)])
-          (for-each (lambda (f) (f b cs)) change-listeners)))
+        (for-each (lambda (f) (f b cs)) change-listeners))
       ;; The lines changed, measured in the old text, for the highlighter.
       (let ([lines (and (pair? sorted)
                         (list (text-line-of t (car (car sorted)))
@@ -291,16 +312,17 @@
            (text-insert! t (car c) (caddr c)))
          (reverse sorted))
         (when lines (apply hl-cache-edit! (buffer-hl-cache b) lines)))
-      (let ([changes (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)])
-        (remap-views! b changes)
-        (remap-regions! b changes))
+      (let ([mapped (position-mapper cs)])
+        (remap-views! b mapped)
+        (remap-regions! b mapped))
       ;; New starts: each change shifts the ones after it.
       (let loop ([l sorted] [delta 0])
         (unless (null? l)
           (let ([c (car l)])
             (vector-set! result (cadddr c) (+ (car c) delta))
             (loop (cdr l) (+ delta (- (string-length (caddr c)) (- (cadr c) (car c))))))))
-      (when (and record? (pair? sorted))
+      (when (and record?
+                 (exists (lambda (c) (or (< (car c) (cadr c)) (> (string-length (caddr c)) 0))) sorted))
         (let ([tx (list (map (lambda (c old) (list (car c) old (caddr c))) sorted old-texts)
                         sels-before)])
           (buffer-redo-set! b '())
@@ -350,17 +372,6 @@
   (define (forward-changes tx-changes)
     (map (lambda (c) (list (car c) (+ (car c) (string-length (cadr c))) (caddr c))) tx-changes))
 
-  (define (selection-after changes)
-    ;; Select the text the first change put back.
-    (if (null? changes)
-        #f
-        (let loop ([l changes] [delta 0] [acc '()])
-          (if (null? l)
-              (reverse acc)
-              (let* ([c (car l)] [s (+ (car c) delta)])
-                (loop (cdr l) (+ delta (- (string-length (caddr c)) (- (cadr c) (car c))))
-                      (cons (make-sel s (max (+ s (string-length (caddr c))) (+ s 0))) acc)))))))
-
   ;; Undo a group (coarse) or a single transaction (fine); returns #f when
   ;; there is nothing to undo.
   (define (buffer-undo! b fine?)
@@ -388,11 +399,12 @@
              (buffer-redo-set! b (cdr redo))
              (for-each
               (lambda (tx)
-                (let ([fwd (forward-changes (car tx))])
-                  (apply-changes! b fwd #f #f)
-                  (let ([sels (selection-after fwd)])
-                    (let ([v (edit-view-of b)])
-                      (when (and v sels (pair? sels)) (view-sels-set! v (clamp-sels b sels)))))))
+                ;; What each change put back is selected.
+                (let* ([fwd (forward-changes (car tx))] [starts (apply-changes! b fwd #f #f)]
+                       [v (edit-view-of b)])
+                  (when (and v (pair? fwd))
+                    (view-sels-set! v (clamp-sels b (map (lambda (s c) (make-sel s (+ s (string-length (caddr c)))))
+                                                         starts fwd))))))
               txs)
              (buffer-undo-set! b (cons (reverse txs) (buffer-undo b)))
              #t))))

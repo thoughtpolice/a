@@ -182,13 +182,19 @@
                   (set! offset (+ offset (bytevector-length bytes))))))))
         (values (reverse cells) (text)))))
 
-  (define (cells->bytevector cells)
-    (let ([bv (make-bytevector (* cell-bytes (length cells)))])
-      (let loop ([cs cells] [o 0])
-        (unless (null? cs)
-          (for-each (lambda (v i) (bytevector-u32-native-set! bv (+ o (* 4 i)) v)) (car cs) (iota 7))
-          (loop (cdr cs) (+ o cell-bytes))))
+  ;; Lists of n numbers each, as one bytevector of their native 32-bit
+  ;; words, each written by set (bytevector-u32-native-set!, or s32's).
+  (define (pack-words lists n set)
+    (let ([bv (make-bytevector (* 4 n (length lists)))])
+      (let loop ([ls lists] [o 0])
+        (unless (null? ls)
+          (let fill ([vs (car ls)] [k o])
+            (unless (null? vs) (set bv k (car vs)) (fill (cdr vs) (+ k 4))))
+          (loop (cdr ls) (+ o (* 4 n)))))
       bv))
+
+  (define (cells->bytevector cells)
+    (pack-words cells (quotient cell-bytes 4) bytevector-u32-native-set!))
 
   ;; The colors of cells that leave theirs to the terminal, and the cursor.
   (define (frame-context model)
@@ -224,13 +230,8 @@
   ;; their keys, and five native u32s each -- row, column, rows, columns,
   ;; and the rows of them shown.
   (define (frame-images model)
-    (let* ([images (grid-model-images model)]
-           [bv (make-bytevector (* 20 (length images)))])
-      (let loop ([is images] [o 0])
-        (unless (null? is)
-          (for-each (lambda (v i) (bytevector-u32-native-set! bv (+ o (* 4 i)) v)) (cdar is) (iota 5))
-          (loop (cdr is) (+ o 20))))
-      (values (map car images) bv)))
+    (let ([images (grid-model-images model)])
+      (values (map car images) (pack-words (map cdr images) 5 bytevector-u32-native-set!))))
 
   ;; What a window has been sent of a screen, and what changed since: the
   ;; rows to send at the next flush, the scrolls before them (newest
@@ -281,23 +282,12 @@
                                (let-values ([(cells text) (row-cells model r 0 fg bg cursor 0)])
                                  (list r (row-rects model r 0 fg bg cursor) cells text)))
                              sent)]
-               [index (let ([bv (make-bytevector (* 16 (length encoded)))])
-                        (let loop ([es encoded] [o 0])
-                          (unless (null? es)
-                            (let ([e (car es)])
-                              (for-each (lambda (v i) (bytevector-u32-native-set! bv (+ o (* 4 i)) v))
-                                        (list (car e) (length (cadr e)) (length (caddr e))
-                                              (bytevector-length (cadddr e)))
-                                        (iota 4)))
-                            (loop (cdr es) (+ o 16))))
-                        bv)]
-               [scrolls (let* ([ss (reverse (painter-scrolls p))] [bv (make-bytevector (* 12 (length ss)))])
-                          (let loop ([ss ss] [o 0])
-                            (unless (null? ss)
-                              (for-each (lambda (v i) (bytevector-s32-native-set! bv (+ o (* 4 i)) v))
-                                        (car ss) (iota 3))
-                              (loop (cdr ss) (+ o 12))))
-                          bv)]
+               [index (pack-words (map (lambda (e)
+                                         (list (car e) (length (cadr e)) (length (caddr e))
+                                               (bytevector-length (cadddr e))))
+                                       encoded)
+                                  4 bytevector-u32-native-set!)]
+               [scrolls (pack-words (reverse (painter-scrolls p)) 3 bytevector-s32-native-set!)]
                [text (let-values ([(port extract) (open-bytevector-output-port)])
                        (for-each (lambda (e) (put-bytevector port (cadddr e))) encoded)
                        (extract))])
@@ -516,12 +506,8 @@
            [send (frame-sender fd)]
            [reader (make-frame-reader)]
            [lost? #f])                  ; the editor went without a goodbye
-      (send (list "hello" protocol-version "gui" initial-rows initial-cols (gui-capabilities win)))
-      (send (list "user" (default-user-name)))
-      ;; Paths are the editor's to open, so they go absolute.
-      (for-each (lambda (f)
-                  (send (list "open" (if (string-prefix? "/" f) f (path-join (current-directory) f)) line)))
-                files)
+      (frontend-hello! send "gui" initial-rows initial-cols (gui-capabilities win)
+                       (default-user-name) files line)
       (let loop ()
         (let* ([ready (kernel-poll (list (gui-fd win) fd) -1)]
                [continue?

@@ -42,7 +42,12 @@
                                        (for-each
                                         (lambda (f)
                                           (if (equal? (car f) "hit")
-                                              (set! hits (cons (cdr f) hits))
+                                              ;; Labelled as it comes, once.
+                                              (let ([h (cdr f)])
+                                                (set! hits (cons (cons (format "~a:~a: ~a" (car h) (+ 1 (cadr h))
+                                                                               (string-trim (cadddr h)))
+                                                                       (list (path-join dir (car h)) (cadr h) (caddr h)))
+                                                                 hits)))
                                               (begin
                                                 (set! note (cond [(caddr f) (format "The first ~a matches" (cadr f))]
                                                                  [(= 0 (cadr f)) "No match"]
@@ -52,12 +57,7 @@
                                        (with-client c (lambda () (prompt-refresh! p)))]))))))))
       (define (candidates input)
         (unless (equal? input pattern) (start! input))
-        (append
-         (if note (list (cons note #f)) '())
-         (map (lambda (h)
-                (cons (format "~a:~a: ~a" (car h) (+ 1 (cadr h)) (string-trim (cadddr h)))
-                      (list (path-join dir (car h)) (cadr h) (caddr h))))
-              (reverse hits))))
+        (let ([hits (reverse hits)]) (if note (cons (cons note #f) hits) hits)))
       (set! p (make-prompt (format "Grep ~a" (path-basename (string-trim-right dir))) "" (unfiltered candidates)
                            (lambda (hit)
                              (stop!)

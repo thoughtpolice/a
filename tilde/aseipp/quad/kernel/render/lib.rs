@@ -124,9 +124,10 @@ const HEADLESS_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 pub struct DrawList<'a> {
     pub rects: &'a [u8],
     pub pictures: &'a [u8],
-    /// The pictures' pixels, and their generation: they are copied to the
-    /// GPU when it changes.
-    pub pixels: (&'a [u32], u64),
+    /// The pictures' pixels, in parts (the images', then the color
+    /// glyphs'), each with its generation: the pictures find them end to
+    /// end, and they are copied to the GPU when a generation changes.
+    pub pixels: [(&'a [u32], u64); 2],
     pub glyphs: &'a [u8],
     pub decorations: &'a [u8],
     pub atlas: &'a Atlas,
@@ -140,9 +141,6 @@ pub struct DrawList<'a> {
     /// EFFECT_BYTES each), at their progress now.
     pub effects: &'a [u8],
 }
-
-/// How many bytes gui.slang's Effect is (quad_fx::EFFECT_BYTES).
-const EFFECT_BYTES: usize = 48;
 
 /// What the shaders are given for each draw: `Params` in kernel/render/gui.slang,
 /// Vulkan's push constants and Metal's buffer 0.
@@ -165,24 +163,27 @@ impl Params {
     /// Six addresses, six floats, two u32s, and another address.
     const BYTES: usize = 6 * 8 + 6 * 4 + 2 * 4 + 8;
 
-    fn bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(Self::BYTES);
-        for a in [
+    fn bytes(&self) -> [u8; Self::BYTES] {
+        let addresses = [
             self.rects,
             self.glyphs,
             self.curves,
             self.bands,
             self.pictures,
             self.pixels,
-        ] {
-            out.extend_from_slice(&a.to_ne_bytes());
+        ];
+        let floats = self.cell.iter().chain(&self.viewport).chain(&self.origin);
+        let fields = addresses
+            .iter()
+            .flat_map(|a| a.to_ne_bytes())
+            .chain(floats.flat_map(|f| f.to_ne_bytes()))
+            .chain(self.linear.to_ne_bytes())
+            .chain(self.effect_count.to_ne_bytes())
+            .chain(self.effects.to_ne_bytes());
+        let mut out = [0; Self::BYTES];
+        for (o, b) in out.iter_mut().zip(fields) {
+            *o = b;
         }
-        for f in self.cell.iter().chain(&self.viewport).chain(&self.origin) {
-            out.extend_from_slice(&f.to_ne_bytes());
-        }
-        out.extend_from_slice(&self.linear.to_ne_bytes());
-        out.extend_from_slice(&self.effect_count.to_ne_bytes());
-        out.extend_from_slice(&self.effects.to_ne_bytes());
         out
     }
 }
@@ -191,9 +192,7 @@ impl Params {
 enum Data<'a> {
     Bytes(&'a [u8]),
     Words(&'a [u32]),
-    /// Each item's floats, in order.
-    Floats4(&'a [[f32; 4]]),
-    Words2(&'a [[u32; 2]]),
+    Floats(&'a [f32]),
 }
 
 impl Data<'_> {
@@ -201,8 +200,7 @@ impl Data<'_> {
         match self {
             Data::Bytes(b) => b.len(),
             Data::Words(w) => w.len() * 4,
-            Data::Floats4(f) => f.len() * 16,
-            Data::Words2(w) => w.len() * 8,
+            Data::Floats(f) => f.len() * 4,
         }
     }
 
@@ -214,13 +212,8 @@ impl Data<'_> {
                     o.copy_from_slice(&v.to_ne_bytes());
                 }
             }
-            Data::Floats4(f) => {
-                for (o, v) in out.chunks_exact_mut(4).zip(f.iter().flatten()) {
-                    o.copy_from_slice(&v.to_ne_bytes());
-                }
-            }
-            Data::Words2(w) => {
-                for (o, v) in out.chunks_exact_mut(4).zip(w.iter().flatten()) {
+            Data::Floats(f) => {
+                for (o, v) in out.chunks_exact_mut(4).zip(f.iter()) {
                     o.copy_from_slice(&v.to_ne_bytes());
                 }
             }
@@ -231,8 +224,9 @@ impl Data<'_> {
 // MARK: A frame's data
 
 /// What a frame's draws read on the GPU, by address: buffers the frame
-/// keeps, refilled each time it is drawn (the atlas's curves and bands,
-/// and the pictures' pixels, only when they change).
+/// keeps, refilled each time it is drawn (the atlas's curves and bands
+/// only with what was added to it, and the pictures' pixels only when they
+/// change).
 #[derive(Default)]
 struct Buffers {
     rects: Option<HostBuffer>,
@@ -240,12 +234,13 @@ struct Buffers {
     decorations: Option<HostBuffer>,
     curves: Option<HostBuffer>,
     bands: Option<HostBuffer>,
-    /// The atlas generation `curves` and `bands` hold.
-    atlas: Option<u64>,
+    /// Which atlas `curves` and `bands` hold ([`Atlas::cleared`]), and
+    /// how many of its curves and bands.
+    atlas: Option<(u64, usize, usize)>,
     pictures: Option<HostBuffer>,
     pixels: Option<HostBuffer>,
-    /// The generation of the pixels `pixels` holds.
-    pixels_generation: Option<u64>,
+    /// The generations of the parts of the pixels `pixels` holds.
+    pixels_from: Option<[u64; 2]>,
     effects: Option<HostBuffer>,
 }
 
@@ -265,17 +260,48 @@ struct Draw {
     params: Params,
 }
 
+/// `slot`'s buffer, made again first if it holds fewer than `len` bytes
+/// (the old one dropped before the new one is made).
+fn buffer_for<'s>(
+    device: &Arc<Device>,
+    slot: &'s mut Option<HostBuffer>,
+    len: usize,
+    read: bool,
+) -> Result<&'s mut HostBuffer, String> {
+    if slot.as_ref().is_none_or(|b| b.capacity() < len) {
+        *slot = None;
+        *slot = Some(HostBuffer::new(device, len, read)?);
+    }
+    Ok(slot.as_mut().expect("made above"))
+}
+
 /// Puts `data` in `slot`'s buffer, first making it larger if it does not
 /// fit; returns the buffer's address.
 fn put(device: &Arc<Device>, slot: &mut Option<HostBuffer>, data: Data) -> Result<u64, String> {
     let len = data.len();
-    if slot.as_ref().is_none_or(|b| b.capacity() < len) {
-        *slot = None;
-        *slot = Some(HostBuffer::new(device, len, false)?);
-    }
-    let buffer = slot.as_mut().expect("made above");
+    let buffer = buffer_for(device, slot, len, false)?;
     data.write(buffer.bytes_mut(len));
     Ok(buffer.address())
+}
+
+/// Puts `all` in `slot`'s buffer, which holds all but its `tail` already
+/// if it fits: then only the tail is written.
+fn put_tail(
+    device: &Arc<Device>,
+    slot: &mut Option<HostBuffer>,
+    all: Data,
+    tail: Data,
+) -> Result<(), String> {
+    let len = all.len();
+    match slot {
+        Some(buffer) if buffer.capacity() >= len => {
+            tail.write(&mut buffer.bytes_mut(len)[len - tail.len()..]);
+        }
+        _ => {
+            put(device, slot, all)?;
+        }
+    }
+    Ok(())
 }
 
 impl Buffers {
@@ -293,29 +319,47 @@ impl Buffers {
         let rects = put(device, &mut self.rects, Data::Bytes(list.rects))?;
         let glyphs = put(device, &mut self.glyphs, Data::Bytes(list.glyphs))?;
         let decorations = put(device, &mut self.decorations, Data::Bytes(list.decorations))?;
-        if self.atlas != Some(list.atlas.generation) || self.curves.is_none() {
-            put(device, &mut self.curves, Data::Floats4(&list.atlas.curves))?;
-            put(device, &mut self.bands, Data::Words2(&list.atlas.bands))?;
-            self.atlas = Some(list.atlas.generation);
+        let atlas = list.atlas;
+        let (curves, bands) = (atlas.curves.len(), atlas.bands.len());
+        if self.atlas != Some((atlas.cleared, curves, bands)) {
+            // Between clears the atlas only grows: what was uploaded of it
+            // is still there.
+            let (c, b) = match self.atlas {
+                Some((cleared, c, b)) if cleared == atlas.cleared && c <= curves && b <= bands => {
+                    (c, b)
+                }
+                _ => (0, 0),
+            };
+            put_tail(
+                device,
+                &mut self.curves,
+                Data::Floats(atlas.curves.as_flattened()),
+                Data::Floats(atlas.curves[c..].as_flattened()),
+            )?;
+            put_tail(
+                device,
+                &mut self.bands,
+                Data::Words(atlas.bands.as_flattened()),
+                Data::Words(atlas.bands[b..].as_flattened()),
+            )?;
+            self.atlas = Some((atlas.cleared, curves, bands));
         }
-        let curves = self.curves.as_ref().map_or(0, HostBuffer::address);
-        let bands = self.bands.as_ref().map_or(0, HostBuffer::address);
+        // Each buffer exists once something has been put in it.
+        let curves = self.curves.as_ref().expect("put above").address();
+        let bands = self.bands.as_ref().expect("put above").address();
         let pictures = put(device, &mut self.pictures, Data::Bytes(list.pictures))?;
-        let (pixels, generation) = list.pixels;
-        if self.pixels_generation != Some(generation) || self.pixels.is_none() {
-            put(device, &mut self.pixels, Data::Words(pixels))?;
-            self.pixels_generation = Some(generation);
+        let [(images, image_generation), (colors, color_generation)] = list.pixels;
+        if self.pixels_from != Some([image_generation, color_generation]) {
+            let len = (images.len() + colors.len()) * 4;
+            let out = buffer_for(device, &mut self.pixels, len, false)?.bytes_mut(len);
+            let (first, second) = out.split_at_mut(images.len() * 4);
+            Data::Words(images).write(first);
+            Data::Words(colors).write(second);
+            self.pixels_from = Some([image_generation, color_generation]);
         }
-        let pixels = self.pixels.as_ref().map_or(0, HostBuffer::address);
-        // Never empty, so that there is a buffer to point at.
-        let zero = [0u8; EFFECT_BYTES];
-        let effect_bytes = if list.effects.is_empty() {
-            &zero[..]
-        } else {
-            list.effects
-        };
-        let effects = put(device, &mut self.effects, Data::Bytes(effect_bytes))?;
-        let effect_count = (list.effects.len() / EFFECT_BYTES) as u32;
+        let pixels = self.pixels.as_ref().expect("made above").address();
+        let effects = put(device, &mut self.effects, Data::Bytes(list.effects))?;
+        let effect_count = (list.effects.len() / quad_fx::EFFECT_BYTES) as u32;
         let viewport = [extent[0] as f32, extent[1] as f32];
         // Each draw's instances are at the start of its buffer: the
         // rectangle pipeline reads `rects`, the glyph one `glyphs`, the
@@ -478,8 +522,7 @@ impl Snapshot {
             write_ppm(&self.path, extent, buffer.read(bytes)?, bgra)?;
             return Ok(true);
         }
-        self.buffer = None;
-        self.buffer = Some(HostBuffer::new(device, bytes, true)?);
+        buffer_for(device, &mut self.buffer, bytes, true)?;
         Ok(false)
     }
 }

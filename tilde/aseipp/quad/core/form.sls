@@ -99,21 +99,22 @@
   (define (edit-text! x key text)
     (let* ([s (field-value x)] [c (field-cursor x)] [n (string-length s)])
       (cond
+       ;; By grapheme clusters, as prompts edit (commands.sls).
        [(member key '("backspace" "shift+backspace"))
-        (when (> c 0)
-          (field-value-set! x (string-append (substring s 0 (- c 1)) (substring s c n)))
-          (field-cursor-set! x (- c 1)))
+        (let ([b (string-grapheme-before s c)])
+          (field-value-set! x (string-splice s b c ""))
+          (field-cursor-set! x b))
         #t]
        [(string=? key "delete")
-        (when (< c n) (field-value-set! x (string-append (substring s 0 c) (substring s (+ c 1) n))))
+        (field-value-set! x (string-splice s c (string-grapheme-after s c) ""))
         #t]
-       [(string=? key "left") (field-cursor-set! x (max 0 (- c 1))) #t]
-       [(string=? key "right") (field-cursor-set! x (min n (+ c 1))) #t]
+       [(string=? key "left") (field-cursor-set! x (string-grapheme-before s c)) #t]
+       [(string=? key "right") (field-cursor-set! x (string-grapheme-after s c)) #t]
        [(member key '("home" "ctrl+a")) (field-cursor-set! x 0) #t]
        [(member key '("end" "ctrl+e")) (field-cursor-set! x n) #t]
        [(string=? key "ctrl+u") (field-value-set! x (substring s c n)) (field-cursor-set! x 0) #t]
        [text
-        (field-value-set! x (string-append (substring s 0 c) text (substring s c n)))
+        (field-value-set! x (string-splice s c c text))
         (field-cursor-set! x (+ c (string-length text)))
         #t]
        [else #f])))

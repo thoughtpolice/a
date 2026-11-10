@@ -83,14 +83,9 @@ impl<T: 'static> IntoScheme for Object<T> {
 /// The boxed `T` behind a handle, checking it is one.
 fn boxed<'s, T: 'static>(v: Value<'s>) -> Result<&'s Boxed<T>> {
     let expected = || Error::expected(&format!("a {} object", type_name::<T>()), v);
-    let (tag, addr) = match (v.car(), v.cdr()) {
-        (Some(t), Some(a)) => (t, a),
-        _ => return Err(expected()),
-    };
-    if tag.symbol_name().as_deref() != Some(type_name::<T>()) {
-        return Err(expected());
-    }
-    let addr = addr.as_u64().ok_or_else(expected)?;
+    // The tag (the type's name, as a symbol) is for people reading the
+    // handle; the box's own header, checked below, says what it is.
+    let addr = v.cdr().and_then(|a| a.as_u64()).ok_or_else(expected)?;
     if addr == 0 {
         return Err(Error::new(format!(
             "this {} has been dropped",

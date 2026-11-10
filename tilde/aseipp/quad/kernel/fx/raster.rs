@@ -119,16 +119,20 @@ pub fn raster(
     // Points in cell widths: across, and down.
     let unit = cw as f32;
     let extent = [width as f32 / unit, height as f32 / unit];
+    let amount = effect.amounts(progress, extent);
     for (i, (c, shapes)) in cells.iter().zip(&shapes).enumerate() {
         let (x0, y0) = ((i % cols) * cw, (i / cols) * ch);
         for py in 0..ch {
+            let (fy0, fy1) = (
+                py as f32 * 8.0 / ch as f32,
+                (py + 1) as f32 * 8.0 / ch as f32,
+            );
             for px in 0..cw {
                 // How much of the pixel the shapes cover: their overlap
                 // with it, in eighths of the cell scaled to pixels.
-                let (fx0, fy0) = (px as f32 * 8.0 / cw as f32, py as f32 * 8.0 / ch as f32);
-                let (fx1, fy1) = (
+                let (fx0, fx1) = (
+                    px as f32 * 8.0 / cw as f32,
                     (px + 1) as f32 * 8.0 / cw as f32,
-                    (py + 1) as f32 * 8.0 / ch as f32,
                 );
                 let area = (fx1 - fx0) * (fy1 - fy0);
                 let covered: f32 = shapes
@@ -142,9 +146,14 @@ pub fn raster(
                     .min(area)
                     / area;
                 let (x, y) = (x0 + px, y0 + py);
-                let point = [(x as f32 + 0.5) / unit, (y as f32 + 0.5) / unit];
-                let ink = effect.shade(progress, point, extent, c.fg);
-                let color = super::mix(c.bg, ink, covered);
+                // Ink is shaded only where there is some.
+                let color = if covered > 0.0 {
+                    let point = [(x as f32 + 0.5) / unit, (y as f32 + 0.5) / unit];
+                    let ink = super::mix(c.fg, effect.color, amount(point));
+                    super::mix(c.bg, ink, covered)
+                } else {
+                    c.bg
+                };
                 let o = (y * width + x) * 4;
                 out[o] = (color >> 16) as u8;
                 out[o + 1] = (color >> 8) as u8;

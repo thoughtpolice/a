@@ -29,32 +29,32 @@ load(":defs.bzl", "quad_executable", "slang_metal", "slang_shader")
 # The extensions in core/ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
 EXTENSIONS = {
-    "blake3": [":native"],
-    "c": [],
-    "codex": [":ext-project"],
-    "grep": [":native"],
-    "image": [":native"],
-    "jj": [":native"],
+    "themes": [],
     "ki": [],
     "vi": [],
     "vim": [":ext-vi"],
     "helix": [":ext-vi"],
     "link": [],
     "lisp": [],
-    "lsp": [":ext-project"],
-    "markdown": [":ext-link"],
-    "mesh": [":native"],
-    "people": [],
-    "project": [":native"],
-    "relay": [],
-    "setup": [":ext-themes"],
+    "c": [],
     "shell": [],
-    "themes": [],
-    "tutor": [],
+    "markdown": [":ext-link"],
+    "image": [":native"],
+    "blake3": [":native"],
+    "grep": [":native"],
+    "project": [":native"],
+    "jj": [":native"],
+    "codex": [":ext-project"],
+    "lsp": [":ext-project"],
+    "people": [],
+    "mesh": [":native"],
+    "relay": [],
     "voice": [
         ":native",
         ":ext-people",
     ],
+    "tutor": [],
+    "setup": [":ext-themes"],
 }
 
 # Files beside an extension's source that it includes as it compiles.
@@ -66,31 +66,7 @@ EXTENSION_DATA = {
     ],
 }
 
-EXTENSION_ORDER = [
-    "themes",
-    "ki",
-    "vi",
-    "vim",
-    "helix",
-    "link",
-    "lisp",
-    "c",
-    "shell",
-    "markdown",
-    "image",
-    "blake3",
-    "grep",
-    "project",
-    "jj",
-    "codex",
-    "lsp",
-    "people",
-    "mesh",
-    "relay",
-    "voice",
-    "tutor",
-    "setup",
-]
+EXTENSION_ORDER = list(EXTENSIONS)
 
 # MARK: Kernel
 
@@ -107,7 +83,8 @@ EXTENSION_ORDER = [
 #   kernel/image    images: PNGs decoded and scaled
 #   kernel/mesh     editors and clients over iroh
 #   kernel/voice    voice over iroh
-#   kernel/font     fonts, shaping, Slug's curves, color emoji
+#   kernel/font     fonts, shaping, Slug's curves, color emoji (gui's and
+#                   render's, not called here)
 #   kernel/render   drawing frames: Vulkan, Metal
 #   kernel/gui      windows, screens, screen readers, the main thread
 KERNEL_CRATES = [
@@ -116,7 +93,6 @@ KERNEL_CRATES = [
         "diff",
         "files",
         "fx",
-        "font",
         "gui",
         "image",
         "mesh",
@@ -134,8 +110,6 @@ shims.rust_library(
     crate_root = "kernel/lib.rs",
     deps = KERNEL_CRATES + [
         "third-party//rust:blake3",
-        "third-party//rust:libc",
-        "third-party//rust:png",
         "//aseipp/quad/kernel/chez-rs:chez",
     ],
 )

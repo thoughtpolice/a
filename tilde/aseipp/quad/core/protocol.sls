@@ -113,8 +113,8 @@
   ;; Decode the value at offset i of bv: (values value next-offset).
   (define (decode bv i)
     (define (u8 i) (bytevector-u8-ref bv i))
-    (define (be i n) (let loop ([k 0] [v 0]) (if (= k n) v (loop (+ k 1) (+ (* v 256) (u8 (+ i k)))))))
-    (define (signed v bits) (if (>= v (expt 2 (- bits 1))) (- v (expt 2 bits)) v))
+    (define (u16 i) (bytevector-u16-ref bv i (endianness big)))
+    (define (u32 i) (bytevector-u32-ref bv i (endianness big)))
     (define (str i n) (values (utf8->string (sub i n)) (+ i n)))
     (define (sub i n) (let ([out (make-bytevector n)]) (bytevector-copy! bv i out 0 n) out))
     (define (items i n)
@@ -137,25 +137,25 @@
           [(#xc0 #xc2) (values #f (+ i 1))]
           [(#xc3) (values #t (+ i 1))]
           [(#xc4) (values (sub (+ i 2) (u8 (+ i 1))) (+ i 2 (u8 (+ i 1))))]
-          [(#xc5) (let ([n (be (+ i 1) 2)]) (values (sub (+ i 3) n) (+ i 3 n)))]
-          [(#xc6) (let ([n (be (+ i 1) 4)]) (values (sub (+ i 5) n) (+ i 5 n)))]
+          [(#xc5) (let ([n (u16 (+ i 1))]) (values (sub (+ i 3) n) (+ i 3 n)))]
+          [(#xc6) (let ([n (u32 (+ i 1))]) (values (sub (+ i 5) n) (+ i 5 n)))]
           [(#xca) (values (bytevector-ieee-single-ref bv (+ i 1) (endianness big)) (+ i 5))]
           [(#xcb) (values (bytevector-ieee-double-ref bv (+ i 1) (endianness big)) (+ i 9))]
           [(#xcc) (values (u8 (+ i 1)) (+ i 2))]
-          [(#xcd) (values (be (+ i 1) 2) (+ i 3))]
-          [(#xce) (values (be (+ i 1) 4) (+ i 5))]
-          [(#xcf) (values (be (+ i 1) 8) (+ i 9))]
-          [(#xd0) (values (signed (u8 (+ i 1)) 8) (+ i 2))]
-          [(#xd1) (values (signed (be (+ i 1) 2) 16) (+ i 3))]
-          [(#xd2) (values (signed (be (+ i 1) 4) 32) (+ i 5))]
-          [(#xd3) (values (signed (be (+ i 1) 8) 64) (+ i 9))]
+          [(#xcd) (values (u16 (+ i 1)) (+ i 3))]
+          [(#xce) (values (u32 (+ i 1)) (+ i 5))]
+          [(#xcf) (values (bytevector-u64-ref bv (+ i 1) (endianness big)) (+ i 9))]
+          [(#xd0) (values (bytevector-s8-ref bv (+ i 1)) (+ i 2))]
+          [(#xd1) (values (bytevector-s16-ref bv (+ i 1) (endianness big)) (+ i 3))]
+          [(#xd2) (values (bytevector-s32-ref bv (+ i 1) (endianness big)) (+ i 5))]
+          [(#xd3) (values (bytevector-s64-ref bv (+ i 1) (endianness big)) (+ i 9))]
           [(#xd9) (str (+ i 2) (u8 (+ i 1)))]
-          [(#xda) (str (+ i 3) (be (+ i 1) 2))]
-          [(#xdb) (str (+ i 5) (be (+ i 1) 4))]
-          [(#xdc) (items (+ i 3) (be (+ i 1) 2))]
-          [(#xdd) (items (+ i 5) (be (+ i 1) 4))]
-          [(#xde) (pairs (+ i 3) (be (+ i 1) 2))]
-          [(#xdf) (pairs (+ i 5) (be (+ i 1) 4))]
+          [(#xda) (str (+ i 3) (u16 (+ i 1)))]
+          [(#xdb) (str (+ i 5) (u32 (+ i 1)))]
+          [(#xdc) (items (+ i 3) (u16 (+ i 1)))]
+          [(#xdd) (items (+ i 5) (u32 (+ i 1)))]
+          [(#xde) (pairs (+ i 3) (u16 (+ i 1)))]
+          [(#xdf) (pairs (+ i 5) (u32 (+ i 1)))]
           [else (errorf 'msgpack-decode "unsupported type byte #x~x" b)])])))
 
   (define (msgpack-decode bv)
@@ -164,13 +164,15 @@
   ;; ---------------------------------------------------------------------------
   ;; Frames
 
+  ;; msg as a frame: its length, then it. The length is written over four
+  ;; bytes put first, so the message is not copied after it.
   (define (encode-frame msg)
-    (let* ([payload (msgpack-encode msg)]
-           [n (bytevector-length payload)]
-           [out (make-bytevector (+ 4 n))])
-      (bytevector-u32-set! out 0 n (endianness big))
-      (bytevector-copy! payload 0 out 4 n)
-      out))
+    (let-values ([(p extract) (open-bytevector-output-port)])
+      (put-bytevector p #vu8(0 0 0 0))
+      (encode p msg)
+      (let ([out (extract)])
+        (bytevector-u32-set! out 0 (- (bytevector-length out) 4) (endianness big))
+        out)))
 
   ;; A reader for a byte stream of frames: call it with each chunk read (a
   ;; bytevector and its length) and it returns the messages completed. A
@@ -188,13 +190,16 @@
         (let loop ([start 0] [acc '()])
           (if (and (>= (- len start) 4)
                    (>= (- len start 4) (bytevector-u32-ref buf start (endianness big))))
-              (let* ([size (bytevector-u32-ref buf start (endianness big))]
-                     [payload (make-bytevector size)])
-                (bytevector-copy! buf (+ start 4) payload 0 size)
-                (loop (+ start 4 size)
-                      (guard (e [#t acc]) (cons (msgpack-decode payload) acc))))
+              ;; Decoded where it is: one that runs past its frame is
+              ;; dropped, as one that runs past its bytes is.
+              (let* ([size (bytevector-u32-ref buf start (endianness big))] [end (+ start 4 size)])
+                (loop end
+                      (guard (e [#t acc])
+                        (let-values ([(x next) (decode buf (+ start 4))])
+                          (if (<= next end) (cons x acc) acc)))))
               (begin
-                (bytevector-copy! buf start buf 0 (- len start))
+                (unless (zero? start)
+                  (bytevector-copy! buf start buf 0 (- len start)))
                 (set! len (- len start))
                 (reverse acc)))))))
 

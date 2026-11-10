@@ -69,7 +69,7 @@
     (let ([path (string-append golden-dir "/" name ".png")])
       (if update?
           (begin (png-file-write path w ht px) (printf "wrote ~a\n" path))
-          (let ([want (guard (e [#t (printf "  ~a\n" (if (condition? e) (condition->string e) e)) #f])
+          (let ([want (guard (e [#t (printf "  ~a\n" (condition->string e)) #f])
                         (png-file-read path w ht))])
             (check (string-append name ": there is a golden image of its size") want)
             (when want

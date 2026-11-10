@@ -14,7 +14,8 @@
    move! select-mode! current-unit move-range
    ;; editing helpers for extensions
    edit-sels! selection-text sels-texts insert-at-cursors! enter-insert!
-   exit-insert! gap-between line-indent indent-for-newline
+   exit-insert! gap-between line-indent indent-for-newline case-transform transform-sels!
+   place! replace-with!
    ;; keymaps
    enclosure-keymap space-keymap local-keymap bind layer menu
    editor-menu pick-menu context-menu pane-menu transform-keymap surround-keymap
@@ -159,8 +160,7 @@
   ;; Pick a theme, each shown as it is selected; cancelling goes back.
   (define (theme-picker!)
     (let* ([was (current-theme-name)]
-           [names (cons was (remq was (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b)))
-                                            (theme-names))))]
+           [names (cons was (remq was (sort-symbols (theme-names))))]
            [p (pick "Theme" (map (lambda (n) (cons (symbol->string n) n)) names)
                     (lambda (n) (set-var! 'theme n) (message "Theme ~a" n)))])
       (prompt-on-select-set! p (lambda (n) (load-theme! n)))
@@ -196,7 +196,7 @@
     (let ([b (cur)])
       (read-string-prompt "save as:" (or (buffer-path b) (path-join (current-directory) ""))
                           (lambda (p) (unless (string=? p "")
-                                        (save-buffer! b (if (string-prefix? "/" p) p (path-join (current-directory) p)))
+                                        (save-buffer! b (absolute-path p))
                                         (buffer-name-set! b (path-basename p)))))))
 
   (define (modified-file-buffers) (filter (lambda (b) (and (buffer-path b) (buffer-modified? b))) (buffers)))
@@ -232,20 +232,22 @@
 
   ;; The buffer this client saw before the current one.
   (define (alternate-buffer!)
-    (let ([others (filter (lambda (b) (not (eq? b (cur)))) (buffers))])
+    (let ([others (filter (lambda (b) (not (eq? b (cur)))) (buffers))]
+          ;; When it last saw b; never, for a buffer it has no view of
+          ;; (which asking view-of would make).
+          [seen (lambda (b)
+                  (let ([v (hashtable-ref (client-views (current-client)) b #f)])
+                    (if v (view-last-seen v) 0)))])
       (unless (null? others)
         (switch-to-buffer!
-         (car (sort (lambda (a b) (> (view-last-seen (view-of (current-client) a))
-                                     (view-last-seen (view-of (current-client) b))))
-                    others))))))
+         (fold-left (lambda (best b) (if (> (seen b) (seen best)) b best)) (car others) (cdr others))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Evaluation and the shell
 
   (define (show-result v)
     (unless (eq? v (void))
-      (message "⇒ ~a" (let ([s (with-output-to-string (lambda () (write v)))])
-                        (if (> (string-length s) 400) (string-append (substring s 0 400) "…") s)))))
+      (message "⇒ ~a" (string-clip (with-output-to-string (lambda () (write v))) 400))))
 
   (define (eval-expression!)
     (read-string-prompt "eval:" (lambda (s) (unless (string=? s "") (show-result (eval-string s))))))
@@ -309,10 +311,9 @@
   (defcmd select-all "Select the whole buffer"
     (let ([b (cur)]) (view-extending?-set! (cv) #f) (set-sels! b (list (make-sel 0 (buffer-length b))))))
   (defcmd extend "Extend selections with the next movements"
-    (let ([b (cur)])
-      (if (view-extending? (cv))
-          (run-command 'select-all)
-          (view-extending?-set! (cv) #t))))
+    (if (view-extending? (cv))
+        (run-command 'select-all)
+        (view-extending?-set! (cv) #t)))
   (defcmd swap-anchor "Swap the extension anchor and the moving end"
     (let ([b (cur)])
       (set-sels! b (map (lambda (s) (if (sel-anchor s)
@@ -512,14 +513,6 @@
                                 (list (text-line-start t (text-line-of t p)) p "" (lambda (np) (make-sel np np))))))))
 
   ;; Prompts.
-  (define (prompt-edit! f)
-    (let ([p (current-prompt)])
-      (when p
-        (let-values ([(in c) (f (prompt-input p) (prompt-cursor p))])
-          (prompt-input-set! p in)
-          (prompt-cursor-set! p (clamp c 0 (string-length in)))
-          (prompt-index-set! p 0)
-          (prompt-refresh! p)))))
   (define (prompt-move! step)
     (let ([p (current-prompt)])
       (when (and p (pair? (prompt-items p)))
@@ -527,25 +520,20 @@
         (prompt-selected! p))))
   (defcmd prompt-accept "Accept the input" (let ([p (current-prompt)]) (when p (prompt-accept! p))))
   (defcmd prompt-cancel "Cancel" (cancel-prompt!))
-  ;; The grapheme cluster before or after index c of string s.
-  (define (string-grapheme-before s c)
-    (if (<= c 0) 0 (grapheme-start (lambda (i) (string-ref s i)) (- c 1) 0)))
-  (define (string-grapheme-after s c)
-    (grapheme-end (lambda (i) (string-ref s i)) c (string-length s)))
   (defcmd prompt-delete-backward "Delete before the cursor"
     (prompt-edit! (lambda (in c)
                     (let ([b (string-grapheme-before in c)])
-                      (values (string-append (substring in 0 b) (substring in c (string-length in))) b)))))
+                      (values (string-splice in b c "") b)))))
   (defcmd prompt-delete-forward "Delete after the cursor"
     (prompt-edit! (lambda (in c)
                     (let ([a (string-grapheme-after in c)])
-                      (values (string-append (substring in 0 c) (substring in a (string-length in))) c)))))
+                      (values (string-splice in c a "") c)))))
   (defcmd prompt-delete-word "Delete the word before the cursor"
     (prompt-edit! (lambda (in c)
                     (let* ([i (let loop ([i c]) (if (and (> i 0) (char=? (string-ref in (- i 1)) #\space)) (loop (- i 1)) i))]
                            [i (let loop ([i i]) (if (and (> i 0) (not (memv (string-ref in (- i 1)) '(#\space #\/)))) (loop (- i 1)) i))]
                            [i (if (= i c) (max 0 (- c 1)) i)])
-                      (values (string-append (substring in 0 i) (substring in c (string-length in))) i)))))
+                      (values (string-splice in i c "") i)))))
   (defcmd prompt-kill "Clear the input" (prompt-edit! (lambda (in c) (values "" 0))))
   (defcmd prompt-left "Cursor left" (prompt-edit! (lambda (in c) (values in (string-grapheme-before in c)))))
   (defcmd prompt-right "Cursor right" (prompt-edit! (lambda (in c) (values in (string-grapheme-after in c)))))
@@ -569,10 +557,7 @@
       (apply bind km specs)
       km))
 
-  (define (menu name title . specs)
-    (let ([km (make-keymap name title)])
-      (apply bind km specs)
-      km))
+  (define (menu name title . specs) (apply layer name title #f specs))
 
   (define local-keymap
     (menu 'local "Local"
@@ -729,8 +714,5 @@
   ;; in scope, and its definitions become part of the editor.
   (define (load-init-file! path)
     (when (and path (file-exists? path))
-      (guard (e [#t (message-error "Error in ~a: ~a" path
-                                   (if (condition? e)
-                                       (call-with-string-output-port (lambda (p) (display-condition e p)))
-                                       e))])
+      (guard (e [#t (message-error "Error in ~a: ~a" path (condition->string e))])
         (load path (lambda (x) (eval x (quad-environment))))))))

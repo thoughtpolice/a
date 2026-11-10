@@ -62,12 +62,8 @@
 
   ;; The directories path is in that are projects, outermost first.
   (define (project-roots path)
-    (let loop ([dir (if (guard (e [#t #f]) (file-directory? path)) path (path-dirname path))] [acc '()])
-      (let* ([acc (if (file-exists? (config-file dir)) (cons dir acc) acc)]
-             [up (path-dirname dir)])
-        (if (or (string=? dir "/") (string=? dir "") (string=? up dir))
-            acc
-            (loop up acc)))))
+    (reverse (filter (lambda (dir) (file-exists? (config-file dir)))
+                     (ancestor-dirs (if (guard (e [#t #f]) (file-directory? path)) path (path-dirname path))))))
 
   (define (under? root path)
     (and path (or (string=? path root) (string-prefix? (path-join root "") path))))
@@ -85,7 +81,7 @@
   (define project-of
     (case-lambda
      [() (project-of (or (and (current-buffer) (buffer-path (current-buffer))) (current-directory)))]
-     [(path) (let ([l (loaded-for path)]) (and (pair? l) (car (last-pair* l))))]))
+     [(path) (let ([l (loaded-for path)]) (and (pair? l) (car (last-pair l))))]))
 
   ;; This project's directory: the one loading, else the current buffer's.
   (define (project-root) (or (project-loading) (project-of)))
@@ -198,8 +194,7 @@
 
   (define (write-trust! entries)
     (let ([f (trust-file)])
-      (let mkdir-p ([d (path-dirname f)])
-        (unless (or (string=? d "") (file-exists? d)) (mkdir-p (path-dirname d)) (mkdir d)))
+      (make-directories! (path-dirname f))
       (write-file-string f (apply string-append (map (lambda (e) (format "~a ~a\n" (cdr e) (car e))) entries)))))
 
   (define (project-trusted? root)
@@ -280,13 +275,12 @@
     (unless (memq p queue) (set! queue (append queue (list p))))
     (next-question!))
 
-  (define (asking?) (exists (lambda (p) (eq? (proj-state p) 'asking)) (hashtable-values* projects)))
-  (define (hashtable-values* h) (let-values ([(ks vs) (hashtable-entries h)]) (vector->list vs)))
+  (define (asking?) (exists (lambda (p) (eq? (proj-state p) 'asking)) (vector->list (hashtable-values projects))))
 
-  ;; Run thunk as the current client, or any: #f, without running it,
-  ;; when there is none to ask.
-  (define (as-asker thunk)
-    (and (pair? (clients)) (begin (with-client-or-any (current-client) thunk) #t)))
+  ;; Run thunk as client c, or any: #f, without running it, when there is
+  ;; none to ask.
+  (define (as-asker c thunk)
+    (and (pair? (clients)) (begin (with-client-or-any c thunk) #t)))
 
   (define (next-question!)
     (when (and (pair? queue) (pair? (clients)) (not (asking?)))
@@ -312,7 +306,7 @@ trust where the repository came from; a change to these files asks again."
   (define (ask-trust! p)
     (let ([root (proj-root p)])
       (proj-state-set! p 'asking)
-      (unless (as-asker
+      (unless (as-asker (current-client)
                (lambda ()
                  (pick "Trust this project?"
                        (append
@@ -331,7 +325,7 @@ trust where the repository came from; a change to these files asks again."
         (unless (memq p queue) (set! queue (append queue (list p)))))))
 
   (define (review-headline text)
-    (let ([first (car (string-split (string-append text "\n") #\newline))])
+    (let ([first (string-first-line text)])
       (format "AI review, which read it without tools (advice only: the code could be written to \
 mislead it): ~a" (string-trim first))))
 
@@ -358,12 +352,9 @@ mislead it): ~a" (string-trim first))))
       (message "Reviewing ~a/.quad/ ..." root)
       (reviewer root (project-config-files root)
                 (case-lambda
-                 [(text) (proj-review-set! p text) (with-client* client (lambda () (ask-trust! p)))]
-                 [(no why) (with-client* client
+                 [(text) (proj-review-set! p text) (as-asker client (lambda () (ask-trust! p)))]
+                 [(no why) (as-asker client
                              (lambda () (message-error "The review failed: ~a" why) (ask-trust! p)))]))))
-
-  (define (with-client* c thunk)
-    (when (pair? (clients)) (with-client-or-any c thunk)))
 
   (define (show-review! p)
     (show-text-buffer! "*project review*"
@@ -378,7 +369,7 @@ untrusted text. Its verdict is advice: code can be written to mislead a reviewer
   (define (here-root)
     (let* ([path (or (and (current-buffer) (buffer-path (current-buffer))) (current-directory))]
            [roots (project-roots path)])
-      (and (pair? roots) (car (last-pair* roots)))))
+      (and (pair? roots) (car (last-pair roots)))))
 
   (at-load
    (add-hook! 'before-open-file-hook project-visit!)

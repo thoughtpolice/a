@@ -121,8 +121,7 @@ impl Text {
     /// now on, kept as the text is edited.
     pub fn line_hashes(&mut self) -> &[u64] {
         let rope = &self.rope;
-        let hash = |i: usize| {
-            let line = rope.line(i);
+        let hash = |line: ropey::RopeSlice| {
             let n = line.len_chars();
             let line = if n > 0 && line.char(n - 1) == '\n' {
                 line.slice(..n - 1)
@@ -131,18 +130,20 @@ impl Text {
             };
             quad_diff::hash_line(line.chunks())
         };
+        // All at first, in one pass; then the lines edits made stale.
         let h = self.hashes.get_or_insert_with(|| {
-            let n = rope.len_lines();
+            let hashes: Vec<u64> = rope.lines().map(hash).collect();
+            let n = hashes.len();
             LineHashes {
-                hashes: vec![0; n],
-                stale: vec![true; n],
-                any_stale: true,
+                hashes,
+                stale: vec![false; n],
+                any_stale: false,
             }
         });
         if h.any_stale {
             for (i, stale) in h.stale.iter_mut().enumerate() {
                 if *stale {
-                    h.hashes[i] = hash(i);
+                    h.hashes[i] = hash(rope.line(i));
                     *stale = false;
                 }
             }
@@ -150,62 +151,6 @@ impl Text {
         }
         &h.hashes
     }
-
-    /// Where `needle` first occurs at or after `from`.
-    pub fn find_forward(&self, needle: &str, from: usize) -> Option<usize> {
-        let needle: Vec<char> = needle.chars().collect();
-        if needle.is_empty() || from + needle.len() > self.len() {
-            return None;
-        }
-        let end = kmp(&needle, self.rope.chars_at(from))?;
-        Some(from + end + 1 - needle.len())
-    }
-
-    /// Where `needle` last occurs starting at or before `from`.
-    pub fn find_backward(&self, needle: &str, from: usize) -> Option<usize> {
-        let mut needle: Vec<char> = needle.chars().collect();
-        let m = needle.len();
-        if m == 0 || m > self.len() {
-            return None;
-        }
-        // The match ending last, at or before from + m: KMP over the
-        // text before that, read backwards, for the needle reversed.
-        let last_end = from.min(self.len() - m) + m;
-        needle.reverse();
-        let back = kmp(&needle, self.rope.chars_at(last_end).reversed())?;
-        Some(last_end - back - 1)
-    }
-}
-
-/// Knuth-Morris-Pratt: the index in `haystack` of the last character of
-/// the first occurrence of `needle` (not empty) in it.
-fn kmp(needle: &[char], haystack: impl Iterator<Item = char>) -> Option<usize> {
-    // fail[i]: the length of the longest proper prefix of needle[..=i]
-    // that is also its suffix.
-    let mut fail = vec![0; needle.len()];
-    let mut k = 0;
-    for i in 1..needle.len() {
-        while k > 0 && needle[i] != needle[k] {
-            k = fail[k - 1];
-        }
-        if needle[i] == needle[k] {
-            k += 1;
-        }
-        fail[i] = k;
-    }
-    let mut k = 0;
-    for (i, c) in haystack.enumerate() {
-        while k > 0 && c != needle[k] {
-            k = fail[k - 1];
-        }
-        if c == needle[k] {
-            k += 1;
-        }
-        if k == needle.len() {
-            return Some(i);
-        }
-    }
-    None
 }
 
 #[cfg(test)]
@@ -284,26 +229,15 @@ mod tests {
         let n: Vec<char> = needle.chars().collect();
         let at = |i: usize| i + n.len() <= m.0.len() && m.0[i..i + n.len()] == n[..];
         let from = tc.draw(gs::integers::<usize>().max_value(m.0.len()));
-        let want_forward = if n.is_empty() {
-            None
-        } else {
-            (from..=m.0.len()).find(|&i| at(i))
-        };
-        assert_eq!(
-            t.find_forward(&needle, from),
-            want_forward,
-            "{needle:?} from {from}"
-        );
-        let want_backward = if n.is_empty() || n.len() > m.0.len() {
-            None
-        } else {
-            (0..=from.min(m.0.len() - n.len())).rev().find(|&i| at(i))
-        };
-        assert_eq!(
-            t.find_backward(&needle, from),
-            want_backward,
-            "{needle:?} back from {from}"
-        );
+        // The text itself, searched for (not a pattern).
+        if !n.is_empty() {
+            let found = search::Search::new(&needle, false, false)
+                .unwrap()
+                .next(&t, from, false)
+                .map(|(start, _)| start);
+            let want = (from..=m.0.len()).find(|&i| at(i));
+            assert_eq!(found, want, "{needle:?} from {from}");
+        }
     }
 
     #[test]

@@ -41,7 +41,7 @@ use quad_image::PICTURE_BYTES;
 use quad_timing as timing;
 
 mod cells;
-pub mod color;
+mod color;
 mod faces;
 mod layout;
 pub mod slug;
@@ -50,7 +50,7 @@ mod sprites;
 pub use cells::characters;
 use cells::*;
 use faces::*;
-pub use layout::Layout;
+pub use layout::{Layout, append_records};
 use sprites::Sprite;
 
 /// A glyph as the shader reads it: `Glyph` in kernel/render/gui.slang.
@@ -66,7 +66,7 @@ const SHAPED_RUNS: usize = 8192;
 /// How many laid-out rows to remember, before starting afresh.
 const LAID_ROWS: usize = 4096;
 
-/// The last [`Fonts::epoch`] (or [`Colors::generation`]) given out: a
+/// The last [`Fonts::epoch`] (or [`Colors::generation`], [`Atlas::cleared`]) given out: a
 /// family change makes new `Fonts`, whose layouts must not pass for the old
 /// ones'.
 static EPOCHS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -291,15 +291,7 @@ impl Fonts {
         if fonts.find(FontWeight::NORMAL, FontStyle::Normal).is_none() {
             fonts.list_system_fonts();
         }
-        for (i, (weight, style)) in [
-            (FontWeight::NORMAL, FontStyle::Normal),
-            (FontWeight::BOLD, FontStyle::Normal),
-            (FontWeight::NORMAL, FontStyle::Italic),
-            (FontWeight::BOLD, FontStyle::Italic),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (i, (weight, style)) in (0..4).map(faces::attributes).enumerate() {
             fonts.styles[i] = match fonts.find(weight, style) {
                 Some(face) => face,
                 // A style the family lacks is drawn regular.
@@ -447,10 +439,7 @@ impl Fonts {
     /// texts in `text`): glyphs, rectangles (in cells) for underlines, and
     /// pictures of color glyphs.
     pub fn layout(&mut self, cells: &[u8], text: &[u8]) -> Layout {
-        let cells: Vec<Cell> = cells
-            .chunks_exact(CELL_BYTES)
-            .filter_map(|b| Cell::parse(b, text))
-            .collect();
+        let cells: Vec<Cell> = cells::parse_all(cells, text).collect();
         let mut out = Layout::default();
         let ch = self.metrics.cell[1];
         // A row at a time: most of a frame's rows were on the last one too,
@@ -470,10 +459,7 @@ impl Fonts {
     ///
     /// [`layout`]: Fonts::layout
     pub fn row(&mut self, cells: &[u8], text: &[u8]) -> Rc<Layout> {
-        let cells: Vec<Cell> = cells
-            .chunks_exact(CELL_BYTES)
-            .filter_map(|b| Cell::parse(b, text))
-            .collect();
+        let cells: Vec<Cell> = cells::parse_all(cells, text).collect();
         self.laid_row(&cells)
     }
 
@@ -483,9 +469,8 @@ impl Fonts {
         if let Some(laid) = self.rows.get(&key) {
             return laid.clone();
         }
-        let at_top: Vec<Cell> = row.iter().map(|c| Cell { row: 0, ..*c }).collect();
         let mut laid = Layout::default();
-        self.layout_row(&at_top, &mut laid);
+        self.layout_row(row, &mut laid);
         let laid = Rc::new(laid);
         if self.rows.len() >= LAID_ROWS {
             self.rows.clear();
@@ -494,7 +479,7 @@ impl Fonts {
         laid
     }
 
-    /// Lays out one row's cells.
+    /// Lays out one row's cells, at the top: their rows are not looked at.
     fn layout_row(&mut self, cells: &[Cell], out: &mut Layout) {
         let mut start = 0;
         while start < cells.len() {
@@ -564,7 +549,7 @@ impl Fonts {
         };
         // Pixels per font unit, for HarfRust's positions; shapes are in ems.
         let px = self.metrics.px_per_em / self.faces[face].units_per_em;
-        let [cw, ch] = self.metrics.cell;
+        let cw = self.metrics.cell[0];
         let color = self.faces[face].color;
         // The last cell a color glyph was painted in: one picture each.
         let mut painted = None;
@@ -575,7 +560,7 @@ impl Fonts {
             }
             if color {
                 if let Some((offset, w, h)) = self.color_glyph(face, glyph, c) {
-                    let at = [c.col as f32 * cw, c.row as f32 * ch];
+                    let at = [c.col as f32 * cw, 0.0];
                     out.picture([at[0], at[1], w as f32, h as f32], offset, w);
                     painted = Some(cell);
                     continue;
@@ -584,10 +569,7 @@ impl Fonts {
             let Some(shape) = self.glyph(face, glyph) else {
                 continue;
             };
-            let origin = [
-                c.col as f32 * cw + x * px,
-                c.row as f32 * ch + self.metrics.baseline - y * px,
-            ];
+            let origin = [c.col as f32 * cw + x * px, self.metrics.baseline - y * px];
             out.glyph(
                 &shape,
                 origin,
@@ -681,7 +663,7 @@ impl Fonts {
         } else {
             c.color
         };
-        let (x, y, w) = (c.col as f32, c.row as f32, c.width as f32);
+        let (x, y, w) = (c.col as f32, 0.0, c.width as f32);
         // A rectangle from pixel x0 to x1 along the cell, at pixel top.
         let mut span = |x0: f32, x1: f32, top: f32, thickness: f32, color: u32| {
             out.rect(
@@ -760,13 +742,7 @@ impl Fonts {
         if let Some(shape) = shape {
             let [cw, ch] = self.metrics.cell;
             // The cell's bottom left, as a baseline at 1 pixel per unit.
-            out.glyph(
-                &shape,
-                [c.col as f32 * cw, (c.row + 1) as f32 * ch],
-                1.0,
-                c.color,
-                c.background,
-            );
+            out.glyph(&shape, [c.col as f32 * cw, ch], 1.0, c.color, c.background);
         }
     }
 }

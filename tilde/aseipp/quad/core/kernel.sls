@@ -19,13 +19,15 @@
   (import (chezscheme))
 
   (define-syntax define-kernel
-    (syntax-rules ()
-      [(_ name cname (arg ...) ret)
-       (define name
-         (let ([proc #f])
-           (lambda args
-             (unless proc (set! proc (foreign-procedure cname (arg ...) ret)))
-             (apply proc args))))]))
+    (lambda (x)
+      (syntax-case x ()
+        [(_ name cname (arg ...) ret)
+         (with-syntax ([(t ...) (generate-temporaries #'(arg ...))])
+           #'(define name
+               (let ([proc #f])
+                 (lambda (t ...)
+                   (unless proc (set! proc (foreign-procedure cname (arg ...) ret)))
+                   (proc t ...)))))])))
 
 
   ;; The terminal (kernel.c).
@@ -60,19 +62,13 @@
        [else (let ([b (make-bytevector n)]) (bytevector-copy! read-scratch 0 b 0 n) b)])))
 
   ;; Connections (kernel.c).
-  (define-kernel k-poll "quad_poll" (u8* int int u8*) int)
   (define-kernel k-poll-rw "quad_poll_rw" (u8* u8* int int u8*) int)
-  (define-kernel k-write-some "quad_write_some" (int u8* int) int)
+  (define-kernel k-write-some "quad_write_some" (int u8* int int) int)
 
   ;; Write what of bv, from start, socket fd takes now, without waiting:
   ;; the count written, 0 if none now, -1 on error.
   (define (kernel-write-some fd bv start)
-    (let ([n (- (bytevector-length bv) start)])
-      (if (= start 0)
-          (k-write-some fd bv n)
-          (let ([rest (make-bytevector n)])
-            (bytevector-copy! bv start rest 0 n)
-            (k-write-some fd rest n)))))
+    (k-write-some fd bv start (- (bytevector-length bv) start)))
   (define-kernel kernel-unix-listen "quad_unix_listen" (string) int)
   (define-kernel kernel-unix-connect "quad_unix_connect" (string) int)
   (define-kernel kernel-accept "quad_accept" (int) int)
@@ -90,12 +86,8 @@
   ;; What file path is now, as a string to compare later; #f if none.
   (define-kernel k-file-key "quad_file_key" (string u8* int) int)
   (define (kernel-file-key path)
-    (let ([out (make-bytevector 64 0)])
-      (and (= 0 (k-file-key path out 64))
-           (let ([n (let loop ([i 0]) (if (or (= i 64) (= 0 (bytevector-u8-ref out i))) i (loop (+ i 1))))])
-             (utf8->string (bytevector-copy/len out n))))))
-  (define (bytevector-copy/len bv n)
-    (let ([b (make-bytevector n)]) (bytevector-copy! bv 0 b 0 n) b))
+    (let* ([out (make-bytevector 64 0)] [n (k-file-key path out 64)])
+      (and (>= n 0) (utf8->string (bytevector-truncate! out n)))))
   (define-kernel k-fork-detached "quad_fork_detached" (u8*) int)
 
   ;; Fork a process that goes on without the terminal (kernel.c): in the
@@ -136,18 +128,5 @@
   ;; returns those that are (or have hung up), '() on timeout or when a
   ;; signal came first.
   (define (kernel-poll fds timeout-ms)
-    (let* ([n (length fds)]
-           [in (make-bytevector (* 4 (max n 1)) 0)]
-           [ready (make-bytevector (* 4 (max n 1)) 0)])
-      (let loop ([l fds] [i 0])
-        (unless (null? l)
-          (bytevector-s32-native-set! in (* 4 i) (car l))
-          (loop (cdr l) (+ i 1))))
-      (let ([r (k-poll in n timeout-ms ready)])
-        (if (<= r 0)
-            '()
-            (let loop ([l fds] [i 0] [acc '()])
-              (if (null? l)
-                  (reverse acc)
-                  (loop (cdr l) (+ i 1)
-                        (if (= 1 (bytevector-s32-native-ref ready (* 4 i))) (cons (car l) acc) acc)))))))))
+    (let-values ([(reads writes) (kernel-poll-rw fds '() timeout-ms)])
+      reads)))

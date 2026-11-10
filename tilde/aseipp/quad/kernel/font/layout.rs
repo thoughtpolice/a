@@ -17,22 +17,24 @@ pub struct Layout {
     pub pictures: Vec<u8>,
 }
 
+/// Appends `from`'s records, `size` bytes each, moved down `dy`: y is each
+/// record's second f32.
+pub fn append_records(out: &mut Vec<u8>, from: &[u8], size: usize, dy: f32) {
+    let start = out.len();
+    out.extend_from_slice(from);
+    for record in out[start..].chunks_exact_mut(size) {
+        let y = f32::from_ne_bytes(record[4..8].try_into().unwrap()) + dy;
+        record[4..8].copy_from_slice(&y.to_ne_bytes());
+    }
+}
+
 impl Layout {
     /// Appends `other`, moved down `pixels` (its glyphs) and `cells` (its
     /// rectangles): a row laid out at the top, put where it is.
     pub fn append_moved(&mut self, other: &Layout, pixels: f32, cells: f32) {
-        let moved = |out: &mut Vec<u8>, from: &[u8], size: usize, dy: f32| {
-            let start = out.len();
-            out.extend_from_slice(from);
-            // y is each record's second f32.
-            for record in out[start..].chunks_exact_mut(size) {
-                let y = f32::from_ne_bytes(record[4..8].try_into().unwrap()) + dy;
-                record[4..8].copy_from_slice(&y.to_ne_bytes());
-            }
-        };
-        moved(&mut self.glyphs, &other.glyphs, GLYPH_BYTES, pixels);
-        moved(&mut self.rects, &other.rects, RECT_BYTES, cells);
-        moved(&mut self.pictures, &other.pictures, PICTURE_BYTES, pixels);
+        append_records(&mut self.glyphs, &other.glyphs, GLYPH_BYTES, pixels);
+        append_records(&mut self.rects, &other.rects, RECT_BYTES, cells);
+        append_records(&mut self.pictures, &other.pictures, PICTURE_BYTES, pixels);
     }
 
     /// A color glyph's picture: at `rect` (pixels), its pixels from

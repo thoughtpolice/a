@@ -13,7 +13,7 @@
 //! [`Event`]s in the shape of the client protocol's messages.
 //!
 //! Nothing here links against Vulkan: ash loads the host's
-//! `libvulkan.so.1` when a window opens ([`ash::Entry::load`]), winit
+//! `libvulkan.so.1` when a window opens (`ash::Entry::load`), winit
 //! loads `libwayland-client` or `libX11`, and fontique loads fontconfig,
 //! so an editor that never opens a window never needs them. They are the
 //! host's, and the host's driver loads into this process, so the
@@ -40,7 +40,7 @@ use winit::event::{ElementState, Ime, KeyEvent, MouseButton, MouseScrollDelta, W
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 #[cfg(target_os = "linux")]
-use winit::platform::wayland::{EventLoopBuilderExtWayland, WindowAttributesExtWayland};
+use winit::platform::wayland::WindowAttributesExtWayland;
 #[cfg(target_os = "linux")]
 use winit::platform::x11::EventLoopBuilderExtX11;
 #[cfg(target_os = "linux")]
@@ -49,10 +49,9 @@ use winit::window::{CursorIcon, Window, WindowId};
 
 use crate::access::Access;
 use crate::screen::{Screen, Update};
-use quad_font::Colors;
 pub use quad_font::FontSpec;
-use quad_font::{Fonts, Metrics};
-use quad_image::{Images, PICTURE_BYTES, Placement};
+use quad_font::{Fonts, Layout, Metrics};
+use quad_image::{Images, PICTURE_BYTES};
 use quad_render::{DrawList, Gpu, Headless, Renderer};
 use quad_timing as timing;
 

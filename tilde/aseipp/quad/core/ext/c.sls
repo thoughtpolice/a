@@ -29,7 +29,4 @@
   (define c-mode (define-major-mode! 'c c-syntax))
 
   (at-load
-   (major-mode-hook-set! c-mode
-                         (lambda (b)
-                           (set-local! 'indent-unit "    " b)))
    (add-auto-mode! '("c" "h" "cc" "cpp" "hpp" "cxx" "rs" "go" "js" "ts" "tsx" "jsx" "java" "zig" "swift" "kt" "cs" "proto") 'c)))

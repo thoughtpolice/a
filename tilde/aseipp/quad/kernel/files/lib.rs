@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use chez::{IntoScheme, Mailbox, Scope, Value};
 use ignore::{WalkBuilder, WalkState};
-use regex::bytes::RegexBuilder;
+use regex::bytes::{Regex, RegexBuilder};
 
 /// Directories never walked into: version control's, and what builds
 /// leave, for directories no ignore file covers.
@@ -42,9 +42,34 @@ fn walker(dir: &str) -> WalkBuilder {
 
 /// `path` under `dir`, relative to it, with "/" between its parts.
 fn relative(dir: &Path, path: &Path) -> Option<String> {
-    let rel = path.strip_prefix(dir).ok()?;
-    let parts: Vec<&str> = rel.iter().map(|p| p.to_str()).collect::<Option<_>>()?;
-    Some(parts.join("/"))
+    // As both Linux and macOS have them.
+    path.strip_prefix(dir).ok()?.to_str().map(String::from)
+}
+
+/// The lines of `bytes` that `re` matches in or from, with their numbers:
+/// all of `bytes` searched, from the line after each found.
+fn lines_matched<'b>(re: &Regex, bytes: &'b [u8]) -> impl Iterator<Item = (usize, &'b [u8])> {
+    // Where the line searched from starts, and its number.
+    let (mut start, mut line) = (0, 0);
+    std::iter::from_fn(move || {
+        if start > bytes.len() {
+            return None;
+        }
+        let m = re.find_at(bytes, start)?;
+        // The line it starts in, past the newlines before it.
+        let before = &bytes[start..m.start()];
+        line += before.iter().filter(|&&b| b == b'\n').count();
+        if let Some(n) = before.iter().rposition(|&b| b == b'\n') {
+            start += n + 1;
+        }
+        let end = bytes[m.start()..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map_or(bytes.len(), |n| m.start() + n);
+        let found = (line, &bytes[start..end]);
+        (start, line) = (end + 1, line + 1);
+        Some(found)
+    })
 }
 
 /// The files under `dir`, relative to it, in order of their paths' names
@@ -119,6 +144,12 @@ impl Grep {
         } else {
             regex::escape(pattern)
         };
+        // Lines are matched one at a time, so that `\A` and `\z` are a
+        // line's ends; any other pattern matches in a line only where it
+        // matches in the whole file (^ and $ being lines' ends in both), so
+        // the file is searched instead, and only the lines it matches in
+        // are, as most files have no match.
+        let whole_first = !(pattern.contains("\\A") || pattern.contains("\\z"));
         let re = RegexBuilder::new(&pattern)
             .case_insensitive(fold)
             .multi_line(true)
@@ -158,23 +189,35 @@ impl Grep {
                             if bytes[..bytes.len().min(8192)].contains(&0) {
                                 return WalkState::Continue;
                             }
-                            for (line, text) in bytes.split(|&b| b == b'\n').enumerate() {
-                                let Some(m) = re.find(text) else { continue };
+                            let mut hit = |line: usize, text: &[u8]| {
+                                let Some(m) = re.find(text) else {
+                                    return true;
+                                };
                                 if hits.fetch_add(1, Ordering::Relaxed) >= MAX_HITS {
                                     stop.store(true, Ordering::Relaxed);
-                                    return WalkState::Quit;
+                                    return false;
                                 }
                                 let col =
                                     String::from_utf8_lossy(&text[..m.start()]).chars().count();
-                                let text: String = String::from_utf8_lossy(text)
+                                // Its start: a line can be a whole minified file.
+                                let shown = &text[..text.len().min(4 * MAX_TEXT)];
+                                let text: String = String::from_utf8_lossy(shown)
                                     .chars()
                                     .take(MAX_TEXT)
                                     .collect();
-                                if tx.send(Found::Hit(rel.clone(), line, col, text)).is_err() {
-                                    return WalkState::Quit;
-                                }
+                                tx.send(Found::Hit(rel.clone(), line, col, text)).is_ok()
+                            };
+                            let more = if whole_first {
+                                lines_matched(re, &bytes).all(|(line, text)| hit(line, text))
+                            } else {
+                                (bytes.split(|&b| b == b'\n').enumerate())
+                                    .all(|(line, text)| hit(line, text))
+                            };
+                            if more {
+                                WalkState::Continue
+                            } else {
+                                WalkState::Quit
                             }
-                            WalkState::Continue
                         })
                     });
                     let n = hits.load(Ordering::Relaxed).min(MAX_HITS);
@@ -219,6 +262,36 @@ mod tests {
         assert_eq!(files, [".gitignore", "a.txt", "bin", "sub/b.txt"]);
         assert_eq!(project_files(dir.to_str().unwrap(), 2).len(), 2);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Searching a whole file finds the lines that matching each line alone
+    /// does, at the same places: for patterns that do not name the text's
+    /// ends, and some that cross lines.
+    #[hegel::test(test_cases = 500, database = None)]
+    fn whole_files_match_where_their_lines_do(tc: hegel::TestCase) {
+        use hegel::generators as gs;
+        let alphabet = [b'a', b'b', b' ', b'\n'];
+        let bytes: Vec<u8> = (0..tc.draw(gs::integers::<usize>().max_value(40)))
+            .map(|_| alphabet[tc.draw(gs::integers::<usize>().max_value(3))])
+            .collect();
+        let patterns = [
+            r"a", r"ab+", r"^b", r"a$", r"^$", r"\bb", r"\s+", r"a\nb", r"b?", r"$",
+        ];
+        let pattern = patterns[tc.draw(gs::integers::<usize>().max_value(patterns.len() - 1))];
+        let re = RegexBuilder::new(pattern).multi_line(true).build().unwrap();
+        let each = |line: usize, text: &[u8]| re.find(text).map(|m| (line, m.start()));
+        let alone: Vec<_> = (bytes.split(|&b| b == b'\n').enumerate())
+            .filter_map(|(line, text)| each(line, text))
+            .collect();
+        let whole: Vec<_> = lines_matched(&re, &bytes)
+            .filter_map(|(line, text)| each(line, text))
+            .collect();
+        assert_eq!(
+            whole,
+            alone,
+            "{pattern:?} in {:?}",
+            String::from_utf8_lossy(&bytes)
+        );
     }
 
     #[test]

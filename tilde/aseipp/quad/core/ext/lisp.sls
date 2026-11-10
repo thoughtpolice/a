@@ -29,14 +29,14 @@
        "define-variable" "define-record-type")
      #f ";; " "  "))
 
-  ;; Forms whose body is indented by two, not aligned with their arguments.
+  ;; Forms whose body is indented by two, not aligned with their arguments,
+  ;; beside those whose names start define or with- (lisp-indent).
   (define lisp-body-forms
-    '("define" "lambda" "let" "let*" "letrec" "letrec*" "let-values" "let*-values"
-      "when" "unless" "do" "case-lambda" "library" "define-syntax" "syntax-rules"
-      "syntax-case" "with-syntax" "parameterize" "guard" "define-record-type"
+    '("lambda" "let" "let*" "letrec" "letrec*" "let-values" "let*-values"
+      "when" "unless" "do" "case-lambda" "library" "syntax-rules"
+      "syntax-case" "parameterize" "guard"
       "call-with-port" "call-with-values" "dynamic-wind" "fluid-let" "begin" "case"
-      "define-command" "define-major-mode" "module" "rec" "named-lambda"
-      "define-values" "with-exception-handler" "call/cc" "let-syntax"))
+      "module" "rec" "named-lambda" "call/cc" "let-syntax"))
 
   ;; The column a new line at pos should start at, from the innermost
   ;; unclosed list around it: aligned under its second element, or indented
@@ -79,7 +79,5 @@
 
   (at-load
    (major-mode-hook-set! scheme-mode
-                         (lambda (b)
-                           (set-local! 'indent-unit "  " b)
-                           (set-local! 'indent-function lisp-indent b)))
+                         (lambda (b) (set-local! 'indent-function lisp-indent b)))
    (add-auto-mode! '("ss" "sls" "scm" "sps" "sld" "sch" "rkt" "el" "lisp" "cl" "clj" "fnl" "janet" "lean") 'scheme)))

@@ -156,8 +156,7 @@
             [(voice) (run-hooks 'client-voice-hook c (cdr msg))]
             [(user) (when (and (pair? (cdr msg)) (string? (cadr msg)))
                       (set-client-user! c (cadr msg)))]
-            [else (with-client c (lambda () (message-error "Unknown message ~a" (car msg))))])))
-    (for-each (lambda (c) (client-dirty?-set! c #t)) (clients)))
+            [else (with-client c (lambda () (message-error "Unknown message ~a" (car msg))))]))))
 
   ;; Draw every client. One whose drawing fails is let go, with why in
   ;; *Messages*, rather than the error ending the editor and every other
@@ -165,10 +164,14 @@
   (define (server-render!)
     (anim-render-begin!)
     (for-each (lambda (c)
-                (guard (e [#t (log-message! (format "Letting client ~a go: drawing it failed: ~a"
-                                                    (client-name c) (condition->string e)))
-                              (remove-client! c)])
-                  (render-client! c)))
+                ;; A client diverted to another editor (client-divert!)
+                ;; shows that one's frames, not these: it is drawn whole
+                ;; again when it comes back.
+                (unless (client-diverted? c)
+                  (guard (e [#t (log-message! (format "Letting client ~a go: drawing it failed: ~a"
+                                                      (client-name c) (condition->string e)))
+                                (remove-client! c)])
+                    (render-client! c))))
               (clients)))
 
   ;; Whether n is a screen's height or width in cells, as a client may say:
@@ -246,53 +249,60 @@
 
   (define outbox-limit (* 16 1024 1024))
 
-  ;; head: frames to write, the first from byte `start`; tail: those after,
-  ;; newest first. bytes: how many are waiting. over?: past the limit, it is
-  ;; to be let go (by `drop`), which the loop does once its round is done.
+  ;; pending: the frames being written, as one bytevector, from byte
+  ;; `start` (or #f); tail: those after, newest first. bytes: how many are
+  ;; waiting. over?: past the limit, it is to be let go (by `drop`), which
+  ;; the loop does once its round is done.
   (define-record-type outbox
-    (fields fd drop (mutable head) (mutable start) (mutable tail) (mutable bytes) (mutable over?)))
+    (fields fd drop (mutable pending) (mutable start) (mutable tail) (mutable bytes) (mutable over?)))
 
   ;; Outboxes with something in them.
   (define outboxes '())
 
-  (define (outbox-empty? b) (and (null? (outbox-head b)) (null? (outbox-tail b))))
+  (define (outbox-empty? b) (and (not (outbox-pending b)) (null? (outbox-tail b))))
 
-  ;; Write what fd takes of b's frames, without waiting.
+  ;; Write what fd takes of b's frames, without waiting: those waiting
+  ;; together, in one write.
   (define (outbox-flush! b)
     (let loop ()
-      (when (null? (outbox-head b))
-        (outbox-head-set! b (reverse (outbox-tail b)))
-        (outbox-tail-set! b '()))
-      (unless (null? (outbox-head b))
-        (let* ([bv (car (outbox-head b))]
-               [start (outbox-start b)]
-               [n (kernel-write-some (outbox-fd b) bv start)])
-          (cond
-           ;; The stream failed: reading it says so, and lets the client go.
-           [(< n 0) (outbox-head-set! b '()) (outbox-tail-set! b '()) (outbox-bytes-set! b 0)]
-           [else
-            (outbox-bytes-set! b (- (outbox-bytes b) n))
-            (if (= (+ start n) (bytevector-length bv))
-                (begin (outbox-head-set! b (cdr (outbox-head b))) (outbox-start-set! b 0) (loop))
-                (outbox-start-set! b (+ start n)))])))))
+      (let ([tail (outbox-tail b)])
+        (when (and (not (outbox-pending b)) (pair? tail))
+          (outbox-pending-set! b (if (null? (cdr tail)) (car tail) (apply bytevector-append (reverse tail))))
+          (outbox-tail-set! b '())))
+      (let ([bv (outbox-pending b)])
+        (when bv
+          (let* ([start (outbox-start b)] [n (kernel-write-some (outbox-fd b) bv start)])
+            (cond
+             ;; The stream failed: reading it says so, and lets the client go.
+             [(< n 0) (outbox-pending-set! b #f) (outbox-tail-set! b '()) (outbox-bytes-set! b 0)]
+             [else
+              (outbox-bytes-set! b (- (outbox-bytes b) n))
+              (if (= (+ start n) (bytevector-length bv))
+                  (begin (outbox-pending-set! b #f) (outbox-start-set! b 0) (loop))
+                  (outbox-start-set! b (+ start n)))]))))))
+
+  ;; The messages of a frame, which its "flush" ends: they wait for it, to
+  ;; go with it in one write (or for the loop, which writes what waits).
+  (define frame-messages '("hl" "line" "grid" "scroll" "images" "image" "effects" "cursor"))
 
   ;; A sender to stream fd that never waits; (drop) lets the client go once
   ;; it falls too far behind.
   (define (stream-sender fd drop)
-    (let ([b (make-outbox fd drop '() 0 '() 0 #f)])
+    (let ([b (make-outbox fd drop #f 0 '() 0 #f)])
       (lambda (msg)
         (unless (outbox-over? b)
-          (let ([bv (encode-frame msg)] [was-empty? (outbox-empty? b)])
+          (let ([bv (encode-frame msg)])
             (outbox-tail-set! b (cons bv (outbox-tail b)))
             (outbox-bytes-set! b (+ (outbox-bytes b) (bytevector-length bv)))
-            (when was-empty? (outbox-flush! b))
+            (unless (and (pair? msg) (member (car msg) frame-messages))
+              (outbox-flush! b))
             (cond
              [(> (outbox-bytes b) outbox-limit)
               (outbox-over?-set! b #t)
-              (outbox-head-set! b '())
+              (outbox-pending-set! b #f)
               (outbox-tail-set! b '())
               (unless (memq b outboxes) (set! outboxes (cons b outboxes)))]
-             [(and was-empty? (not (outbox-empty? b)))
+             [(and (not (outbox-empty? b)) (not (memq b outboxes)))
               (set! outboxes (cons b outboxes))]))))))
 
   ;; Stream fd is closed: what it had yet to take goes.
@@ -340,9 +350,12 @@
                      ;; Gone: the client disconnected.
                      (if client (remove-client! client) (close!))]
                     [else
+                     ;; Until it is closed: a stream whose first message was
+                     ;; not "hello" says nothing more.
                      (for-each
                       (lambda (msg)
                         (cond
+                         [(not (memq src the-sources))]
                          [client (client-receive! client msg)]
                          [(and (pair? msg) (equal? (car msg) "hello") (valid-hello? msg))
                           ;; ("hello" version name rows cols capabilities)

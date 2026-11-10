@@ -35,8 +35,6 @@
   ;; Whether theme name is 'dark or 'light, if it says.
   (define (theme-kind name) (hashtable-ref kinds name #f))
 
-  (define (hex c) (if (string? c) (string->number (substring c 1 (string-length c)) 16) c))
-
   ;; Make theme name, of kind 'dark or 'light, from palette (an alist of
   ;; roles to "#rrggbb" colors), with overrides (an alist of face names to
   ;; specs whose colors may name roles) made last.
@@ -44,7 +42,7 @@
     (case-lambda
      [(name kind palette) (define-palette-theme name kind palette '())]
      [(name kind palette overrides)
-      (let* ([given (map (lambda (p) (cons (car p) (hex (cdr p)))) palette)]
+      (let* ([given (map (lambda (p) (cons (car p) (palette-color (cdr p)))) palette)]
              [get (lambda (k) (let ([p (assq k given)]) (and p (cdr p))))]
              [bg (or (get 'bg) (if (eq? kind 'light) #xffffff #x1c1c1c))]
              [fg (or (get 'fg) (if (eq? kind 'light) #x1c1c1c #xd0d0d0))]
@@ -55,7 +53,7 @@
              [orange (role 'orange yellow)] [pink (role 'pink purple)]
              [roles
               (list (cons 'bg bg) (cons 'fg fg)
-                    (cons 'bg-dark (role 'bg-dark (blend-colors bg (if (eq? kind 'light) #x000000 #x000000) 0.15)))
+                    (cons 'bg-dark (role 'bg-dark (blend-colors bg #x000000 0.15)))
                     (cons 'bg-light (role 'bg-light (blend-colors bg fg 0.07)))
                     (cons 'selection (role 'selection (blend-colors bg fg 0.2)))
                     (cons 'bg-alt (role 'bg-alt (blend-colors bg fg 0.12)))
@@ -70,10 +68,10 @@
                     (cons 'yellow-tint (mix yellow 0.72)) (cons 'cyan-tint (mix cyan 0.72))
                     (cons 'pink-tint (mix pink 0.72)) (cons 'purple-tint (mix purple 0.72)))])
         (hashtable-set! kinds name kind)
-        (define-theme name roles (append (faces-for roles) overrides)))]))
+        (define-theme name roles (append theme-faces overrides)))]))
 
-  ;; Every face, from the roles.
-  (define (faces-for roles)
+  ;; Every face, in roles' colors.
+  (define theme-faces
     (append
      '((ui . ((fg fg) (bg bg)))
        (ui.background . ((bg bg)))
@@ -199,8 +197,7 @@
       (fg . "#d8dee9") (fg-bright . "#eceff4") (fg-dim . "#4c566a") (comment . "#616e88")
       (red . "#bf616a") (orange . "#d08770") (yellow . "#ebcb8b") (green . "#a3be8c")
       (cyan . "#8fbcbb") (blue . "#88c0d0") (purple . "#b48ead") (pink . "#b48ead"))
-    '((keyword . "#81a1c1") (operator . "#81a1c1") (function . blue) (type . cyan) (constant.numeric . purple)
-      (ui.statusline.normal . ((fg bg) (bg blue) bold))))
+    '((keyword . "#81a1c1") (operator . "#81a1c1") (function . blue) (type . cyan) (constant.numeric . purple)))
 
   (define-palette-theme 'catppuccin-mocha 'dark
     '((bg . "#1e1e2e") (bg-dark . "#181825") (bg-light . "#2a2b3c") (selection . "#45475a") (bg-alt . "#313244")
@@ -256,7 +253,6 @@
 
   ;; The terminal's own colors: the default foreground and background for
   ;; the text, its palette of 16 for the rest, whatever it is set to.
-  (hashtable-set! kinds 'terminal #f)
   (define-theme 'terminal
     '((black . (ansi 0)) (red . (ansi 1)) (green . (ansi 2)) (yellow . (ansi 3)) (blue . (ansi 4))
       (magenta . (ansi 5)) (cyan . (ansi 6)) (white . (ansi 7)) (gray . (ansi 8)) (bright-white . (ansi 15)))

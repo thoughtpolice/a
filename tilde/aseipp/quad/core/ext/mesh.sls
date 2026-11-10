@@ -37,8 +37,8 @@
   ;; things known -- its ticket, its code -- or fails.
   (define mesh-listen!
     (case-lambda
-     [() (mesh-listen! #t void)]
-     [(code?) (mesh-listen! code? void)]
+     [() (mesh-listen! #t ignore)]
+     [(code?) (mesh-listen! code? ignore)]
      [(code? on-change)
       (unless host
         (set! host (mesh-host-start code? (mesh-local?)))
@@ -82,7 +82,7 @@
    (define-command 'mesh-listen "Let clients join this editor over iroh, from anywhere"
      (lambda ()
        (let ([client (current-client)])
-         (mesh-listen! #t (lambda (info) (when (memq client (clients)) (with-client client say-how!))))
+         (mesh-listen! #t (lambda (info) (with-client-if-here client say-how!)))
          (say-how!))))
    (define-command 'mesh-info "How clients join this editor over iroh (copies a ticket)" say-how!))
   ;; Connect to the editor target names in the background, this editor

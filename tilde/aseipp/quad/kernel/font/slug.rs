@@ -311,12 +311,23 @@ pub struct Shape {
 }
 
 /// The curve and band data of every shape added so far.
-#[derive(Default)]
 pub struct Atlas {
     pub curves: Vec<[f32; 4]>,
     pub bands: Vec<[u32; 2]>,
-    /// Bumped whenever the data changes, so renderers know to upload it.
-    pub generation: u64,
+    /// New whenever the atlas is cleared, and never the same for two
+    /// atlases. Between clears it only grows, so a renderer that has
+    /// uploaded some of it uploads only the rest.
+    pub cleared: u64,
+}
+
+impl Default for Atlas {
+    fn default() -> Atlas {
+        Atlas {
+            curves: Vec::new(),
+            bands: Vec::new(),
+            cleared: crate::next_epoch(),
+        }
+    }
 }
 
 /// Bands overlap by this much (em), so a curve on a boundary is in both.
@@ -329,7 +340,7 @@ impl Atlas {
     pub fn clear(&mut self) {
         self.curves.clear();
         self.bands.clear();
-        self.generation += 1;
+        self.cleared = crate::next_epoch();
     }
 
     /// Adds a shape, or returns None for one with nothing to draw.
@@ -377,7 +388,6 @@ impl Atlas {
             self.bands[location as usize + i] = [list.len() as u32, offset];
             self.bands.extend(list.iter().map(|&curve| [curve, 0]));
         }
-        self.generation += 1;
         Some(Shape {
             bounds,
             banding: [
@@ -411,32 +421,41 @@ fn bands(curves: &[Curve], index: &[u32], axis: usize, lo: f32, hi: f32) -> Band
     let crossing: Vec<usize> = (0..curves.len())
         .filter(|&i| !curves[i].flat(axis))
         .collect();
-    let fill = |n: usize| -> Vec<Vec<usize>> {
-        let mut lists = vec![Vec::new(); n];
+    // A crossing curve's first and last band, of n.
+    let range = |c: &Curve, n: usize| -> (usize, usize) {
+        let first = (((c.min(axis) - BAND_EPSILON - lo) / span * n as f32)
+            .floor()
+            .max(0.0)) as usize;
+        let last =
+            (((c.max(axis) + BAND_EPSILON - lo) / span * n as f32).floor() as usize).min(n - 1);
+        (first.min(n - 1), last)
+    };
+    // How many curves the fullest of n bands has: counted, for each n, and
+    // the bands filled only for the best.
+    let fullest_of = |n: usize| -> usize {
+        let mut counts = [0usize; MAX_BANDS];
         for &i in &crossing {
-            let c = &curves[i];
-            let first = (((c.min(axis) - BAND_EPSILON - lo) / span * n as f32)
-                .floor()
-                .max(0.0)) as usize;
-            let last =
-                (((c.max(axis) + BAND_EPSILON - lo) / span * n as f32).floor() as usize).min(n - 1);
-            for list in &mut lists[first.min(n - 1)..=last] {
-                list.push(i);
+            let (first, last) = range(&curves[i], n);
+            for count in &mut counts[first..=last] {
+                *count += 1;
             }
         }
-        lists
+        counts[..n].iter().copied().max().unwrap_or(0)
     };
-    let mut best = fill(1);
-    let mut fullest = best[0].len();
-    for n in 2..=MAX_BANDS {
-        let lists = fill(n);
-        let most = lists.iter().map(Vec::len).max().unwrap_or(0);
+    let (mut n, mut fullest) = (1, fullest_of(1));
+    for m in 2..=MAX_BANDS {
+        let most = fullest_of(m);
         if most < fullest {
-            best = lists;
-            fullest = most;
+            (n, fullest) = (m, most);
         }
     }
-    let n = best.len();
+    let mut best = vec![Vec::new(); n];
+    for &i in &crossing {
+        let (first, last) = range(&curves[i], n);
+        for list in &mut best[first..=last] {
+            list.push(i);
+        }
+    }
     let lists = best
         .into_iter()
         .map(|mut list| {

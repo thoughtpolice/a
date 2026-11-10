@@ -30,7 +30,8 @@ use winit::window::Window;
 
 use super::{
     Buffers, DrawList, GLYPH_FRAGMENT, GLYPH_VERTEX, IMAGE_FRAGMENT, IMAGE_VERTEX, Params,
-    Pipeline, RECT_FRAGMENT, RECT_VERTEX, clear_color, entry_point_name, is_srgb, vk_error,
+    Pipeline, RECT_FRAGMENT, RECT_VERTEX, clear_color, entry_point_name, is_srgb, spirv_words,
+    vk_error,
 };
 use quad_timing as timing;
 
@@ -275,11 +276,8 @@ struct Module<'d> {
 
 impl<'d> Module<'d> {
     fn new(device: &'d Device, code: &[u8]) -> Result<Module<'d>, String> {
-        let entry = entry_point_name(code).ok_or("a shader has no entry point")?;
-        let words: Vec<u32> = code
-            .chunks_exact(4)
-            .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
-            .collect();
+        let words = spirv_words(code);
+        let entry = entry_point_name(&words).ok_or("a shader has no entry point")?;
         let info = vk::ShaderModuleCreateInfo::default().code(&words);
         // SAFETY: a live device, and SPIR-V slangc compiled.
         let raw = unsafe { device.raw.create_shader_module(&info, None) }
@@ -963,22 +961,16 @@ impl Frame {
         } else {
             None
         };
-        let waits: Vec<_> = wait
-            .map(|s| {
-                vk::SemaphoreSubmitInfo::default()
-                    .semaphore(s.raw)
-                    .stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-            })
-            .into_iter()
-            .collect();
-        let signals: Vec<_> = signal
-            .map(|s| {
-                vk::SemaphoreSubmitInfo::default()
-                    .semaphore(s.raw)
-                    .stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
-            })
-            .into_iter()
-            .collect();
+        let waits = wait.map(|s| {
+            vk::SemaphoreSubmitInfo::default()
+                .semaphore(s.raw)
+                .stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+        });
+        let signals = signal.map(|s| {
+            vk::SemaphoreSubmitInfo::default()
+                .semaphore(s.raw)
+                .stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+        });
         let buffers = [vk::CommandBufferSubmitInfo::default().command_buffer(c)];
         // SAFETY: the frame's fence (signaled, so not in use) and its
         // recorded commands, submitted to the device's queue (the windows'
@@ -990,9 +982,9 @@ impl Frame {
             d.queue_submit2(
                 device.queue,
                 &[vk::SubmitInfo2::default()
-                    .wait_semaphore_infos(&waits)
+                    .wait_semaphore_infos(waits.as_slice())
                     .command_buffer_infos(&buffers)
-                    .signal_semaphore_infos(&signals)],
+                    .signal_semaphore_infos(signals.as_slice())],
                 self.done,
             )
             .map_err(vk_error("submitting"))

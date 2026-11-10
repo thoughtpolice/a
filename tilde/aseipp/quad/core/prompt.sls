@@ -13,7 +13,7 @@
           prompt-cursor-set! prompt-candidates prompt-items prompt-items-set! prompt-index
           prompt-index-set! prompt-on-accept prompt-on-change prompt-style prompt-hint
           prompt-on-select-set! prompt-on-cancel-set! prompt-selected! cancel-prompt!
-          prompt-most prompt-most-set! current-prompt prompt-refresh! open-prompt!
+          prompt-most prompt-most-set! current-prompt prompt-refresh! prompt-edit! open-prompt!
           close-prompt! prompt-accept! read-string-prompt read-string-dialog pick make-popup
           popup? popup-title popup-lines popup-footer current-popup show-popup! hide-popup!
           active-layer active-layer-keymap exit-layer! enter-layer! layer-legend-visible?
@@ -80,20 +80,32 @@
     (when (prompt-candidates p)
       (let* ([input (prompt-input p)]
              [all (candidates-of p input)]
-             [scored (if (or (string=? input "") (unfiltered? (prompt-candidates p)))
-                         (map (lambda (c) (list 0 '() c)) all)
-                         (filter-map (lambda (c)
-                                       (let ([s (fuzzy-score input (car c))])
-                                         (and s (list (car s) (cdr s) c))))
-                                     all))]
-             [sorted (if (or (string=? input "") (unfiltered? (prompt-candidates p)))
-                         scored
-                         (sort (lambda (a b) (> (car a) (car b))) scored))])
-        (prompt-items-set! p (map (lambda (x) (cons (caddr x) (cadr x))) sorted))
-        (prompt-most-set! p (max (prompt-most p) (length sorted)))
-        (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- (length sorted) 1))))
+             ;; (candidate . matched-indices) each, best first.
+             [items (if (or (string=? input "") (unfiltered? (prompt-candidates p)))
+                        (map (lambda (c) (cons c '())) all)
+                        (map cdr
+                             (sort (lambda (a b) (> (car a) (car b)))
+                                   (filter-map (lambda (c)
+                                                 (let ([s (fuzzy-score input (car c))])
+                                                   (and s (cons (car s) (cons c (cdr s))))))
+                                               all))))]
+             [n (length items)])
+        (prompt-items-set! p items)
+        (prompt-most-set! p (max (prompt-most p) n))
+        (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- n 1))))
         (prompt-selected! p)))
     (when (prompt-on-change p) ((prompt-on-change p) (prompt-input p))))
+
+  ;; Edit the current prompt's input: (f input cursor) gives the new input
+  ;; and cursor, which the candidates are then chosen again for.
+  (define (prompt-edit! f)
+    (let ([p (current-prompt)])
+      (when p
+        (let-values ([(in c) (f (prompt-input p) (prompt-cursor p))])
+          (prompt-input-set! p in)
+          (prompt-cursor-set! p (clamp c 0 (string-length in)))
+          (prompt-index-set! p 0)
+          (prompt-refresh! p)))))
 
   ;; Show prompt p; it is returned.
   (define (open-prompt! p)
@@ -258,8 +270,7 @@
     (if (<= p 0)
         0
         (let ([t (buffer-text b)])
-          (grapheme-start (lambda (i) (text-ref t i)) (- p 1)
-                          (text-line-start t (text-line-of t (- p 1)))))))
+          (grapheme-start (lambda (i) (text-ref t i)) (- p 1)))))
 
   ;; The display column of pos on its line.
   (define (display-column b pos)

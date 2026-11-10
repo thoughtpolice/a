@@ -13,8 +13,6 @@
 (text-delete! t 0 7)
 (expect-equal "delete" (text->string t) "there\nworld\n")
 (expect-equal "line start after edits" (text-line-start t 1) 6)
-(expect-equal "search" (text-search-forward t "wor" 0) 6)
-(expect-equal "search backward" (text-search-backward t "e" 11) 4)
 
 ;; Big edits, bigger than the window text-ref reads through.
 (let ([big (make-string 10000 #\x)])

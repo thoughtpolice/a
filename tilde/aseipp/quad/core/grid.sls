@@ -42,9 +42,10 @@
                     [text (car cell)]
                     [hl (if (pair? (cdr cell)) (cadr cell) hl)]
                     [n (if (and (pair? (cdr cell)) (pair? (cddr cell))) (caddr cell) 1)])
-               (do ([i 0 (+ i 1)]) ((= i n))
-                 (when (< (+ col i) (vector-length row))
-                   (vector-set! row (+ col i) (cons text hl))))
+               ;; A run's cells are one cell: none is changed in place.
+               (let ([c (cons text hl)])
+                 (do ([i col (+ i 1)]) ((>= i (min (+ col n) (vector-length row))))
+                   (vector-set! row i c)))
                (loop (cdr cells) (+ col n) hl)))))]
       [(hl) (hashtable-set! (grid-model-hls g) (cadr msg) (cddr msg))]
       ;; Rows top to bottom move up by n (down for n < 0); those scrolled

@@ -21,7 +21,7 @@
 
 use std::collections::HashMap;
 use std::os::fd::{AsRawFd as _, IntoRawFd as _, OwnedFd};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use accept::Accept as _;
@@ -84,25 +84,19 @@ fn preset(local: bool) -> iroh_dial::Global {
 
 /// The connections that the descriptors Scheme has for streams belong
 /// to: for what else goes over them (voice's datagrams, voice/).
-fn links() -> &'static Mutex<HashMap<i32, Connection>> {
-    static LINKS: OnceLock<Mutex<HashMap<i32, Connection>>> = OnceLock::new();
-    LINKS.get_or_init(Mutex::default)
-}
+static LINKS: LazyLock<Mutex<HashMap<i32, Connection>>> = LazyLock::new(Mutex::default);
 
 /// Every endpoint this process has made and not yet closed, for closing at
 /// exit ([`quad_mesh_settle`]).
-fn endpoints() -> &'static Mutex<Vec<Endpoint>> {
-    static ENDPOINTS: OnceLock<Mutex<Vec<Endpoint>>> = OnceLock::new();
-    ENDPOINTS.get_or_init(Mutex::default)
-}
+static ENDPOINTS: Mutex<Vec<Endpoint>> = Mutex::new(Vec::new());
 
 fn keep(endpoint: &Endpoint) {
-    endpoints().lock().unwrap().push(endpoint.clone());
+    ENDPOINTS.lock().unwrap().push(endpoint.clone());
 }
 
 /// Closes `endpoint`, in the background, as it is let go of.
 fn close(endpoint: Endpoint) {
-    endpoints()
+    ENDPOINTS
         .lock()
         .unwrap()
         .retain(|e| e.id() != endpoint.id());
@@ -110,10 +104,7 @@ fn close(endpoint: Endpoint) {
 }
 
 /// The streams being pumped ([`bridge`]), until they end.
-fn bridges() -> &'static Mutex<Vec<tokio::task::JoinHandle<()>>> {
-    static BRIDGES: OnceLock<Mutex<Vec<tokio::task::JoinHandle<()>>>> = OnceLock::new();
-    BRIDGES.get_or_init(Mutex::default)
-}
+static BRIDGES: Mutex<Vec<tokio::task::JoinHandle<()>>> = Mutex::new(Vec::new());
 
 /// How long an exiting process waits for its streams' peers to have heard
 /// the last of them, and then for its endpoints to close.
@@ -127,9 +118,9 @@ const SETTLE: Duration = Duration::from_millis(500);
 /// waited for a little, no longer.
 #[unsafe(no_mangle)]
 pub extern "C" fn quad_mesh_settle() {
-    let fds: Vec<i32> = links().lock().unwrap().keys().copied().collect();
-    let bridges = std::mem::take(&mut *bridges().lock().unwrap());
-    let endpoints = std::mem::take(&mut *endpoints().lock().unwrap());
+    let fds: Vec<i32> = LINKS.lock().unwrap().keys().copied().collect();
+    let bridges = std::mem::take(&mut *BRIDGES.lock().unwrap());
+    let endpoints = std::mem::take(&mut *ENDPOINTS.lock().unwrap());
     if bridges.is_empty() && endpoints.is_empty() {
         return;
     }
@@ -147,7 +138,7 @@ pub extern "C" fn quad_mesh_settle() {
 
 /// The connection whose stream Scheme has as `fd`, while it is open.
 pub fn link(fd: i32) -> Option<Connection> {
-    let conn = links().lock().unwrap().get(&fd).cloned()?;
+    let conn = LINKS.lock().unwrap().get(&fd).cloned()?;
     conn.close_reason().is_none().then_some(conn)
 }
 
@@ -161,7 +152,7 @@ where
     let (ours, theirs) = std::os::unix::net::UnixStream::pair()?;
     ours.set_nonblocking(true)?;
     let fd = theirs.as_raw_fd();
-    links().lock().unwrap().insert(fd, conn.clone());
+    LINKS.lock().unwrap().insert(fd, conn.clone());
     let mut stream = stream;
     let pump = runtime().spawn(async move {
         if let Ok(mut ours) = tokio::net::UnixStream::from_std(ours) {
@@ -169,7 +160,7 @@ where
         }
         // Scheme may have closed the descriptor, and its number gone to
         // something else, with a connection of its own.
-        let mut links = links().lock().unwrap();
+        let mut links = LINKS.lock().unwrap();
         if links
             .get(&fd)
             .is_some_and(|c| c.stable_id() == conn.stable_id())
@@ -177,7 +168,7 @@ where
             links.remove(&fd);
         }
     });
-    let mut bridges = bridges().lock().unwrap();
+    let mut bridges = BRIDGES.lock().unwrap();
     bridges.retain(|b| !b.is_finished());
     bridges.push(pump);
     Ok(theirs.into())
@@ -424,8 +415,7 @@ pub fn connect_start(target: &str, local: bool) -> std::io::Result<Pending> {
 }
 
 /// Connect to the editor `target` names, a join code or a ticket: a
-/// stream to it, as a descriptor. Under a code, each editor is tried as
-/// soon as the DHT mentions it, rather than once the whole lookup is done.
+/// stream to it, as a descriptor.
 async fn connect_async(target: String, local: bool) -> Result<Session, String> {
     let identity = SecretKey::generate();
     let endpoint = PROTOCOL
@@ -433,6 +423,23 @@ async fn connect_async(target: String, local: bool) -> Result<Session, String> {
         .await
         .map_err(|e| format!("the iroh endpoint would not bind: {e}"))?;
     keep(&endpoint);
+    match reach(&endpoint, &target).await {
+        Ok((fd, editor)) => Ok(Session {
+            fd,
+            editor,
+            endpoint: Some(endpoint),
+        }),
+        Err(e) => {
+            close(endpoint);
+            Err(e)
+        }
+    }
+}
+
+/// A stream to the editor `target` names, through `endpoint`: its
+/// descriptor, and the editor's id. Under a code, each editor is tried as
+/// soon as the DHT mentions it, rather than once the whole lookup is done.
+async fn reach(endpoint: &Endpoint, target: &str) -> Result<(i32, String), String> {
     let attempt = |addr: EndpointAddr, key: JoinKey| {
         let endpoint = endpoint.clone();
         async move {
@@ -453,18 +460,12 @@ async fn connect_async(target: String, local: bool) -> Result<Session, String> {
     let mut why = String::new();
     if let Ok(ticket) = target.parse::<JoinTicket>() {
         match attempt(ticket.host, ticket.key).await {
-            Ok((fd, editor)) => {
-                return Ok(Session {
-                    fd,
-                    editor,
-                    endpoint: Some(endpoint),
-                });
-            }
+            Ok(found) => return Ok(found),
             Err(e) => why = e,
         }
     } else if let Ok(code) = target.parse::<JoinCode>() {
         // The DHT node finds its way around while Argon2 runs.
-        let rendezvous = Cluster::rendezvous(&endpoint, None)
+        let rendezvous = Cluster::rendezvous(endpoint, None)
             .map_err(|e| format!("could not join the DHT: {e}"))?;
         let cluster = tokio::task::spawn_blocking(move || code.cluster(&PROTOCOL))
             .await
@@ -483,13 +484,7 @@ async fn connect_async(target: String, local: bool) -> Result<Session, String> {
                     continue;
                 }
                 match attempt(EndpointAddr::new(id), cluster.key()).await {
-                    Ok((fd, editor)) => {
-                        return Ok(Session {
-                            fd,
-                            editor,
-                            endpoint: Some(endpoint),
-                        });
-                    }
+                    Ok(found) => return Ok(found),
                     Err(e) => why = e,
                 }
             }
@@ -499,12 +494,10 @@ async fn connect_async(target: String, local: bool) -> Result<Session, String> {
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
         if tried.is_empty() {
-            close(endpoint);
             return Err(format!("no editor is announced under {}", cluster.hint()));
         }
     } else {
         return Err(format!("{target:?} is neither a join code nor a ticket"));
     }
-    close(endpoint);
     Err(format!("could not reach the editor: {why}"))
 }

@@ -57,15 +57,7 @@
   ;; ---------------------------------------------------------------------------
   ;; The questions
 
-  ;; Where program is in PATH, or #f.
-  (define (find-program program)
-    (let ([path (getenv "PATH")])
-      (and path
-           (find (lambda (f) (and (file-exists? f) (not (file-directory? f))))
-                 (map (lambda (d) (path-join d program))
-                      (filter (lambda (d) (not (string=? d ""))) (string-split path #\:)))))))
-
-  (define (index-of x l) (let loop ([l l] [i 0]) (cond [(null? l) 0] [(equal? (car l) x) i] [else (loop (cdr l) (+ i 1))])))
+  (define (index-of x l) (or (list-index (lambda (y) (equal? y x)) l) 0))
 
   (define (option label value detail) (list label value detail #t))
 
@@ -133,8 +125,8 @@
       (helix "Helix" "selection first, every motion on every selection")))
 
   (define (entries path)
-    (let* ([codex (find-program "codex")]
-           [themes (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b))) (theme-names))]
+    (let* ([codex (find-executable "codex")]
+           [themes (sort-symbols (theme-names))]
            [ais (list (option "Codex" 'codex
                               (if codex "OpenAI's Codex (installed)" "OpenAI's Codex: npm install -g @openai/codex first"))
                       (list "Claude" 'claude "Anthropic's Claude: not yet" #f)
@@ -212,13 +204,12 @@
   ;; Asking
 
   (define (write-config! path text)
-    (let mkdir-p ([d (path-dirname path)])
-      (unless (file-exists? d) (mkdir-p (path-dirname d)) (mkdir d)))
+    (make-directories! (path-dirname path))
     (when (file-exists? path)
       (let ([bak (string-append path ".bak")])
         (when (file-exists? bak) (delete-file bak))
         (rename-file path bak)))
-    (call-with-output-file path (lambda (p) (display text p))))
+    (write-file-string path text))
 
   ;; Ask, then write the init file, load it, and go on.
   (define (setup!)

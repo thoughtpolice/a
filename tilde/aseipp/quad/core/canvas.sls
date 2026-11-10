@@ -77,8 +77,6 @@
   ;; ---------------------------------------------------------------------------
   ;; Drawing
 
-  ;; Draw client c's frame and send it what changed. The client's own
-  ;; state (prompt, layer, message, view) is current while drawing.
   ;; Copy grid sub into g, its top left at (row, col).
   (define (blit! g sub row col)
     (do ([i 0 (+ i 1)]) ((or (= i (grid-rows sub)) (>= (+ row i) (grid-rows g))))
@@ -117,23 +115,25 @@
   (define (wrap-text text width)
     (apply append
            (map (lambda (line)
-                  (let loop ([line line] [acc '()])
-                    (if (<= (string-width line) width)
-                        (reverse (cons line acc))
-                        (let* ([ref (lambda (i) (string-ref line i))]
-                               [n (string-length line)]
-                               [cut (let fit ([i 0] [w 0])
-                                      (if (= i n)
-                                          i
-                                          (let* ([j (grapheme-end ref i n)] [cw (grapheme-columns ref i j)])
-                                            (if (> (+ w cw) width) i (fit j (+ w cw))))))]
-                               [space (let back ([i cut])
-                                        (cond [(<= i 0) #f]
-                                              [(char=? (string-ref line i) #\space) i]
-                                              [else (back (- i 1))]))]
-                               [at (if (and space (> space 0)) space (max 1 cut))])
-                          (loop (string-trim-left (substring line at (string-length line)))
-                                (cons (substring line 0 at) acc))))))
+                  (let ([n (string-length line)] [ref (lambda (i) (string-ref line i))])
+                    (let loop ([start 0] [acc '()])
+                      (let ([cut (let fit ([i start] [w 0])
+                                   (if (= i n)
+                                       i
+                                       (let* ([j (grapheme-end ref i n)] [cw (grapheme-columns ref i j)])
+                                         (if (> (+ w cw) width) i (fit j (+ w cw))))))])
+                        (if (= cut n)
+                            (reverse (cons (substring line start n) acc))
+                            ;; Back to a space, else at the width; the next
+                            ;; line starts past the spaces there.
+                            (let* ([space (let back ([i cut])
+                                            (cond [(<= i start) #f]
+                                                  [(char=? (string-ref line i) #\space) i]
+                                                  [else (back (- i 1))]))]
+                                   [at (or space (max (+ start 1) cut))])
+                              (loop (let skip ([i at])
+                                      (if (and (< i n) (char-whitespace? (string-ref line i))) (skip (+ i 1)) i))
+                                    (cons (substring line start at) acc))))))))
                 (string-split text #\newline))))
 
   ;; Where lines of at most width columns start in s, breaking after a space

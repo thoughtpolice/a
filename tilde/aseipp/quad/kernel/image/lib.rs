@@ -98,11 +98,7 @@ impl Images {
                 continue;
             };
             let (room_w, room_h) = (p.cols as f32 * cw, p.rows as f32 * ch);
-            let scale = (room_w / image.width as f32)
-                .min(room_h / image.height as f32)
-                .min(1.0);
-            let w = ((image.width as f32 * scale).round() as u32).max(1);
-            let h = ((image.height as f32 * scale).round() as u32).max(1);
+            let (w, h) = fit((image.width, image.height), [room_w, room_h]);
             let x = (p.col as f32 * cw + (room_w - w as f32) / 2.0).floor();
             let y = p.row as f32 * ch;
             let shown = (h as f32).min(p.shown as f32 * ch).floor();
@@ -147,6 +143,16 @@ impl Images {
     }
 }
 
+/// A picture `size` (width, height) in pixels, made to fit `room`: its
+/// shape kept, never larger, and at least a pixel each way.
+pub fn fit(size: (u32, u32), room: [f32; 2]) -> (u32, u32) {
+    let scale = (room[0] / size.0 as f32)
+        .min(room[1] / size.1 as f32)
+        .min(1.0);
+    let side = |n: u32| ((n as f32 * scale).round() as u32).max(1);
+    (side(size.0), side(size.1))
+}
+
 pub fn decode(png: &[u8]) -> Result<Decoded, String> {
     let mut decoder = png::Decoder::new(std::io::Cursor::new(png));
     // Palettes, low bit depths and transparency become RGB(A), 16 bits 8.
@@ -181,9 +187,24 @@ pub fn decode(png: &[u8]) -> Result<Decoded, String> {
     })
 }
 
-/// `rgba` (`width` by `height`, RGBA bytes) as a PNG, compressed: for
-/// images kept, as tests' golden images are.
+/// `rgba` (`width` by `height`, RGBA bytes) as a PNG, compressed hard:
+/// for images kept, as tests' golden images are.
 pub fn encode(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
+    encode_with(width, height, rgba, png::Compression::High)
+}
+
+/// `rgba` as a PNG, compressed quickly: for images made often and soon
+/// gone, as frames of an effect sent to a terminal are.
+pub fn encode_fast(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
+    encode_with(width, height, rgba, png::Compression::Fast)
+}
+
+fn encode_with(
+    width: u32,
+    height: u32,
+    rgba: &[u8],
+    compression: png::Compression,
+) -> Result<Vec<u8>, String> {
     if rgba.len() != (width * height * 4) as usize {
         return Err(format!(
             "{} bytes are not {width} by {height} RGBA pixels",
@@ -194,12 +215,16 @@ pub fn encode(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
     let mut encoder = png::Encoder::new(&mut png, width, height);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
-    encoder.set_compression(png::Compression::High);
+    encoder.set_compression(compression);
     let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
     writer.write_image_data(rgba).map_err(|e| e.to_string())?;
     writer.finish().map_err(|e| e.to_string())?;
     Ok(png)
 }
+
+/// Each sRGB channel value, in linear light.
+static LINEAR: std::sync::LazyLock<[f32; 256]> =
+    std::sync::LazyLock::new(|| std::array::from_fn(|v| to_linear(v as u8)));
 
 fn to_linear(v: u8) -> f32 {
     let v = f32::from(v) / 255.0;
@@ -232,7 +257,7 @@ pub fn scale_to(image: &Decoded, w: u32, h: u32) -> Vec<u32> {
             .map(|p| pack([p[0], p[1], p[2], p[3]]))
             .collect();
     }
-    let linear: Vec<f32> = (0..=255u8).map(to_linear).collect();
+    let linear = &*LINEAR;
     let (iw, ih) = (image.width as usize, image.height as usize);
     // Each output row's or column's source span and the weights of the
     // source rows or columns in it.

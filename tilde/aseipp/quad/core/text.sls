@@ -17,12 +17,10 @@
   (export make-text read-text-file text? text-rope text-length text-ref text-substring text->string
           text-insert! text-delete! text-version
           text-line-count text-line-start text-line-end text-line-of
-          text-line-string text-column text-pos-at text-match-at?
-          text-search-forward text-search-backward)
+          text-line-string text-column text-pos-at text-match-at?)
   (import (chezscheme)
           (only (quad native) rope-new rope-read rope-length rope-line-count rope-line-start rope-line-end
-                rope-line-of rope-slice rope-insert! rope-remove! rope-find-forward
-                rope-find-backward))
+                rope-line-of rope-slice rope-insert! rope-remove!))
 
   ;; rope: the kernel's. len: its length, kept here, as it is asked for
   ;; often. window: the text from window-start on, "" when closed.
@@ -123,14 +121,4 @@
              (let loop ([j 0])
                (or (= j m)
                    (and (same? (text-ref t (+ i j)) (string-ref needle j))
-                        (loop (+ j 1)))))))]))
-
-  ;; Where needle first occurs at or after pos, or #f.
-  (define (text-search-forward t needle pos)
-    (and (> (string-length needle) 0)
-         (rope-find-forward (text-rope t) needle (max 0 pos))))
-
-  ;; Where needle last occurs starting at or before pos, or #f.
-  (define (text-search-backward t needle pos)
-    (and (> (string-length needle) 0) (>= pos 0)
-         (rope-find-backward (text-rope t) needle pos))))
+                        (loop (+ j 1)))))))])))

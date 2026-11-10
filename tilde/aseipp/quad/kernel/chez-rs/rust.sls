@@ -16,13 +16,15 @@
   ;; The runtime's entries, resolved when first used: the program registers
   ;; them (Library::register) after its heap is built.
   (define-syntax define-entry
-    (syntax-rules ()
-      [(_ name cname (arg ...) ret)
-       (define name
-         (let ([p #f])
-           (lambda args
-             (unless p (set! p (foreign-procedure cname (arg ...) ret)))
-             (apply p args))))]))
+    (lambda (x)
+      (syntax-case x ()
+        [(_ name cname (arg ...) ret)
+         (with-syntax ([(t ...) (generate-temporaries #'(arg ...))])
+           #'(define name
+               (let ([p #f])
+                 (lambda (t ...)
+                   (unless p (set! p (foreign-procedure cname (arg ...) ret)))
+                   (p t ...)))))])))
 
   (define-entry last-error "chez-rust:last-error" () ptr)
   (define-entry drop-handle "chez-rust:drop" (ptr) ptr)

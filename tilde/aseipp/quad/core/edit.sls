@@ -8,8 +8,9 @@
 ;; and binds those), for any key scheme's keys to use.
 (library (quad edit)
   (export
-          cur cv sel-range current-unit move-range range->sel move! select-mode! selection-text
-          sels-texts edit-sels! gap-between line-indent indent-for-newline enter-insert!
+          cur cv sel-range current-unit move-range range->sel extend-sel line-unit move! select-mode!
+          selection-text
+          sels-texts edit-sels! place! gap-between line-indent indent-for-newline enter-insert!
           exit-insert! insert-at-cursors! insert-newline! delete-backward! delete-forward!
           word-start-before word-end-after delete-word-backward! delete-word-forward!
           move-cursors! cursor-vertical delete-towards! delete-to! change! copy! replace-with!
@@ -19,14 +20,13 @@
           change-surround! add-cursor! cycle-primary! delete-cursor! select-all-occurrences!
           jump! search! search-prompt! goto-line! parent-line! edit-install! reload-buffer!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
-          (quad syntax) (quad buffer) (quad selection) (quad editor))
+          (quad syntax) (quad buffer) (quad selection) (quad editor)
+          (only (quad native) search-new search-all))
 
 
   (define (cur) (current-buffer))
   (define (cv) (current-view))
 
-
-  (define (mode-obj b) (selection-mode-of b))
 
   ;; ---------------------------------------------------------------------------
   ;; Selections and movement
@@ -35,12 +35,24 @@
   (define (hull s) (cons (sel-range-start s) (sel-range-end s)))
 
   (define (current-unit b r)
-    ((selection-mode-current (mode-obj b)) b r))
+    ((selection-mode-current (selection-mode-of b)) b r))
 
   (define (move-range b r dir)
-    ((selection-mode-move (mode-obj b)) b r dir))
+    ((selection-mode-move (selection-mode-of b)) b r dir))
 
   (define (range->sel r) (make-sel (car r) (cdr r)))
+
+  ;; s, extended to r from where it was anchored.
+  (define (extend-sel s r) (make-sel (car r) (cdr r) (or (sel-anchor s) (sel-range s))))
+
+  ;; Selection s, gone to the unit r: extended to it while extending, else
+  ;; on it; s itself where there is none.
+  (define (to-unit s r)
+    (cond [(not r) s] [(view-extending? (cv)) (extend-sel s r)] [else (range->sel r)]))
+
+  ;; The unit at line's indentation.
+  (define (line-unit b line)
+    (let ([p (line-indent-end (buffer-text b) line)]) (current-unit b (cons p p))))
 
   ;; The unit next to range r in direction dir that does not overlap it.
   ;; Movements step from a range's start, so for a range spanning several
@@ -60,16 +72,9 @@
           (unless (view-sticky-col (cv))
             (view-sticky-col-set! (cv) (text-column (buffer-text b) (sel-start (primary)))))
           (view-sticky-col-set! (cv) #f))
-      (let ([moved (map (lambda (s)
-                          (let ([r (parameterize ([goal-column (view-sticky-col (cv))])
-                                     (move-range b (sel-range s) dir))])
-                            (cond
-                             [(not r) s]
-                             [(view-extending? (cv))
-                              (make-sel (car r) (cdr r) (or (sel-anchor s) (sel-range s)))]
-                             [else (range->sel r)])))
-                        (sels-of b))])
-        (when (eq? (car moved) (primary)) (message "No ~a ~a" (selection-mode-label (mode-obj b)) dir))
+      (let ([moved (parameterize ([goal-column (view-sticky-col (cv))])
+                     (map (lambda (s) (to-unit s (move-range b (sel-range s) dir))) (sels-of b)))])
+        (when (eq? (car moved) (primary)) (message "No ~a ~a" (selection-mode-label (selection-mode-of b)) dir))
         (set-sels! b moved))))
 
   (define (select-mode! name)
@@ -77,27 +82,22 @@
       (push-selection-history! b)
       (set-selection-mode! b name)
       (view-sticky-col-set! (cv) #f)
-      (set-sels! b (map (lambda (s)
-                          (let ([r (current-unit b (hull s))])
-                            (cond
-                             [(not r) s]
-                             [(view-extending? (cv)) (make-sel (car r) (cdr r) (or (sel-anchor s) (sel-range s)))]
-                             [else (range->sel r)])))
-                        (sels-of b)))))
-
-  (define (reselect-current! b)
-    (set-sels! b (map (lambda (s) (let ([r (current-unit b (hull s))]) (if r (range->sel r) s)))
-                      (sels-of b))))
+      (set-sels! b (map (lambda (s) (to-unit s (current-unit b (hull s)))) (sels-of b)))))
 
   (define (selection-text b s) (buffer-substring b (sel-range-start s) (sel-range-end s)))
   (define (sels-texts b) (map (lambda (s) (selection-text b s)) (sels-of b)))
 
   ;; Edit each selection: (f sel) returns #f to leave it alone, or a list
   ;; (start end text new-sel) where (new-sel start') builds the selection
-  ;; from where the replacement text begins after the edit.
+  ;; from where the replacement text begins after the edit. f sees the
+  ;; selections in order (map's order is not), so that it can give each
+  ;; the next of a list of texts.
   (define (edit-sels! f)
     (let* ([b (cur)]
-           [plans (map (lambda (s) (or (f s) (list #f s))) (sels-of b))]
+           [plans (let loop ([ss (sels-of b)] [acc '()])
+                    (if (null? ss)
+                        (reverse acc)
+                        (loop (cdr ss) (cons (or (f (car ss)) (list #f (car ss))) acc))))]
            [edits (filter car plans)])
       (when (pair? edits)
         (let ([starts (buffer-edit! b (map (lambda (p) (list (car p) (cadr p) (caddr p))) edits))])
@@ -113,7 +113,7 @@
   ;; or left), or a default gap when there is no neighbor.
   (define (gap-between b s dir)
     (let* ([r (hull s)] [n (neighbor b r dir)]
-           [default (if (selection-mode-line-wise? (mode-obj b)) "\n" " ")])
+           [default (if (selection-mode-line-wise? (selection-mode-of b)) "\n" " ")])
       (cond
        [(not n) default]
        [(and (eq? dir 'right) (>= (car n) (cdr r)))
@@ -213,13 +213,11 @@
        (lambda (sel)
          (let* ([p (sel-start sel)] [t (buffer-text b)]
                 ;; Drop trailing whitespace before the break.
-                [ws-start (let loop ([i p]) (if (and (> i (text-line-start t (text-line-of t p)))
-                                                     (memv (text-ref t (- i 1)) '(#\space #\tab)))
-                                                (loop (- i 1)) i))]
+                [ws-start (blanks-before t p (text-line-start t (text-line-of t p)))]
                 [indent (indent-for-newline b p)]
                 [between (and (< p (text-length t)) (> p 0)
-                              (assv (text-ref t (- p 1)) '((#\{ . #\}) (#\( . #\)) (#\[ . #\])))
-                              (char=? (text-ref t p) (cdr (assv (text-ref t (- p 1)) '((#\{ . #\}) (#\( . #\)) (#\[ . #\]))))))]
+                              (let ([pair (assv (text-ref t (- p 1)) '((#\{ . #\}) (#\( . #\)) (#\[ . #\])))])
+                                (and pair (char=? (text-ref t p) (cdr pair)))))]
                 [text (if (and between (not (syntax-lisp? (major-mode-syntax (buffer-major-mode b)))))
                           (string-append "\n" indent "\n" (line-indent b (text-line-of t p)))
                           (string-append "\n" indent))])
@@ -234,8 +232,8 @@
            (and (> p 0)
                 (let* ([prev (text-ref t (- p 1))]
                        [next (and (< p (text-length t)) (text-ref t p))]
-                       [pair? (and next (get-var 'auto-pairs b) (assv prev closers)
-                                   (char=? next (cdr (assv prev closers))))]
+                       [pair? (and next (get-var 'auto-pairs b)
+                                   (let ([pair (assv prev closers)]) (and pair (char=? next (cdr pair)))))]
                        ;; In leading indentation, delete back to the previous stop.
                        [line-start (text-line-start t (text-line-of t p))]
                        [unit (string-length (get-var 'indent-unit b))]
@@ -291,7 +289,7 @@
           (let ([q (text-pos-at t target (- p (text-line-start t line)))])
             ;; Not inside a cluster.
             (if (< q (text-length t))
-                (grapheme-start (lambda (i) (text-ref t i)) q (text-line-start t target))
+                (grapheme-start (lambda (i) (text-ref t i)) q)
                 q))
           p)))
 
@@ -312,16 +310,12 @@
                   [fwd? (memq dir '(right next))]
                   [n1 (if fwd? (after (neighbor b r dir)) (before (neighbor b r dir)))]
                   [n2 (and (not n1) (if fwd? (before (neighbor b r opposite)) (after (neighbor b r opposite))))])
-             (cond
-              [(and n1 fwd?)
-               (list (car r) (car n1) "" (lambda (np) (make-sel np (+ np (- (cdr n1) (car n1))))))]
-              [n1
-               (list (cdr n1) (cdr r) "" (lambda (np) (make-sel (- np (- (cdr n1) (car n1))) np)))]
-              [(and n2 (not fwd?))
-               (list (car r) (car n2) "" (lambda (np) (make-sel np (+ np (- (cdr n2) (car n2))))))]
-              [n2
-               (list (cdr n2) (cdr r) "" (lambda (np) (make-sel (- np (- (cdr n2) (car n2))) np)))]
-              [else (list (car r) (cdr r) "" (lambda (np) (make-sel np np)))]))))
+             ;; The neighbor found, and whether it is after the selection.
+             (let ([n (or n1 n2)] [after? (if n1 fwd? (not fwd?))])
+               (cond
+                [(not n) (list (car r) (cdr r) "" (lambda (np) (make-sel np np)))]
+                [after? (list (car r) (car n) "" (lambda (np) (make-sel np (+ np (- (cdr n) (car n))))))]
+                [else (list (cdr n) (cdr r) "" (lambda (np) (make-sel (- np (- (cdr n) (car n))) np)))])))))
         (reselect-if-empty! b))))
 
   (define (reselect-if-empty! b)
@@ -357,11 +351,12 @@
   ;; The clipboard text for each selection: one piece each when the counts
   ;; match, else the whole entry for all of them.
   (define (clip-for-sels b)
-    (let ([e (clipboard-top)] [n (length (sels-of b))])
-      (cond
-       [(not e) #f]
-       [(= (length e) n) e]
-       [else (make-list n (string-join e "\n"))])))
+    (let ([e (clipboard-top)]) (and e (fit-entry e (length (sels-of b))))))
+
+  ;; Clipboard entry e for n selections: a text each, if it has n, else
+  ;; the whole entry for all of them.
+  (define (fit-entry e n)
+    (if (= (length e) n) e (make-list n (string-join e "\n"))))
 
   (define (copy!)
     (let ([b (cur)])
@@ -369,14 +364,12 @@
       (message "Copied ~a selection~a" (length (sels-of b)) (if (> (length (sels-of b)) 1) "s" ""))))
 
   (define (replace-with! texts)
-    (let ([b (cur)])
-      (let ([texts texts])
-        (edit-sels!
-         (lambda (s)
-           (let ([txt (car texts)])
-             (set! texts (cdr texts))
-             (list (sel-range-start s) (sel-range-end s) txt
-                   (lambda (np) (make-sel np (+ np (string-length txt)))))))))))
+    (edit-sels!
+     (lambda (s)
+       (let ([txt (car texts)])
+         (set! texts (cdr texts))
+         (list (sel-range-start s) (sel-range-end s) txt
+               (lambda (np) (make-sel np (+ np (string-length txt)))))))))
 
   ;; Put text beside each selection: where is before, after, gap-before,
   ;; gap-after, above or below. texts holds one string per selection.
@@ -425,8 +418,7 @@
     (let ([e (clipboard-cycle! step)])
       (if e
           (let ([b (cur)])
-            (replace-with! (if (= (length e) (length (sels-of b))) e
-                               (make-list (length (sels-of b)) (string-join e "\n"))))
+            (replace-with! (fit-entry e (length (sels-of b))))
             (message "Clipboard history ~a/~a" (+ 1 (list-index (lambda (x) (eq? x e)) (clipboard-history)))
                      (length (clipboard-history))))
           (message "The clipboard is empty"))))
@@ -487,7 +479,7 @@
          (let* ([t (buffer-text b)] [line (text-line-of t (max (sel-range-start s) (- (sel-range-end s) 1)))])
            (and (< (+ line 1) (text-line-count t))
                 (let* ([e (text-line-end t line)]
-                       [trim-start (let loop ([i e]) (if (and (> i (text-line-start t line)) (memv (text-ref t (- i 1)) '(#\space #\tab))) (loop (- i 1)) i))]
+                       [trim-start (blanks-before t e (text-line-start t line))]
                        [next (line-indent-end t (+ line 1))]
                        [closing? (and (< next (text-length t)) (memv (text-ref t next) '(#\) #\] #\})))]
                        [sep (if (or closing? (= trim-start (text-line-start t line)) (blank-line? t (+ line 1))) "" " ")])
@@ -499,23 +491,26 @@
       (edit-sels!
        (lambda (s)
          (let* ([t (buffer-text b)] [p (sel-range-start s)]
-                [ws (let loop ([i p]) (if (and (> i (text-line-start t (text-line-of t p))) (memv (text-ref t (- i 1)) '(#\space #\tab))) (loop (- i 1)) i))]
+                [ws (blanks-before t p (text-line-start t (text-line-of t p)))]
                 [indent (indent-for-newline b ws)]
                 [len (sel-length s)])
            (list ws p (string-append "\n" indent)
                  (lambda (np) (let ([q (+ np 1 (string-length indent))]) (make-sel q (+ q len))))))))))
 
+  ;; The lines b's selections touch, in order, each once.
+  (define (sels-lines b)
+    (let ([t (buffer-text b)] [seen (make-eqv-hashtable)])
+      (for-each (lambda (s)
+                  (let ([last (text-line-of t (max (sel-range-start s) (- (sel-range-end s) 1)))])
+                    (do ([l (text-line-of t (sel-range-start s)) (+ l 1)]) ((> l last))
+                      (hashtable-set! seen l #t))))
+                (sels-of b))
+      (sort < (vector->list (hashtable-keys seen)))))
+
   ;; Indent or dedent every line the selections touch.
   (define (indent-lines! dedent?)
     (let* ([b (cur)] [t (buffer-text b)] [unit (get-var 'indent-unit b)]
-           [lines (delete-duplicates*
-                   (apply append
-                          (map (lambda (s)
-                                 (let ([a (text-line-of t (sel-range-start s))]
-                                       [z (text-line-of t (max (sel-range-start s) (- (sel-range-end s) 1)))])
-                                   (map (lambda (i) (+ a i)) (iota (+ 1 (- z a))))))
-                               (sels-of b)))
-                   =)]
+           [lines (sels-lines b)]
            [changes (filter-map
                      (lambda (l)
                        (let ([s (text-line-start t l)])
@@ -528,7 +523,7 @@
                              (and (not (blank-line? t l)) (list s s unit)))))
                      lines)])
       (when (pair? changes)
-        (let ([old (sels-of b)] [before (map (lambda (s) (cons (sel-range-start s) (sel-range-end s))) (sels-of b))])
+        (let ([before (map (lambda (s) (cons (sel-range-start s) (sel-range-end s))) (sels-of b))])
           (buffer-edit! b changes)
           ;; Shift each selection by the changes before it.
           (set-sels! b (map (lambda (r)
@@ -563,6 +558,8 @@
         (case kind
           [(upper) (string-upcase s)]
           [(lower) (string-downcase s)]
+          [(toggle) (list->string (map (lambda (c) (if (char-upper-case? c) (char-downcase c) (char-upcase c)))
+                                       (string->list s)))]
           [(upper-snake) (string-join (map string-upcase ws) "_")]
           [(snake) (string-join (map string-downcase ws) "_")]
           [(kebab) (string-join (map string-downcase ws) "-")]
@@ -571,12 +568,7 @@
           [(camel) (if (null? ws) "" (apply string-append (string-downcase (car ws)) (map capitalize (cdr ws))))]
           [(title) (string-join (map capitalize ws) " ")]))))
 
-  (define (transform-sels! f)
-    (let ([b (cur)])
-      (edit-sels! (lambda (s)
-                    (let ([new (f (selection-text b s))])
-                      (list (sel-range-start s) (sel-range-end s) new
-                            (lambda (np) (make-sel np (+ np (string-length new))))))))))
+  (define (transform-sels! f) (replace-with! (map f (sels-texts (cur)))))
 
   ;; Toggle line comments on the lines the selections touch.
   (define (toggle-comment!)
@@ -585,30 +577,20 @@
       (if (not prefix)
           (message "~a has no line comments" (major-mode-name (buffer-major-mode b)))
           (let* ([trimmed (string-trim-right prefix)]
-                 [lines (delete-duplicates*
-                         (apply append (map (lambda (s)
-                                              (let ([a (text-line-of t (sel-range-start s))]
-                                                    [z (text-line-of t (max (sel-range-start s) (- (sel-range-end s) 1)))])
-                                                (map (lambda (i) (+ a i)) (iota (+ 1 (- z a))))))
-                                            (sels-of b)))
-                         =)]
-                 [lines (filter (lambda (l) (not (blank-line? t l))) lines)]
-                 [commented? (for-all (lambda (l) (string-prefix? trimmed (text-substring t (line-indent-end t l) (text-line-end t l)))) lines)]
-                 [col (apply min 1000 (map (lambda (l) (- (line-indent-end t l) (text-line-start t l))) lines))])
-            (let ([before (map sel-range-start (sels-of b))])
-              (buffer-edit! b (map (lambda (l)
-                                     (if commented?
-                                         (let* ([s (line-indent-end t l)]
-                                                [n (if (string-prefix? prefix (text-substring t s (text-line-end t l)))
-                                                       (string-length prefix) (string-length trimmed))])
-                                           (list s (+ s n) ""))
-                                         (let ([s (+ (text-line-start t l) col)]) (list s s prefix))))
-                                   lines))
-              ;; Select the lines toggled, so toggling again undoes it.
-              (unless (null? lines)
-                (let ([t (buffer-text b)])
-                  (set-sels! b (list (make-sel (text-line-start t (apply min lines))
-                                               (text-line-end t (apply max lines))))))))))))
+                 [lines (filter (lambda (l) (not (blank-line? t l))) (sels-lines b))]
+                 [starts (map (lambda (l) (line-indent-end t l)) lines)]
+                 [commented? (for-all (lambda (s) (text-match-at? t s trimmed)) starts)]
+                 [col (apply min 1000 (map (lambda (l s) (- s (text-line-start t l))) lines starts))])
+            (buffer-edit! b (map (lambda (l s)
+                                   (cond
+                                    [(not commented?) (let ([s (+ (text-line-start t l) col)]) (list s s prefix))]
+                                    [(text-match-at? t s prefix) (list s (+ s (string-length prefix)) "")]
+                                    [else (list s (+ s (string-length trimmed)) "")]))
+                                 lines starts))
+            ;; Select the lines toggled, so toggling again undoes it.
+            (unless (null? lines)
+              (set-sels! b (list (make-sel (text-line-start t (car lines))
+                                           (text-line-end t (car (last-pair lines)))))))))))
 
   ;; Enclosures, for the surround menu: (key open close label).
   (define enclosures
@@ -651,16 +633,7 @@
          (list (sel-range-start s) (sel-range-end s) (string-append open txt close)
                (lambda (np) (let ([p (+ np (string-length open))]) (make-sel p (+ p (string-length txt))))))))))
 
-  (define (delete-surround! open close)
-    (let ([b (cur)])
-      (for-each
-       (lambda (s)
-         (let ([enc (find-enclosure b (sel-range-start s) (sel-range-end s) open close)])
-           (if enc
-               (let ([starts (buffer-edit! b (list (list (car enc) (+ 1 (car enc)) "") (list (cdr enc) (+ 1 (cdr enc)) "")))])
-                 (set-sels! b (list (make-sel (car starts) (- (cadr starts) 0)))))
-               (message "No surrounding ~a~a" open close))))
-       (list (primary)))))
+  (define (delete-surround! open close) (change-surround! open close "" ""))
 
   (define (select-surround! open close inside?)
     (let* ([b (cur)] [s (primary)] [enc (find-enclosure b (sel-range-start s) (sel-range-end s) open close)])
@@ -672,7 +645,7 @@
     (let* ([b (cur)] [s (primary)] [enc (find-enclosure b (sel-range-start s) (sel-range-end s) from-open from-close)])
       (if enc
           (let ([starts (buffer-edit! b (list (list (car enc) (+ 1 (car enc)) to-open) (list (cdr enc) (+ 1 (cdr enc)) to-close)))])
-            (set-sels! b (list (make-sel (car starts) (+ 1 (cadr starts))))))
+            (set-sels! b (list (make-sel (car starts) (+ (cadr starts) (string-length to-close))))))
           (message "No surrounding ~a~a" from-open from-close))))
 
   ;; ---------------------------------------------------------------------------
@@ -702,14 +675,11 @@
     (let* ([b (cur)] [p (primary)] [needle (selection-text b p)] [t (buffer-text b)])
       (if (string=? needle "")
           (message "Nothing selected")
-          (let loop ([pos 0] [acc '()])
-            (let ([i (text-search-forward t needle pos)])
-              (if i
-                  (loop (+ i (max 1 (string-length needle))) (cons (make-sel i (+ i (string-length needle))) acc))
-                  (let ([all (reverse acc)])
-                    (set-sels! b (cons (or (find (lambda (s) (= (sel-start s) (sel-start p))) all) p)
-                                       all))
-                    (message "~a occurrences" (length all)))))))))
+          ;; The text itself (not a pattern), its case kept.
+          (let ([all (map (lambda (m) (make-sel (car m) (cdr m)))
+                          (search-all (search-new needle #f #f) (text-rope t) 0 (text-length t)))])
+            (set-sels! b (cons (or (find (lambda (s) (= (sel-start s) (sel-start p))) all) p) all))
+            (message "~a occurrences" (length all))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Jumping, searching and the index
@@ -720,7 +690,7 @@
     (let* ([b (cur)] [g (view-geometry)]
            [first (view-top (cv))]
            [last (min (- (text-line-count (buffer-text b)) 1) (+ first (if g (list-ref g 2) 20) -1))]
-           [units ((selection-mode-visible (mode-obj b)) b first last)]
+           [units ((selection-mode-visible (selection-mode-of b)) b first last)]
            [n (string-length jump-alphabet)]
            [units (take units (* n n))]
            [labels (if (<= (length units) n)
@@ -737,9 +707,7 @@
      (lambda (r)
        (let ([b (cur)])
          (push-selection-history! b)
-         (set-sels! b (list (if (view-extending? (cv))
-                                (make-sel (car r) (cdr r) (or (sel-anchor (primary)) (sel-range (primary))))
-                                (range->sel r))))))))
+         (set-sels! b (list (to-unit (primary) r)))))))
 
   ;; Search for pattern, selecting the match nearest the cursor: literal
   ;; text, or with regex? a regular expression.
@@ -779,7 +747,7 @@
   (define (goto-line! n)
     (let* ([b (cur)] [t (buffer-text b)] [line (clamp (- n 1) 0 (- (text-line-count t) 1))])
       (push-selection-history! b)
-      (let ([r (current-unit b (cons (line-indent-end t line) (line-indent-end t line)))])
+      (let ([r (line-unit b line)])
         (set-sels! b (list (if r (range->sel r) (make-sel (text-line-start t line) (text-line-start t line))))))))
 
   (define (parent-line!)
@@ -791,7 +759,7 @@
          [(< l 0) (message "No parent line")]
          [(and (not (blank-line? t l)) (< (indent l) mine))
           (push-selection-history! b)
-          (let ([r (current-unit b (cons (line-indent-end t l) (line-indent-end t l)))])
+          (let ([r (line-unit b l)])
             (when r (set-sels! b (list (range->sel r)))))]
          [else (loop (- l 1))]))))
 
