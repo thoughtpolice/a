@@ -17,7 +17,7 @@
 ;;                 canvas 0 0 5 30)
 (library (quad widget)
   (export make-widget widget? widget-rows widget-draw!
-          framed rule text-lines input-line text-area item-list key-grid stack empty-widget
+          framed rule text-lines input-line text-area item-list key-grid stack pile empty-widget
           list-window
           ;; layout
           beside vrule padded centered
@@ -26,7 +26,7 @@
           ;; state
           progress spinner scrollbar
           ;; controls
-          checkbox choice button text-field)
+          checkbox choice button text-field radio-list)
   (import (chezscheme) (quad util) (quad face) (quad canvas))
 
   ;; measure: (cols) -> how many rows it wants that wide. paint: (g row
@@ -232,6 +232,19 @@
                (let* ([h (min (or (car (car ps)) share) (- (+ row rows) r))]
                       [c (widget-draw! (cdr (car ps)) g r col h cols)])
                  (loop (cdr ps) (+ r h) (or c cursor)))))))))
+
+  ;; Widgets one above another, each as tall as it wants at the width, as
+  ;; far as there is room.
+  (define (pile . ws)
+    (make-widget
+     (lambda (cols) (apply + (map (lambda (w) (widget-rows w cols)) ws)))
+     (lambda (g row col rows cols)
+       (let loop ([ws ws] [r row] [cursor #f])
+         (if (or (null? ws) (>= r (+ row rows)))
+             cursor
+             (let* ([h (min (widget-rows (car ws) cols) (- (+ row rows) r))]
+                    [c (widget-draw! (car ws) g r col h cols)])
+               (loop (cdr ws) (+ r h) (or c cursor))))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Layout
@@ -452,6 +465,37 @@
                     [c (put-string! g row c (car os) face (+ col cols))])
                (loop (cdr os) (+ i 1) (+ c 2))))))
        #f)))
+
+  ;; Options one to a row, the one at index (a thunk) chosen, (•) marking
+  ;; it: each option (label detail enabled?), detail (or #f) after the
+  ;; label, in a column of its own; one not enabled? is dim, and cannot be
+  ;; chosen. The chosen one is highlighted while focused? (a thunk) says the
+  ;; list has the focus. Given fewer rows than options, it scrolls to keep
+  ;; the chosen one in view.
+  (define (radio-list options index focused?)
+    (let ([width (apply max 0 (map (lambda (o) (string-width (car o))) options))]
+          [n (length options)])
+      (make-widget
+       (lambda (cols) n)
+       (lambda (g row col rows cols)
+         (let ([first (if (< rows n) (clamp (- (index) (quotient rows 2)) 0 (- n rows)) 0)])
+          (let loop ([os (list-tail options first)] [i first])
+           (when (and (pair? os) (< (- i first) rows))
+             (let* ([o (car os)] [chosen? (= i (index))] [enabled? (caddr o)]
+                    [face (cond [(and chosen? (focused?)) (UI 'ui.menu.selected)]
+                                [enabled? (UI 'ui.popup)]
+                                [else (face-merge (UI 'ui.popup) (F 'ui.text.dim))])]
+                    [r (+ row (- i first))])
+               (fill-row! g r col (+ col cols) face)
+               (let* ([c (put-string! g r (+ col 1) (if chosen? "(•) " "( ) ")
+                                      (if enabled? (face-merge face (F 'ui.popup.key)) face))]
+                      [c (put-string! g r c (car o) face (+ col cols))])
+                 (when (cadr o)
+                   (put-string! g r (max (+ c 2) (+ col 7 width)) (cadr o)
+                                (if (and chosen? (focused?)) face (face-merge face (F 'ui.text.dim)))
+                                (+ col cols))))
+               (loop (cdr os) (+ i 1))))))
+         #f))))
 
   ;; [ label ], as a row of its own, focused? a thunk.
   (define (button label focused?)

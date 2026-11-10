@@ -22,7 +22,8 @@
           define-buffer-drawer!
           make-picture picture? picture-key picture-width picture-height picture-png
           place-picture! put-string! ui-face fill-row! grid-rows grid-cols)
-  (import (chezscheme) (quad util) (quad text) (quad face)
+  (import (chezscheme) (quad util) (quad text) (quad face) (quad anim) (quad color)
+          (only (quad native) fx-shade fx-raster)
           (quad syntax) (quad buffer) (quad selection) (quad editor) (quad canvas) (quad widget))
 
   ;; ---------------------------------------------------------------------------
@@ -74,6 +75,104 @@
                  (reverse (grid-images g)))))
 
   ;; ---------------------------------------------------------------------------
+  ;; Effects (anim.sls; docs/animation.md)
+  ;;
+  ;; Each client draws the effects placed in its frame as best it can: a
+  ;; window ("effects") itself, told of them once (send-frame!), timing them
+  ;; at its display's rate; a terminal that shows images, as pictures the
+  ;; editor draws of them (kernel/fx's raster), a frame at each step of
+  ;; their progress, each made once and kept by the terminal; any other, or
+  ;; one whose cells the raster cannot draw, by its cells' colors. Points
+  ;; are in cell widths, a terminal's cells taken as twice as tall as wide.
+
+  (define (effect-signature p) (cons (effect-id (car p)) (cdr p)))
+
+  ;; As "effects" has each: (id kind row col rows cols color (params) age
+  ;; (timing)), age in milliseconds.
+  (define (effect-message p)
+    (let ([e (car p)])
+      (list (effect-id e) (effect-kind-number e) (cadr p) (caddr p) (cadddr p) (list-ref p 4)
+            (effect-color e) (effect-params e) (inexact (effect-age e)) (effect-timing e))))
+
+  (define (draw-effects! c g)
+    (unless (or (client-has? c "effects") (not (get-var 'animations #f)))
+      (for-each (lambda (p)
+                  (anim-effect-shown! (car p))
+                  (unless (and (client-has? c "images") (effect-picture! g p))
+                    (shade-cells! g p)))
+                (grid-effects g))))
+
+  ;; Progress in steps: so many frames to an iteration at most, each drawn
+  ;; once, and the same each time round.
+  (define steps 64)
+  (define (stepped e) (/ (round (* steps (effect-progress e))) steps))
+
+  ;; Shaded faces: (face . fg) -> the face with that foreground.
+  (define shaded (make-hashtable equal-hash equal?))
+  (define (shaded-face f fg)
+    (let ([key (cons (face-id f) fg)])
+      (or (hashtable-ref shaded key #f)
+          (let ([new (face-merge f (make-face fg #f))])
+            (when (> (hashtable-size shaded) 50000) (hashtable-clear! shaded))
+            (hashtable-set! shaded key new)
+            new))))
+
+  (define (shade-cells! g p)
+    (let* ([e (car p)] [row (cadr p)] [col (caddr p)] [rows (cadddr p)] [cols (list-ref p 4)]
+           [progress (stepped e)])
+      (do ([r 0 (+ r 1)]) ((or (= r rows) (>= (+ row r) (grid-rows g))))
+        (do ([k 0 (+ k 1)]) ((or (= k cols) (>= (+ col k) (grid-cols g))))
+          (let* ([f (face-at g (+ row r) (+ col k))] [fg (face-fg f)])
+            (when fg
+              (let ([new (fx-shade-at e progress (+ k 0.5) (* 2 (+ r 0.5)) cols (* 2 rows) (color-rgb fg))])
+                (unless (= new (color-rgb fg))
+                  (put! g (+ row r) (+ col k) (vector-ref (vector-ref (grid-chars g) (+ row r)) (+ col k))
+                        (shaded-face f new))))))))))
+
+  (define (fx-shade-at e progress x y w h ink)
+    (fx-shade (effect-kind-number e) (effect-params e) (effect-color e) (inexact progress)
+              (inexact x) (inexact y) (inexact w) (inexact h) ink))
+
+  ;; Pictures of effects, by key: their cells, the effect, and its step.
+  (define effect-pictures (make-hashtable string-hash string=?))
+  (define effect-cell '(16 . 32))
+
+  ;; Draw effect placement p over g's cells as a picture; #f where it
+  ;; cannot (a cell with no colors of its own, or a character the raster
+  ;; does not draw).
+  (define (effect-picture! g p)
+    (let* ([e (car p)] [row (cadr p)] [col (caddr p)]
+           [rows (min (cadddr p) (- (grid-rows g) row))] [cols (min (list-ref p 4) (- (grid-cols g) col))]
+           [cells (let loop ([r (- rows 1)] [acc '()])
+                    (if (< r 0)
+                        acc
+                        (loop (- r 1)
+                              (append (map (lambda (k)
+                                             (let ([ch (vector-ref (vector-ref (grid-chars g) (+ row r)) (+ col k))]
+                                                   [f (face-at g (+ row r) (+ col k))])
+                                               (list (cond [(char? ch) (string ch)] [(string? ch) ch] [else ""])
+                                                     (face-fg f) (face-bg f))))
+                                           (iota cols))
+                                      acc))))])
+      (and (> rows 0) (> cols 0)
+           (for-all (lambda (c) (and (cadr c) (caddr c))) cells)
+           (let* ([texts (map car cells)]
+                  [colors (apply append (map (lambda (c) (list (color-rgb (cadr c)) (color-rgb (caddr c)))) cells))]
+                  [progress (stepped e)]
+                  [key (format "fx:~a:~a:~a:~a" (effect-id e) cols (equal-hash (cons texts colors))
+                               (exact (round (* steps progress))))]
+                  [pic (or (hashtable-ref effect-pictures key #f)
+                           (let ([png (fx-raster texts colors cols (car effect-cell) (cdr effect-cell)
+                                                 (effect-kind-number e) (effect-params e) (effect-color e)
+                                                 (inexact progress))])
+                             (and png
+                                  (let ([pic (make-picture key (* cols (car effect-cell)) (* rows (cdr effect-cell)) png)])
+                                    (when (> (hashtable-size effect-pictures) 512) (hashtable-clear! effect-pictures))
+                                    (hashtable-set! effect-pictures key pic)
+                                    pic))))])
+             (and pic (begin (place-picture! g pic row col rows cols) #t))))))
+
+  ;; ---------------------------------------------------------------------------
   ;; Output: frames as messages
 
   ;; Faces get small integer ids, the same for every client; each client is
@@ -96,7 +195,8 @@
   ;; knows.
   ;; scroll: (top bottom buffer line), the text area's rows and what they
   ;; showed, for scroll hints; or #f. images: the placements it was sent.
-  (define-record-type frame (fields grid known cursor scroll images))
+  ;; effects: those a window was sent, each (id row col rows cols).
+  (define-record-type frame (fields grid known cursor scroll images effects))
 
   ;; prev with rows top to bottom moved up by n (down, for n < 0), as a
   ;; client that scrolls them has them; rows scrolled in match no cell.
@@ -110,7 +210,7 @@
                      (vector-set! faces r (vector-ref (grid-faces prev) from)))
               (begin (vector-set! chars r (make-vector cols #f))
                      (vector-set! faces r (make-vector cols #f))))))
-      (make-grid (grid-rows prev) cols chars faces '())))
+      (make-grid (grid-rows prev) cols chars faces '() '())))
 
   ;; Forget what client c shows, so the next frame redraws it whole.
   (define (invalidate-client! c) (client-frame-set! c #f))
@@ -212,6 +312,7 @@
                               (scrolled-grid (frame-grid old) (car scroll) (cadr scroll) shift)
                               (frame-grid old)))]
            [pictures (if (client-has? c "images") (frame-pictures g) '())]
+           [effects (if (and (client-has? c "effects") (get-var 'animations #f)) (reverse (grid-effects g)) '())]
            [hl! (lambda (f)
                   (let ([id (face-id f)])
                     (unless (hashtable-contains? known id)
@@ -224,14 +325,17 @@
       (let* ([rows? (send-rows! c g prev hl!)]
              ;; A terminal forgets its pictures on "grid".
              [pictures? (and (client-has? c "images")
-                             (or (not old) (not (equal? (map car pictures) (frame-images old)))))])
+                             (or (not old) (not (equal? (map car pictures) (frame-images old)))))]
+             [effects? (and (client-has? c "effects")
+                            (not (equal? (map effect-signature effects) (if old (frame-effects old) '()))))])
         (when pictures? (send-pictures! c pictures))
+        (when effects? (client-send! c (list "effects" (map effect-message effects))))
         ;; A frame like the last is not sent: clients draw only what changed.
-        (when (or (not old) shift rows? pictures? (not (equal? cursor (frame-cursor old))))
+        (when (or (not old) shift rows? pictures? effects? (not (equal? cursor (frame-cursor old))))
           (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
                               '("cursor" #f)))
           (client-send! c '("flush"))))
-      (client-frame-set! c (make-frame g known cursor scroll (map car pictures)))))
+      (client-frame-set! c (make-frame g known cursor scroll (map car pictures) (map effect-signature effects)))))
 
   ;; ---------------------------------------------------------------------------
   ;; The text area
@@ -983,6 +1087,7 @@
                           (and (<= (car geo) r (+ (car geo) (caddr geo) -1))
                                (<= (cadr geo) col (+ (cadr geo) (cadddr geo) -1))
                                (list r col (if insert? 'bar 'hidden))))])])
+                (draw-effects! c g)
                 ;; A scroll is a whole row's: with panes side by side, none.
                 (send-frame! c g cursor (and single? (list text-top status-row b (view-top v))))
                 (client-dirty?-set! c #f)))))))))

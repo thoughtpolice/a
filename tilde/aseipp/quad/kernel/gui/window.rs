@@ -32,6 +32,9 @@ pub(super) struct Win {
     pub(super) held: Option<u32>,
     /// Pixels scrolled that do not yet make a line.
     pub(super) scroll: f64,
+    /// When an effect next moves, between its iterations: the windows'
+    /// loop wakes then to draw it (windows.rs).
+    pub(super) wake: Option<std::time::Instant>,
 }
 
 impl Win {
@@ -351,6 +354,32 @@ impl Win {
             &self.fonts.colors,
             &laid.pictures,
         );
+        // The effects where they are now: the window times them itself.
+        let since = self
+            .screen
+            .effects_came
+            .map_or(0.0, |came| came.elapsed().as_secs_f64() * 1000.0);
+        let (effects, next) = self.screen.effects_at(since);
+        self.wake = None;
+        match next {
+            // One moves: its rows are drawn again, at the next frame too.
+            Some(n) if n <= 0.0 => {
+                if let Some(damage) = &mut self.damage {
+                    for r in self.screen.effect_rows() {
+                        if r >= damage.len() {
+                            damage.resize(r + 1, false);
+                        }
+                        damage[r] = true;
+                    }
+                }
+            }
+            Some(n) => {
+                self.wake = Some(
+                    std::time::Instant::now() + std::time::Duration::from_secs_f64(n / 1000.0),
+                );
+            }
+            None => {}
+        }
         let list = DrawList {
             rects: &rects,
             pictures: &pictures,
@@ -361,6 +390,7 @@ impl Win {
             background: self.screen.background,
             cell: self.fonts.metrics.cell,
             origin: [self.fonts.metrics.padding; 2],
+            effects: &effects,
         };
         // Before presenting, so that Wayland asks the compositor for the
         // frame callback that paces the next request_redraw.
@@ -380,6 +410,11 @@ impl Win {
                     timing::mark("a whole frame presented");
                 }
                 self.damage = Some(Vec::new());
+                // An effect moving: drawn again at the next frame
+                // callback.
+                if next.is_some_and(|n| n <= 0.0) {
+                    self.window.request_redraw();
+                }
             }
             // Again at the compositor's next frame callback, which comes
             // once the window can be seen.

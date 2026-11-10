@@ -203,6 +203,9 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
        [(not c) 1]                       ; neither a window nor a terminal
        [else
         (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
+        ;; The first client, of an editor started here: quad's setup asks
+        ;; its questions there, when there is no init file yet.
+        (with-client c (lambda () (run-hooks 'interactive-start-hook c)))
         (when tutor?
           (with-client c
             (lambda ()

@@ -11,6 +11,7 @@
 use std::rc::Rc;
 
 use quad_font::{CELL_BYTES, Fonts, Layout, RECT_BYTES};
+use quad_fx::{EFFECT_BYTES, Placed};
 use quad_image::Placement;
 
 /// A rectangle's edges (gui.slang's `Rect::edges`, at byte 20): the sides
@@ -47,6 +48,8 @@ pub struct Update {
     /// Where the text cursor is, (row, column), drawn or not.
     pub cursor: Option<(u32, u32)>,
     pub placements: Vec<Placement>,
+    /// The effects placed over it (docs/animation.md): all of them.
+    pub effects: Vec<Placed>,
 }
 
 fn u32s(bytes: &[u8]) -> impl Iterator<Item = u32> + '_ {
@@ -117,9 +120,35 @@ pub struct Screen {
     pub foreground: u32,
     pub cursor: Option<(u32, u32)>,
     pub placements: Vec<Placement>,
+    /// The effects placed over it, and when they came.
+    pub effects: Vec<Placed>,
+    pub effects_came: Option<std::time::Instant>,
 }
 
 impl Screen {
+    /// The effects, as gui.slang's Effects, `since` milliseconds after
+    /// they came; and the milliseconds until any next changes (0 while
+    /// one moves), or None once none will.
+    pub fn effects_at(&self, since: f64) -> (Vec<u8>, Option<f64>) {
+        let mut bytes = Vec::with_capacity(self.effects.len() * EFFECT_BYTES);
+        let mut next: Option<f64> = None;
+        for e in &self.effects {
+            bytes.extend_from_slice(&e.gpu_bytes(e.progress(since)));
+            if let Some(n) = e.next_change(since) {
+                next = Some(next.map_or(n, |m: f64| m.min(n)));
+            }
+        }
+        (bytes, next)
+    }
+
+    /// The rows the effects cover.
+    pub fn effect_rows(&self) -> impl Iterator<Item = usize> + '_ {
+        self.effects.iter().flat_map(|e| {
+            let top = e.cells[1].max(0.0) as usize;
+            top..top + e.cells[3].max(0.0) as usize
+        })
+    }
+
     /// Takes a frame's changes. Returns the rows that show something new:
     /// those changed, and those scrolls moved.
     pub fn apply(&mut self, update: Update) -> Vec<bool> {
@@ -158,6 +187,21 @@ impl Screen {
         self.foreground = update.foreground;
         self.cursor = update.cursor;
         self.placements = update.placements;
+        if self.effects != update.effects {
+            // Where they were, and where they are, are drawn again.
+            for r in self.effect_rows().collect::<Vec<_>>() {
+                if let Some(d) = damaged.get_mut(r) {
+                    *d = true;
+                }
+            }
+            self.effects = update.effects;
+            for r in self.effect_rows().collect::<Vec<_>>() {
+                if let Some(d) = damaged.get_mut(r) {
+                    *d = true;
+                }
+            }
+        }
+        self.effects_came = Some(std::time::Instant::now());
         damaged
     }
 

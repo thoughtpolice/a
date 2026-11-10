@@ -16,7 +16,7 @@
           face-strikethrough? face-overline? face-link merge-faces face-ref
           define-theme load-theme! current-theme-name theme-names set-face!
           palette-color default-face)
-  (import (chezscheme) (quad util))
+  (import (chezscheme) (quad util) (quad color))
 
   ;; underline-style: #f, single, double, curly, dotted or dashed.
   (define-record-type face
@@ -64,6 +64,8 @@
     (cond
      [(not c) #f]
      [(integer? c) c]
+     ;; The terminal's palette: (ansi 1) is its red.
+     [(and (pair? c) (eq? (car c) 'ansi)) (indexed-color (cadr c))]
      [(string? c)
       (string->number (substring c 1 (string-length c)) 16)]
      [(symbol? c)

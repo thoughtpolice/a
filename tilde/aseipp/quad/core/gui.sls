@@ -24,7 +24,7 @@
           make-painter painter-note! painter-flush!)
   (import (chezscheme) (quad util) (quad native) (quad kernel) (quad event) (quad face)
           (quad protocol) (quad grid) (quad editor) (quad commands) (quad server)
-          (quad frontend))
+          (quad frontend) (quad color))
 
   (define-variable gui-font-family "JetBrains Mono"
     "The font family a window draws text in: JetBrains Mono is built in; another that is not installed falls back to the system's monospace font.")
@@ -43,8 +43,12 @@
 
   ;; The colors of cells that leave theirs to the "terminal": the theme's
   ;; text and background, else ghostty's defaults.
-  (define (default-foreground) (or (face-fg (face-ref 'ui.text)) #xffffff))
-  (define (default-background) (or (face-bg (face-ref 'ui.background)) #x282c34))
+  (define (default-foreground) (color-rgb (or (face-fg (face-ref 'ui.text)) #xffffff)))
+  (define (default-background) (color-rgb (or (face-bg (face-ref 'ui.background)) #x282c34)))
+
+  ;; A highlight's color, or #f: the palette's as xterm draws it, since a
+  ;; window is its own terminal.
+  (define (rgb c) (and c (color-rgb c)))
 
 ;; ---------------------------------------------------------------------------
   ;; Painting
@@ -87,7 +91,7 @@
   (define (cell-background model hl fg bg)
     (let ([h (grid-model-hl model hl)])
       (if h
-          (let ([f (car h)] [b (cadr h)] [flags (caddr h)])
+          (let ([f (rgb (car h))] [b (rgb (cadr h))] [flags (caddr h)])
             (if (logtest flags 32) (or f fg) (or b bg)))
           bg)))
 
@@ -148,8 +152,8 @@
         (do ([col 0 (+ col 1)]) ((= col cols))
           (let* ([cell (grid-model-cell model row col)] [s (car cell)]
                  [h (grid-model-hl model (cdr cell))])
-            (let ([f (and h (car h))] [b (and h (cadr h))] [flags (if h (caddr h) 0)]
-                  [underline (and h (pair? (cdddr h)) (cadddr h))])
+            (let ([f (and h (rgb (car h)))] [b (and h (rgb (cadr h)))] [flags (if h (caddr h) 0)]
+                  [underline (and h (pair? (cdddr h)) (rgb (cadddr h)))])
               ;; Blank cells draw nothing, unless lined: underlined,
               ;; struck through or overlined.
               (unless (or (string=? s "")
@@ -205,6 +209,16 @@
             (let-values ([(cs t) (row-cells model r r fg bg cursor offset)])
               (put-bytevector port t)
               (loop (+ r 1) (cons cs cells) (+ offset (bytevector-length t))))))))
+
+  ;; The effects placed over model's cells, as gui-frame takes them (fx's
+  ;; Placed::from_numbers): where, what, and how far along now, from their
+  ;; ages when they came.
+  (define (frame-effects model)
+    (let ([since (- (real-time) (grid-model-effects-received model))])
+      (map (lambda (e)
+             (let-values ([(id kind row col rows cols color params age timing) (apply values e)])
+               (map inexact (append (list col row cols rows kind color) params (list (+ age since)) timing))))
+           (grid-model-effects model))))
 
   ;; The images placed over model's cells, as kernel/image/ reads them:
   ;; their keys, and five native u32s each -- row, column, rows, columns,
@@ -291,7 +305,8 @@
             (paint rows whole? (if whole? (make-bytevector 0) scrolls) index
                    (rects->bytevector (apply append (map cadr encoded)))
                    (cells->bytevector (apply append (map caddr encoded)))
-                   text bg fg (if cursor (car cursor) -1) (if cursor (cadr cursor) -1) keys places))))
+                   text bg fg (if cursor (car cursor) -1) (if cursor (cadr cursor) -1) keys places
+                   (frame-effects model)))))
       (painter-dirty-set! p (make-eqv-hashtable))
       (painter-scrolls-set! p '())
       (painter-whole?-set! p #f)
@@ -349,7 +364,7 @@
 
   ;; What a window can do, for the server: the protocol's capabilities.
   (define (gui-capabilities win)
-    (append '("title" "font" "pointer-shape" "scroll" "images" "hidden-cursor" "voice")
+    (append '("title" "font" "pointer-shape" "scroll" "images" "hidden-cursor" "voice" "effects")
             (if (gui-clipboard? win) '("clipboard") '())
             (if (gui-primary-selection? win) '("primary-selection") '())
             (frontend-capabilities)))
@@ -361,7 +376,7 @@
   (define (paint! win screen fd msg send)
     (let ([model (screen-model screen)])
       (case (string->symbol (car msg))
-        [(grid line hl cursor scroll images)
+        [(grid line hl cursor scroll images effects)
          (grid-model-apply! model msg)
          (painter-note! (screen-painter screen) model msg)
          #t]

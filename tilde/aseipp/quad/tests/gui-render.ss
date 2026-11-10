@@ -300,3 +300,47 @@
        (cons "and gone" (lambda () (run-command 'prompt-cancel)))
        (cons "another buffer" (lambda () (switch-to-buffer! buf)))
        (cons "and back" (lambda () (switch-to-buffer! long)))))
+
+;; ---------------------------------------------------------------------------
+;; An effect, drawn two ways (docs/animation.md): by the window's shader,
+;; and by the CPU's raster that terminals showing images get (kernel/fx).
+;; A sheen at the same progress lights the same places: along each row of
+;; blocks, the brightest point is in the same column.
+
+(define fx-cols 40)
+(define-values (fx-view fx-model) (model-client! "fx" 6 fx-cols '("effects")))
+(define fx-face (make-face #x204060 #x101010))
+(define fx-blocks
+  (make-widget (lambda (cols) 2)
+               (lambda (g row col rows cols)
+                 (do ([r 0 (+ r 1)]) ((= r 2))
+                   (put-string! g (+ row r) col (make-string cols #\x2588) fx-face (+ col cols)))
+                 #f)))
+(define long-sheen (effect 'sheen 'angle 30 'width 3 'intensity 1 'duration 100000 'easing 'linear))
+(with-client fx-view
+  (lambda () (show-overlay! (make-overlay 'fx (lambda (a) (list 1 0 2 fx-cols)) (with-effect fx-blocks long-sheen) #f))))
+;; Half way across.
+(anim-clock-set! (lambda () (+ (real-time) 50000)))
+(redraw!)
+(let-values ([(w ht gpu) (draw-frame-image h fx-model)])
+  (anim-clock-set! #f)
+  (let* ([png (fx-raster (make-list (* 2 fx-cols) "█") (apply append (make-list (* 2 fx-cols) '(#x204060 #x101010)))
+                         fx-cols cell-w cell-h 1 (effect-params long-sheen) #xffffff 0.5)]
+         [file (string-append (test-temp-dir "fx") "/cpu.png")]
+         [_ (call-with-port (open-file-output-port file (file-options no-fail)) (lambda (p) (put-bytevector p png)))]
+         [cpu (png-file-read file (* fx-cols cell-w) (* 2 cell-h))]
+         ;; The brightest x along pixel row y of an image `stride` wide.
+         [brightest (lambda (px stride y)
+                      (let loop ([x 0] [best 0] [at 0])
+                        (if (= x (* fx-cols cell-w))
+                            at
+                            (let* ([o (* 4 (+ (* y stride) x))]
+                                   [v (+ (bytevector-u8-ref px o) (bytevector-u8-ref px (+ o 1)) (bytevector-u8-ref px (+ o 2)))])
+                              (if (> v best) (loop (+ x 1) v x) (loop (+ x 1) best at))))))])
+    (for-each
+     (lambda (r)
+       (let ([g (brightest gpu w (+ cell-h (* r cell-h) (quotient cell-h 2)))]
+             [c (brightest cpu (* fx-cols cell-w) (+ (* r cell-h) (quotient cell-h 2)))])
+         (check (format "a sheen, row ~a: the window's brightest at ~a, the raster's at ~a" r g c)
+                (<= (abs (- g c)) cell-w))))
+     '(0 1))))

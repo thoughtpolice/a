@@ -23,7 +23,7 @@
           define-transport! transport-for find-transport
           frame-sender)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad buffer)
-          (quad editor) (quad commands) (quad display) (quad protocol)
+          (quad editor) (quad commands) (quad display) (quad protocol) (quad anim)
           (only (quad native) command-start command-fd command-take!))
 
   ;; ---------------------------------------------------------------------------
@@ -34,7 +34,9 @@
   ;; tick: called every round, after waiting.
   (define-record-type source (fields fd readable timeout on-timeout tick))
 
-  (define the-sources '())
+  ;; Animation's frames (anim.sls): it says when the next is due, and the
+  ;; loop draws once it has moved things there.
+  (define the-sources (list (make-source -1 void anim-timeout anim-tick! void)))
   (define (sources) the-sources)
   (define (add-source! s) (set! the-sources (append the-sources (list s))))
   (define (remove-source! s) (set! the-sources (remq s the-sources)))
@@ -161,6 +163,7 @@
   ;; *Messages*, rather than the error ending the editor and every other
   ;; client with it.
   (define (server-render!)
+    (anim-render-begin!)
     (for-each (lambda (c)
                 (guard (e [#t (log-message! (format "Letting client ~a go: drawing it failed: ~a"
                                                     (client-name c) (condition->string e)))

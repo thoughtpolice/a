@@ -159,7 +159,10 @@ kitty, WezTerm, foot, iTerm2 and other modern terminals get
 - the kitty keyboard protocol, for unambiguous keys and key *release*
   events, which make Ki's momentary layers work as designed;
 - synchronized output (mode 2026), so frames never tear;
-- 24-bit color (`QUAD_256=1` falls back to 256 colors);
+- 24-bit color, which quad finds from `COLORTERM`, the terminal's name, or
+  its speaking the kitty protocol; else 256 colors, or 16, as `TERM` says,
+  each color the nearest the terminal has. Through ssh or tmux `COLORTERM`
+  may not arrive: `QUAD_COLORS=truecolor` (or `256`, `16`) says instead;
 - SGR mouse reporting: click to select, drag to extend, double-click a word,
   triple-click a line, shift-click to extend, alt-click to add a cursor,
   middle-click to paste the primary selection, the wheel to scroll;
@@ -169,6 +172,31 @@ kitty, WezTerm, foot, iTerm2 and other modern terminals get
   come back), cursor shapes, window titles, OSC 7 and OSC 22.
 
 Older terminals get the xterm encodings; `QUAD_LEGACY_KEYS=1` forces them.
+
+## Themes
+
+`space k t` picks a theme, showing each as you move to it (`esc` goes
+back). Built in: `quad-default` (Helix's purple), `gruvbox-dark`,
+`gruvbox-light`, `solarized-dark`, `solarized-light`, `dracula`, `nord`,
+`catppuccin-mocha`, `catppuccin-latte`, `tokyo-night`, `one-dark`,
+`everforest-dark`, `rose-pine`, `kanagawa`, and `terminal`, which takes the
+terminal's own colors: its default text colors and its palette of 16,
+whatever it is set to.
+
+```scheme
+(set-var! 'theme 'gruvbox-dark)
+
+;; A theme from a palette of roles (core/ext/themes.sls lists them; any
+;; left out are made from the rest), with faces made otherwise last.
+(define-palette-theme 'mine 'dark
+  '((bg . "#1d1f21") (fg . "#c5c8c6") (comment . "#969896")
+    (red . "#cc6666") (orange . "#de935f") (yellow . "#f0c674")
+    (green . "#b5bd68") (cyan . "#8abeb7") (blue . "#81a2be") (purple . "#b294bb"))
+  '((keyword . red)))
+```
+
+Every face can be set by hand too, with `define-theme` (as `core/face.sls`
+does `quad-default`), and a color can be `(ansi n)`, the terminal's own.
 
 ## Keys
 
@@ -242,6 +270,22 @@ Layers are momentary: hold `r` and press `l` to delete rightwards (again
 and again while `r` is held); tap `r` alone to delete the selection. Hold a
 layer key a moment and its keys appear. Without the kitty protocol, press the
 layer key, then the next key; press it twice for its default.
+
+## Setting up
+
+The first time quad starts with a window or a terminal and no init file, it
+shows a splash: one large popup, quad's banner, and a checklist of what to
+set. Move to an entry and press enter to set it: which keys (Ki's, Vim's or
+Helix's), which theme (each shown as you choose it; escape puts back the
+one you had), which AI changes the editor for you (Codex, or none; Claude
+is listed, for later), how the text should look, whether to open the tutor
+for your keys, and a review of the file they make. Each is checked once
+set; anything left keeps its default. `Save and start` writes the answers to
+`~/.config/quad/init.ss` as Scheme, with a word on each setting, loads it,
+and goes on. `space j i` (the command `setup`) shows it again, keeping the
+old file as `init.ss.bak`; `-q` asks nothing. Extensions can ask the same
+way: `show-checklist!` (`core/form.sls`) takes a header, entries of form
+fields, and buttons.
 
 ## Extending
 
@@ -328,6 +372,26 @@ A form (`core/form.sls`) is fields that take keys, shown as an overlay:
                   (toggle 'push "Push it" #f)
                   (choose 'from "From" '("main" "here") 0))
             (lambda (values) (message "~s" values)))  ; ((name . "...") (push . #t) (from . "here"))
+```
+
+### Animation
+
+Widgets can move, as Anime.js has things move: `animate!` takes animated
+values (numbers, colors) to targets, over a duration, with delays, loops,
+directions and easings (`out-cubic`, `in-out-elastic`, `(cubic-bezier …)`,
+`(spring …)` and the rest), staggered across several, or in a timeline;
+each can be paused, played, sought and restarted. Effects go finer than
+cells: `(with-effect widget (effect 'sheen …))` sends a band of light
+across what the widget draws, as the setup's banner has it. A window draws
+it in its glyph shader, timing it itself; a terminal that shows images gets
+pictures of it, drawn on the CPU a step at a time and kept; any other has
+its cells' colors shaded. `(set-var! 'animations #f)` stills everything.
+`docs/animation.md` has the design.
+
+```scheme
+(define x (animated 0))
+(animate! x 30 'duration 400 'easing 'out-cubic)
+(animate! (list a b c) 1 'delay (stagger 80))
 ```
 
 ### Testing your configuration
@@ -503,6 +567,7 @@ so that a change to one rebuilds it and the few above it:
 | --- | --- | --- |
 | `kernel/timing` | startup's steps, timed (`QUAD_TIMING=1`) | |
 | `kernel/diff` | line diffs, for the gutter's marks | |
+| `kernel/fx` | animation: easings, timing, effects, and a CPU raster for them | |
 | `kernel/text` | buffer text (a rope), its line hashes, and searching it | diff |
 | `kernel/files` | a project's files, and grep | |
 | `kernel/image` | PNGs, decoded and scaled | |
@@ -553,7 +618,7 @@ when it registers its modes, commands and keys. The built-in ones are `lisp` (Sc
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 (`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
 language servers, `jj`, Jujutsu, `people`, working together, `voice`, talking, and
-`tutor`, whose lessons are `core/ext/tutor.md` (and `tutor-vim.md`,
+`themes`, a dozen color themes, `tutor`, whose lessons are `core/ext/tutor.md` (and `tutor-vim.md`,
 `tutor-helix.md` for those keys), compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).
 

@@ -136,7 +136,13 @@ pub struct DrawList<'a> {
     pub cell: [f32; 2],
     /// Where the grid's top left is, in pixels: the window's padding.
     pub origin: [f32; 2],
+    /// The effects over the text (gui.slang's Effect, quad_fx's
+    /// EFFECT_BYTES each), at their progress now.
+    pub effects: &'a [u8],
 }
+
+/// How many bytes gui.slang's Effect is (quad_fx::EFFECT_BYTES).
+const EFFECT_BYTES: usize = 48;
 
 /// What the shaders are given for each draw: `Params` in kernel/render/gui.slang,
 /// Vulkan's push constants and Metal's buffer 0.
@@ -151,11 +157,13 @@ struct Params {
     viewport: [f32; 2],
     origin: [f32; 2],
     linear: u32,
+    effect_count: u32,
+    effects: u64,
 }
 
 impl Params {
-    /// Six addresses, six floats, and two u32s (one of them padding).
-    const BYTES: usize = 6 * 8 + 6 * 4 + 2 * 4;
+    /// Six addresses, six floats, two u32s, and another address.
+    const BYTES: usize = 6 * 8 + 6 * 4 + 2 * 4 + 8;
 
     fn bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::BYTES);
@@ -173,7 +181,8 @@ impl Params {
             out.extend_from_slice(&f.to_ne_bytes());
         }
         out.extend_from_slice(&self.linear.to_ne_bytes());
-        out.extend_from_slice(&0u32.to_ne_bytes());
+        out.extend_from_slice(&self.effect_count.to_ne_bytes());
+        out.extend_from_slice(&self.effects.to_ne_bytes());
         out
     }
 }
@@ -237,6 +246,7 @@ struct Buffers {
     pixels: Option<HostBuffer>,
     /// The generation of the pixels `pixels` holds.
     pixels_generation: Option<u64>,
+    effects: Option<HostBuffer>,
 }
 
 /// The pipelines a frame draws with (kernel/render/gui.slang).
@@ -297,6 +307,15 @@ impl Buffers {
             self.pixels_generation = Some(generation);
         }
         let pixels = self.pixels.as_ref().map_or(0, HostBuffer::address);
+        // Never empty, so that there is a buffer to point at.
+        let zero = [0u8; EFFECT_BYTES];
+        let effect_bytes = if list.effects.is_empty() {
+            &zero[..]
+        } else {
+            list.effects
+        };
+        let effects = put(device, &mut self.effects, Data::Bytes(effect_bytes))?;
+        let effect_count = (list.effects.len() / EFFECT_BYTES) as u32;
         let viewport = [extent[0] as f32, extent[1] as f32];
         // Each draw's instances are at the start of its buffer: the
         // rectangle pipeline reads `rects`, the glyph one `glyphs`, the
@@ -315,6 +334,8 @@ impl Buffers {
                 viewport,
                 origin: list.origin,
                 linear: u32::from(linear),
+                effect_count,
+                effects,
             },
         };
         Ok([
@@ -499,10 +520,14 @@ mod tests {
             viewport: [9.0, 10.0],
             origin: [11.0, 12.0],
             linear: 1,
+            effect_count: 2,
+            effects: 13,
         };
         let bytes = params.bytes();
         assert_eq!(bytes.len(), Params::BYTES);
-        assert_eq!(bytes.len(), 80);
+        assert_eq!(bytes.len(), 88);
+        assert_eq!(u32::from_ne_bytes(bytes[76..80].try_into().unwrap()), 2);
+        assert_eq!(u64::from_ne_bytes(bytes[80..88].try_into().unwrap()), 13);
         let word = |at: usize| u64::from_ne_bytes(bytes[at..at + 8].try_into().unwrap());
         assert_eq!((word(0), word(40)), (1, 6));
         let float = |at: usize| f32::from_ne_bytes(bytes[at..at + 4].try_into().unwrap());

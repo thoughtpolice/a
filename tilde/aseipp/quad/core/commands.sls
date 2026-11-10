@@ -146,9 +146,26 @@
                (command-names))
           run-command))
 
+  ;; The theme: setting the variable loads it, and every client draws
+  ;; afresh.
+  (define-variable theme 'quad-default "The theme, by the name define-theme gave it (space k t picks one).")
+  (at-load
+   (add-hook! 'variable-change-hook
+              (lambda (name v)
+                (when (eq? name 'theme)
+                  (unless (eq? v (current-theme-name)) (load-theme! v))
+                  (for-each (lambda (c) (client-frame-set! c #f)) (clients))))))
+
+  ;; Pick a theme, each shown as it is selected; cancelling goes back.
   (define (theme-picker!)
-    (pick "Theme" (map (lambda (n) (cons (symbol->string n) n)) (theme-names))
-          (lambda (n) (load-theme! n) (message "Theme ~a" n))))
+    (let* ([was (current-theme-name)]
+           [names (cons was (remq was (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b)))
+                                            (theme-names))))]
+           [p (pick "Theme" (map (lambda (n) (cons (symbol->string n) n)) names)
+                    (lambda (n) (set-var! 'theme n) (message "Theme ~a" n)))])
+      (prompt-on-select-set! p (lambda (n) (load-theme! n)))
+      (prompt-on-cancel-set! p (lambda () (load-theme! was)))
+      (prompt-selected! p)))
 
   (define (help!)
     (pick "Keys (normal mode)"
@@ -506,9 +523,10 @@
   (define (prompt-move! step)
     (let ([p (current-prompt)])
       (when (and p (pair? (prompt-items p)))
-        (prompt-index-set! p (modulo (+ (prompt-index p) step) (length (prompt-items p)))))))
+        (prompt-index-set! p (modulo (+ (prompt-index p) step) (length (prompt-items p))))
+        (prompt-selected! p))))
   (defcmd prompt-accept "Accept the input" (let ([p (current-prompt)]) (when p (prompt-accept! p))))
-  (defcmd prompt-cancel "Cancel" (close-prompt!))
+  (defcmd prompt-cancel "Cancel" (cancel-prompt!))
   ;; The grapheme cluster before or after index c of string s.
   (define (string-grapheme-before s c)
     (if (<= c 0) 0 (grapheme-start (lambda (i) (string-ref s i)) (- c 1) 0)))

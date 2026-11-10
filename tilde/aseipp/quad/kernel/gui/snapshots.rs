@@ -73,6 +73,9 @@ impl Snapshots {
             cell: [w, h],
             // Frames as the grid is, with no padding around them.
             origin: [0.0, 0.0],
+            // Effects as they were when the frame was made: a snapshot
+            // takes no time.
+            effects: &self.screen.effects_at(0.0).0,
         };
         self.gpu.draw(&list, cols * w as u32, rows * h as u32)
     }

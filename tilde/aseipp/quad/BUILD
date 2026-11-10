@@ -47,7 +47,9 @@ EXTENSIONS = {
     "people": [],
     "project": [":native"],
     "relay": [],
+    "setup": [":ext-themes"],
     "shell": [],
+    "themes": [],
     "tutor": [],
     "voice": [
         ":native",
@@ -65,6 +67,7 @@ EXTENSION_DATA = {
 }
 
 EXTENSION_ORDER = [
+    "themes",
     "ki",
     "vi",
     "vim",
@@ -86,6 +89,7 @@ EXTENSION_ORDER = [
     "relay",
     "voice",
     "tutor",
+    "setup",
 ]
 
 # MARK: Kernel
@@ -98,6 +102,7 @@ EXTENSION_ORDER = [
 #   kernel/timing   startup's steps, timed
 #   kernel/text     buffer text (a rope) and searching it
 #   kernel/diff     line diffs, for the gutter
+#   kernel/fx       animation: easings, timing, effects (docs/animation.md)
 #   kernel/files    a project's files, and grep
 #   kernel/image    images: PNGs decoded and scaled
 #   kernel/mesh     editors and clients over iroh
@@ -110,6 +115,7 @@ KERNEL_CRATES = [
     for crate in [
         "diff",
         "files",
+        "fx",
         "font",
         "gui",
         "image",
@@ -385,6 +391,8 @@ shims.filegroup(
     for t in [
         "text",
         "highlight",
+        "themes",
+        "anim",
         "graphemes",
         "selection",
         "editing",
@@ -444,6 +452,17 @@ shims.dynamic_test(
         "golden",
     ],
     dep = ":gui-render",
+)
+
+# quad's setup, as quad starts with no init file: without -q, and with
+# QUAD_INIT naming one that is not there yet.
+shims.command_test(
+    name = "test-setup",
+    script = """
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'rm -rf "$dir"' EXIT
+        QUAD_INIT=$dir/config/quad/init.ss $(exe :quad) --batch $(location :tests)/tests/setup.ss
+    """,
 )
 
 # The jj extension, against repositories made by third-party's jj (so that

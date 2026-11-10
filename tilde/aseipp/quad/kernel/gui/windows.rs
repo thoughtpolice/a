@@ -224,6 +224,7 @@ impl Windows {
             pointer: None,
             held: None,
             scroll: 0.0,
+            wake: None,
         };
         win.resized(size);
         self.ids.insert(id, key);
@@ -325,6 +326,22 @@ impl ApplicationHandler<Request> for Windows {
                 }
             }
             Request::Exit(status) => std::process::exit(status),
+        }
+    }
+
+    // Between an effect's iterations nothing moves: the loop sleeps until
+    // the next begins, then draws the windows it begins in.
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let now = std::time::Instant::now();
+        for win in self.open.values_mut() {
+            if win.wake.is_some_and(|w| w <= now) {
+                win.wake = None;
+                win.window.request_redraw();
+            }
+        }
+        match self.open.values().filter_map(|w| w.wake).min() {
+            Some(at) => event_loop.set_control_flow(ControlFlow::WaitUntil(at)),
+            None => event_loop.set_control_flow(ControlFlow::Wait),
         }
     }
 

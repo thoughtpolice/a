@@ -38,6 +38,8 @@
           (quad buffer) (quad editor) (quad commands) (quad display) (quad ext project) (quad native) (quad server)
           (only (quad main) quad-version))
 
+  (define-variable ai-provider 'codex
+    "The AI that space a asks to change the editor: 'codex, or #f for none (quad's setup, space j i, asks).")
   (define-variable codex-command '("codex" "app-server")
     "The command line of Codex's app server, a list of strings")
   (define-variable codex-model #f "The model Codex uses, or #f for its default")
@@ -355,7 +357,7 @@ bindings, quad_context the editor's state. The essentials:
 - (define-variable name default \"doc\") (a macro: name unquoted); (set-var! 'name value); (get-var 'name)
 - (add-hook! 'before-save-hook (lambda (buffer) ...)); (message \"fmt ~~a\" x)
 - buffers and selections: current-buffer, buffer-string, sels-texts, edit-sels!, selection-text, insert-at-cursors!
-- themes: (define-theme 'name palette faces), (load-theme! 'name)
+- themes: (set-var! 'theme 'name) uses one (theme-names lists them); (define-palette-theme 'name 'dark palette overrides) makes one from roles (bg bg-dark bg-light selection bg-alt fg fg-bright fg-dim comment red orange yellow green cyan blue purple pink, each a string of #rrggbb); (define-theme 'name palette faces) sets every face by hand; a palette color may be (ansi n), the terminal's own
 - tools of your own for later conversations: (define-codex-tool! \"name\" \"description\" json-schema (lambda (args) \"result\"))
 When a request leaves a choice that matters open (which key, which behaviour), ask with \
 request_user_input if you have it, offering the likely answers; otherwise choose and say so.
@@ -400,6 +402,8 @@ commands to use it."
   (define server-waiting '())
   (define (with-server! k on-error)
     (cond
+     [(not (eq? (get-var 'ai-provider) 'codex))
+      (message-error "No AI is set up: ai-provider is ~s (space j i sets one up)" (get-var 'ai-provider))]
      [initialized? (k)]
      [rpc (set! server-waiting (append server-waiting (list k)))]
      [else

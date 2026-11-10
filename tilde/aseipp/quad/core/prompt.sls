@@ -12,6 +12,7 @@
           make-prompt prompt? prompt-label prompt-input prompt-input-set! prompt-cursor
           prompt-cursor-set! prompt-candidates prompt-items prompt-items-set! prompt-index
           prompt-index-set! prompt-on-accept prompt-on-change prompt-style prompt-hint
+          prompt-on-select-set! prompt-on-cancel-set! prompt-selected! cancel-prompt!
           prompt-most prompt-most-set! current-prompt prompt-refresh! open-prompt!
           close-prompt! prompt-accept! read-string-prompt read-string-dialog pick make-popup
           popup? popup-title popup-lines popup-footer current-popup show-popup! hide-popup!
@@ -41,14 +42,29 @@
   (define-record-type prompt
     (fields label (mutable input) (mutable cursor) candidates
             (mutable items) (mutable index) on-accept on-change style hint
-            (mutable most))             ; the most items it has had, for its size
+            (mutable most)              ; the most items it has had, for its size
+            ;; (on-select value) whenever another candidate is selected, as
+            ;; a theme picker shows each; (on-cancel) if it is cancelled.
+            (mutable on-select) (mutable on-cancel)
+            (mutable last))             ; (value) last selected, for on-select
     (protocol
      (lambda (new)
        (case-lambda
         [(label initial candidates on-accept on-change style)
-         (new label initial (string-length initial) candidates '() 0 on-accept on-change style #f 0)]
+         (new label initial (string-length initial) candidates '() 0 on-accept on-change style #f 0 #f #f #f)]
         [(label initial candidates on-accept on-change style hint)
-         (new label initial (string-length initial) candidates '() 0 on-accept on-change style hint 0)]))))
+         (new label initial (string-length initial) candidates '() 0 on-accept on-change style hint 0 #f #f #f)]))))
+
+  ;; Tell the prompt's on-select of the candidate selected now, if it has
+  ;; changed.
+  (define (prompt-selected! p)
+    (when (prompt-on-select p)
+      (let ([items (prompt-items p)])
+        (when (pair? items)
+          (let ([v (cdr (car (list-ref items (prompt-index p))))])
+            (unless (and (prompt-last p) (equal? (car (prompt-last p)) v))
+              (prompt-last-set! p (list v))
+              ((prompt-on-select p) v)))))))
 
   (define (current-prompt) (and (current-client) (client-prompt (current-client))))
 
@@ -75,12 +91,21 @@
                          (sort (lambda (a b) (> (car a) (car b))) scored))])
         (prompt-items-set! p (map (lambda (x) (cons (caddr x) (cadr x))) sorted))
         (prompt-most-set! p (max (prompt-most p) (length sorted)))
-        (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- (length sorted) 1))))))
+        (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- (length sorted) 1))))
+        (prompt-selected! p)))
     (when (prompt-on-change p) ((prompt-on-change p) (prompt-input p))))
 
+  ;; Show prompt p; it is returned.
   (define (open-prompt! p)
     (client-prompt-set! (current-client) p)
-    (prompt-refresh! p))
+    (prompt-refresh! p)
+    p)
+
+  ;; Cancel the prompt: it goes, and its on-cancel runs.
+  (define (cancel-prompt!)
+    (let ([p (current-prompt)])
+      (close-prompt!)
+      (when (and p (prompt-on-cancel p)) ((prompt-on-cancel p)))))
 
   (define (close-prompt!) (client-prompt-set! (current-client) #f))
 

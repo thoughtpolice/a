@@ -10,13 +10,17 @@
 (library (quad grid)
   (export make-grid-model grid-model? grid-model-rows grid-model-cols
           grid-model-apply! grid-model-lines grid-model-row grid-model-cursor
-          grid-model-cell grid-model-hl grid-model-frames grid-model-other grid-model-images)
+          grid-model-cell grid-model-hl grid-model-frames grid-model-other grid-model-images
+          grid-model-effects grid-model-effects-received)
   (import (chezscheme) (quad util))
 
   (define-record-type grid-model
     (fields (mutable rows) (mutable cols) (mutable cells) hls
-            (mutable cursor) (mutable frames) (mutable other) (mutable images))
-    (protocol (lambda (new) (lambda () (new 0 0 (vector) (make-eqv-hashtable) #f 0 '() '())))))
+            (mutable cursor) (mutable frames) (mutable other) (mutable images)
+            ;; The effects placed, as "effects" has them, and when (real
+            ;; time) they came, from which their ages count.
+            (mutable effects) (mutable effects-received))
+    (protocol (lambda (new) (lambda () (new 0 0 (vector) (make-eqv-hashtable) #f 0 '() '() '() 0)))))
 
   ;; Apply a message. Messages that are not about the screen are kept,
   ;; newest first, in grid-model-other.
@@ -57,6 +61,7 @@
       [(cursor) (grid-model-cursor-set! g (and (cadr msg) (cdr msg)))]
       ;; (key row col rows cols shown) for each image placed.
       [(images) (grid-model-images-set! g (cadr msg))]
+      [(effects) (grid-model-effects-set! g (cadr msg)) (grid-model-effects-received-set! g (real-time))]
       [(flush) (grid-model-frames-set! g (+ 1 (grid-model-frames g)))]
       [else (grid-model-other-set! g (cons msg (grid-model-other g)))]))
 

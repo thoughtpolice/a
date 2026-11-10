@@ -15,11 +15,11 @@
 ;; encodings otherwise.
 (library (quad term)
   (export decode-input
-          tty? tty-in-fd tty-rows tty-cols tty-kitty? tty-truecolor?
+          tty? tty-in-fd tty-rows tty-cols tty-kitty? tty-colors color-depth
           open-tty close-tty! tty-suspend! tty-resume!
           tty-read-available! tty-pending-timeout tty-flush-pending! tty-take-resize!
           tty-paint! tty-capabilities hl-sgr)
-  (import (chezscheme) (quad util) (quad kernel) (quad event))
+  (import (chezscheme) (quad util) (quad kernel) (quad event) (quad color))
 
   ;; ---------------------------------------------------------------------------
   ;; Decoding
@@ -266,7 +266,8 @@
   (define-record-type tty
     (fields in-fd out-fd
             (mutable rows) (mutable cols)
-            (mutable kitty?) truecolor?
+            (mutable kitty?)
+            (mutable colors)           ; truecolor, 256 or 16: see color-depth
             (mutable pending)          ; undecoded input bytes
             (mutable early)            ; events read while probing
             out                        ; output for the frame being painted
@@ -362,9 +363,7 @@
                  [else (scan (cdr q) kitty held)])))))))
 
   (define (open-tty)
-    ;; Every terminal quad targets has 24-bit color; QUAD_256 falls back to
-    ;; the 256-color palette for the rest.
-    (let ([t (make-tty 0 1 24 80 #f (not (getenv "QUAD_256")) '() '()
+    (let ([t (make-tty 0 1 24 80 #f 'truecolor '() '()
                        (open-output-string) (make-eqv-hashtable) (make-eqv-hashtable)
                        #f #f #f #f (kitty-graphics?) (make-hashtable string-hash string=?) 1)])
       (unless (and (= 1 (kernel-isatty 0)) (= 1 (kernel-isatty 1)))
@@ -372,8 +371,35 @@
       (kernel-tty-raw 0)
       (refresh-size! t)
       (tty-kitty?-set! t (and (not (getenv "QUAD_LEGACY_KEYS")) (probe-kitty! t)))
+      (tty-colors-set! t (color-depth (tty-kitty? t)))
       (write-now t (string-append enter-sequence (kitty-push t)))
       t))
+
+  ;; How many colors the terminal has: 'truecolor (24-bit), 256 or 16.
+  ;; QUAD_COLORS (truecolor, 256 or 16) says; else COLORTERM, as terminals
+  ;; with 24-bit color set it; else a terminal that speaks the kitty
+  ;; keyboard protocol (kitty?), or one known by name, has 24-bit color; else
+  ;; TERM says 256 colors or not. Through ssh or tmux, COLORTERM may not
+  ;; arrive: QUAD_COLORS=truecolor gives it back.
+  (define (color-depth kitty?)
+    (let* ([env (lambda (v) (let ([s (getenv v)]) (and s (string-downcase s))))]
+           [term (or (env "TERM") "")]
+           [has? (lambda (v s) (let ([x (env v)]) (and x (string-contains x s) #t)))]
+           [forced (env "QUAD_COLORS")])
+      (cond
+       [(and forced (member forced '("truecolor" "24bit" "24"))) 'truecolor]
+       [(and forced (string=? forced "256")) 256]
+       [(and forced (member forced '("16" "8"))) 16]
+       [(member (env "COLORTERM") '("truecolor" "24bit")) 'truecolor]
+       [kitty? 'truecolor]
+       [(or (getenv "KITTY_WINDOW_ID") (getenv "WT_SESSION")
+            (member (env "TERM_PROGRAM") '("iterm.app" "wezterm" "ghostty" "vscode" "hyper" "rio"))
+            (let ([vte (getenv "VTE_VERSION")]) (and vte (string->number vte) (>= (string->number vte) 3600)))
+            (exists (lambda (s) (string-contains term s)) '("kitty" "ghostty" "alacritty" "foot" "wezterm" "-direct" "truecolor")))
+        'truecolor]
+       [(string-contains term "256") 256]
+       [(member term '("" "dumb" "linux" "xterm" "vt100" "vt220" "ansi" "screen" "tmux" "rxvt" "cons25" "putty")) 16]
+       [else 256])))
 
   ;; Whether the terminal draws images with kitty's graphics protocol: kitty,
   ;; ghostty and WezTerm do, by their names; tmux passes it on to none of
@@ -414,15 +440,20 @@
   ;; frame in one synchronized update, with the cursor. It returns #t for a
   ;; message it handled, #f for one the client must handle itself.
 
-  (define (color-sgr fg? c truecolor?)
-    (let ([r (ash c -16)] [g (logand (ash c -8) 255)] [b (logand c 255)])
-      (if truecolor?
-          (format "~a;2;~a;~a;~a" (if fg? 38 48) r g b)
-          (format "~a;5;~a" (if fg? 38 48) (rgb->256 r g b)))))
-
-  (define (rgb->256 r g b)
-    (let ([q (lambda (x) (cond [(< x 48) 0] [(< x 115) 1] [else (quotient (- x 35) 40)]))])
-      (+ 16 (* 36 (q r)) (* 6 (q g)) (q b))))
+  ;; A color (color.sls) as SGR parameters, for a terminal of colors
+  ;; (color-depth's; #t is truecolor, #f 256): the palette's first 16 by
+  ;; their own codes (30-37, 90-97), which every terminal has.
+  (define (color-sgr fg? c colors)
+    (let ([colors (case colors [(#t) 'truecolor] [(#f) 256] [else colors])])
+      (define (sixteen n)
+        (number->string (if (< n 8) (+ (if fg? 30 40) n) (+ (if fg? 90 100) (- n 8)))))
+      (cond
+       [(and (indexed-color? c) (< (indexed-color-index c) 16)) (sixteen (indexed-color-index c))]
+       [(eqv? colors 16) (sixteen (nearest-16 c))]
+       [(indexed-color? c) (format "~a;5;~a" (if fg? 38 48) (indexed-color-index c))]
+       [(eq? colors 'truecolor)
+        (format "~a;2;~a;~a;~a" (if fg? 38 48) (color-red c) (color-green c) (color-blue c))]
+       [else (format "~a;5;~a" (if fg? 38 48) (nearest-256 c))])))
 
   ;; The SGR sequence for a highlight: colors or #f, flags (see
   ;; protocol.sls), and the underline's color or #f. A modern? terminal
@@ -447,10 +478,13 @@
          (if (logtest flags 1024) ";53" "")
          (if fg (string-append ";" (color-sgr #t fg truecolor?)) "")
          (if bg (string-append ";" (color-sgr #f bg truecolor?)) "")
-         (if (and style underline-color modern? truecolor?)
-             (format ";58:2::~a:~a:~a" (ash underline-color -16) (logand (ash underline-color -8) 255)
-                     (logand underline-color 255))
-             "")
+         (cond
+          [(not (and style underline-color modern?)) ""]
+          [(indexed-color? underline-color) (format ";58:5:~a" (indexed-color-index underline-color))]
+          [(memq truecolor? '(#t truecolor))
+           (format ";58:2::~a:~a:~a" (color-red underline-color) (color-green underline-color)
+                   (color-blue underline-color))]
+          [else (format ";58:5:~a" (nearest-256 underline-color))])
          "m"))]))
 
   (define (frame-out t)
@@ -559,7 +593,7 @@
            [more (cddddr args)]
            [underline-color (and (pair? more) (car more))]
            [link (and (pair? more) (pair? (cdr more)) (terminal-link (cadr more)))])
-      (hashtable-set! (tty-hls t) id (hl-sgr fg bg flags (tty-truecolor? t) underline-color (tty-kitty? t)))
+      (hashtable-set! (tty-hls t) id (hl-sgr fg bg flags (tty-colors t) underline-color (tty-kitty? t)))
       (if link (hashtable-set! (tty-links t) id link) (hashtable-delete! (tty-links t) id))))
 
   ;; Cells from (row, col), each (text [hl [repeat]]): hl carries over from

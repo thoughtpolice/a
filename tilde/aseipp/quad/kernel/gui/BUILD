@@ -9,6 +9,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 DEPS = [
     "//aseipp/quad/kernel/chez-rs:chez",
     "//aseipp/quad/kernel/font:font",
+    "//aseipp/quad/kernel/fx:fx",
     "//aseipp/quad/kernel/image:image",
     "//aseipp/quad/kernel/render:render",
     "//aseipp/quad/kernel/timing:timing",

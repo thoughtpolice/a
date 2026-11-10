@@ -18,7 +18,8 @@
 //   backgrounds, the cursor, underlines.
 // - Images (pictures), placed in pixels and read from the frame's pixels,
 //   one for each drawn (kernel/image/ scales them so).
-// - Glyphs, drawn from their curves with Slug: text, and box drawing.
+// - Glyphs, drawn from their curves with Slug: text, and box drawing,
+//   shaded by the effects over them (docs/animation.md).
 //
 // Colors are sRGB-encoded 0xAARRGGBB. Where the image drawn into is sRGB
 // (params.linear), they are made linear here, the hardware blends in
@@ -59,6 +60,18 @@ struct Picture
     uint2 reserved;
 };
 
+// An effect over a rectangle of cells, at its progress now (kernel/fx's
+// Placed::gpu_bytes makes these).
+struct Effect
+{
+    float4 cells;    // column, row, columns, rows
+    float4 shape;    // a sheen's: its angle's cosine and sine, half-width (in cells), intensity
+    float progress;  // eased, 0 to 1
+    uint kind;       // 1: a sheen
+    uint color;      // 0xRRGGBB, the light's
+    uint reserved;
+};
+
 struct Params
 {
     Rect* rects;
@@ -71,7 +84,8 @@ struct Params
     float2 viewport; // the window's size, in pixels
     float2 origin;   // where the grid's top left is, in pixels (the window's padding)
     uint linear;     // nonzero: blend in linear light (an sRGB image)
-    uint reserved;
+    uint effectCount;
+    Effect* effects;
 };
 
 [[vk::push_constant]] Params params;
@@ -429,10 +443,46 @@ float SlugRender(float2 renderCoord, float4 bandTransform, uint4 glyphData)
     return (CalcCoverage(xcov, ycov, xwgt, ywgt));
 }
 
+// How much of effect e's color is mixed into ink at point (in cell widths
+// across and down, from its rectangle's top left, extent its size):
+// kernel/fx's Effect::amount, which the CPU draws with.
+float effectAmount(Effect e, float2 point, float2 extent)
+{
+    if (e.kind != 1)
+        return 0.0;
+    float2 dir = e.shape.xy;
+    float width = e.shape.z;
+    float4 corners = float4(0.0, dot(float2(extent.x, 0.0), dir), dot(float2(0.0, extent.y), dir), dot(extent, dir));
+    float first = min(min(corners.x, corners.y), min(corners.z, corners.w));
+    float last = max(max(corners.x, corners.y), max(corners.z, corners.w));
+    float middle = (first - width) + (last - first + 2.0 * width) * e.progress;
+    float away = abs(dot(point, dir) - middle);
+    return e.shape.w * (1.0 - smoothstep(0.0, width, away));
+}
+
+// Ink at pixel (in the window), with the effects over it.
+float3 withEffects(float3 ink, float2 pixel)
+{
+    float2 cell = (pixel - params.origin) / params.cell;
+    float aspect = params.cell.y / params.cell.x;
+    for (uint i = 0; i < params.effectCount; i++)
+    {
+        Effect e = params.effects[i];
+        float2 local = cell - e.cells.xy;
+        if (all(local >= 0.0) && all(local < e.cells.zw))
+        {
+            float a = effectAmount(e, float2(local.x, local.y * aspect), float2(e.cells.z, e.cells.w * aspect));
+            ink = lerp(ink, unpackColor(e.color | 0xFF000000).rgb, a);
+        }
+    }
+    return ink;
+}
+
 [shader("fragment")]
 float4 glyphFragment(GlyphVertex input) : SV_Target0
 {
     float a = SlugRender(input.texcoord, input.banding, input.glyph);
+    float3 ink = withEffects(input.color.rgb, input.position.xy);
     // ghostty's linear-corrected blending (src/renderer/shaders, MIT):
     // blend the luminances as gamma-space blending would, and take the
     // coverage that gives that luminance blending linearly from the
@@ -441,7 +491,7 @@ float4 glyphFragment(GlyphVertex input) : SV_Target0
     // muddy colors.
     if (params.linear != 0)
     {
-        float fg = luminance(input.color.rgb);
+        float fg = luminance(ink);
         float bg = luminance(input.background.rgb);
         if (abs(fg - bg) > 0.001)
         {
@@ -450,5 +500,5 @@ float4 glyphFragment(GlyphVertex input) : SV_Target0
         }
     }
     // Straight alpha, as the pipeline blends it.
-    return float4(input.color.rgb, input.color.a * a);
+    return float4(ink, input.color.a * a);
 }

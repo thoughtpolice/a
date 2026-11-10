@@ -94,6 +94,7 @@
    make-prompt prompt? prompt-label prompt-input prompt-input-set! prompt-cursor
    prompt-cursor-set! prompt-items prompt-index prompt-index-set! prompt-style prompt-hint prompt-most
    current-prompt open-prompt! close-prompt! prompt-refresh! prompt-accept!
+   prompt-on-select-set! prompt-on-cancel-set! prompt-selected! cancel-prompt!
    read-string-prompt read-string-dialog pick unfiltered unfiltered?
    ;; overlays
    make-overlay overlay? overlay-name overlay-place overlay-widget overlay-key

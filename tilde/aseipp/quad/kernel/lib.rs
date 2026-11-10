@@ -30,6 +30,7 @@ use chez::{ByteVec, Bytes, Mailbox, Object, Ref, RefMut};
 use quad_diff as diff;
 use quad_files as files;
 use quad_font as font;
+use quad_fx as fx;
 use quad_gui as gui;
 use quad_gui::screen;
 use quad_image as image;
@@ -552,6 +553,104 @@ fn diff_hunks(b: Ref<DiffBase>, mut t: RefMut<text::Text>) -> Vec<Vec<usize>> {
 }
 
 // ---------------------------------------------------------------------------
+// Animation (fx/): timing and effects, for core/anim.sls
+
+/// The easings' names, in the order timings give them by index.
+#[chez::procedure(name = "fx-easing-names")]
+fn fx_easing_names() -> Vec<String> {
+    fx::easing_names()
+}
+
+/// The eased progress of `timing` (see fx::Timing::from_numbers) at
+/// `elapsed` milliseconds, or #f for a timing that is not one.
+#[chez::procedure(name = "fx-progress")]
+fn fx_progress(timing: Vec<f64>, elapsed: f64) -> Option<f64> {
+    fx::Timing::from_numbers(&timing).map(|t| t.progress(elapsed))
+}
+
+/// Milliseconds from `elapsed` until `timing`'s progress next changes: 0
+/// while it moves; #f once it is done.
+#[chez::procedure(name = "fx-next-change")]
+fn fx_next_change(timing: Vec<f64>, elapsed: f64) -> Option<f64> {
+    fx::Timing::from_numbers(&timing).and_then(|t| t.next_change(elapsed))
+}
+
+fn effect_of(kind: u32, params: &[f64], color: u32) -> fx::Effect {
+    let mut p = [0f32; 4];
+    for (o, v) in p.iter_mut().zip(params) {
+        *o = *v as f32;
+    }
+    fx::Effect {
+        kind,
+        params: p,
+        color,
+    }
+}
+
+/// Ink `ink` (0xRRGGBB) at (x, y), with the effect `kind` (1, a sheen) of
+/// `params` and `color` at `progress`, over a rectangle `w` by `h`: points
+/// and sizes in cell widths.
+#[chez::procedure(name = "fx-shade")]
+#[allow(clippy::too_many_arguments)]
+fn fx_shade(
+    kind: u32,
+    params: Vec<f64>,
+    color: u32,
+    progress: f64,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    ink: u32,
+) -> u32 {
+    effect_of(kind, &params, color).shade(
+        progress as f32,
+        [x as f32, y as f32],
+        [w as f32, h as f32],
+        ink,
+    )
+}
+
+/// Cells (`texts`, and `colors`, each one's foreground then background),
+/// `cols` across, drawn `cell-w` by `cell-h` pixels each with the effect
+/// at `progress`, as a PNG; #f if one has a character the raster does not
+/// draw (fx/raster.rs).
+#[chez::procedure(name = "fx-raster")]
+#[allow(clippy::too_many_arguments)]
+fn fx_raster(
+    texts: Vec<String>,
+    colors: Vec<u32>,
+    cols: usize,
+    cell_w: usize,
+    cell_h: usize,
+    kind: u32,
+    params: Vec<f64>,
+    color: u32,
+    progress: f64,
+) -> Result<Option<ByteVec>, String> {
+    if colors.len() != texts.len() * 2 || cols == 0 {
+        return Err("fx-raster: a foreground and a background for each cell".into());
+    }
+    let cells: Vec<fx::raster::Cell> = texts
+        .iter()
+        .zip(colors.chunks_exact(2))
+        .map(|(t, c)| fx::raster::Cell {
+            text: t,
+            fg: c[0],
+            bg: c[1],
+        })
+        .collect();
+    let effect = effect_of(kind, &params, color);
+    let Some(rgba) = fx::raster::raster(&cells, cols, [cell_w, cell_h], &effect, progress as f32)
+    else {
+        return Ok(None);
+    };
+    let rows = texts.len().div_ceil(cols);
+    image::encode((cols * cell_w) as u32, (rows * cell_h) as u32, &rgba)
+        .map(|png| Some(ByteVec(png)))
+}
+
+// ---------------------------------------------------------------------------
 // Editors and clients over iroh (mesh.rs)
 
 /// An editor accepting clients over iroh, with a new identity and join
@@ -739,7 +838,7 @@ fn gui_take(g: Ref<gui::Gui>) -> Vec<gui::Event> {
 /// CELL_BYTES each) and `text`); the background, and the color of text
 /// left to the terminal's; the cursor, or -1s where it is hidden; and the
 /// images placed (keys, and five u32s each, as image.rs's Placement
-/// reads them).
+/// reads them); and the effects placed (fx::Placed::from_numbers's).
 #[chez::procedure(name = "gui-frame")]
 #[allow(clippy::too_many_arguments)]
 fn gui_frame(
@@ -756,6 +855,7 @@ fn gui_frame(
     cursor_col: i32,
     image_keys: Vec<String>,
     image_places: Bytes,
+    effects: Vec<Vec<f64>>,
 ) -> Result<Object<screen::Update>, String> {
     let (scrolls, changed) = screen::Update::rows_from(&scrolls, &index, &rects, &cells, &text)?;
     Ok(Object(screen::Update {
@@ -768,6 +868,10 @@ fn gui_frame(
         cursor: (cursor_row >= 0 && cursor_col >= 0)
             .then_some((cursor_row as u32, cursor_col as u32)),
         placements: image::Placement::parse(image_keys, &image_places)?,
+        effects: effects
+            .iter()
+            .map(|e| fx::Placed::from_numbers(e).ok_or("gui-frame: an effect is 21 numbers"))
+            .collect::<Result<_, _>>()?,
     }))
 }
 
@@ -893,6 +997,7 @@ chez::library! {
         search_new, search_next, search_prev, search_all,
         project_files, grep_start, grep_fd, grep_take,
         diff_base, diff_base_line_count, diff_base_lines, diff_base_block, diff_hunks,
+        fx_easing_names, fx_progress, fx_next_change, fx_shade, fx_raster,
         spawn_process, launch_process, process_input_fd, process_output_fd,
         command_start, command_fd, command_take,
         process_close_input, process_status, process_stop,

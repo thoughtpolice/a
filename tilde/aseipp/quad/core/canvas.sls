@@ -10,6 +10,7 @@
 (library (quad canvas)
   (export face-merge F UI ui-face
           make-grid grid? grid-rows grid-cols grid-chars grid-faces grid-images grid-images-set!
+          grid-effects grid-effects-set!
           new-grid put! face-at put-string! fill-row! blit! draw-box! wrap-text wrap-starts pretty-key)
   (import (chezscheme) (quad util) (quad face))
 
@@ -32,8 +33,9 @@
   ;; ---------------------------------------------------------------------------
   ;; Grids
 
-  ;; images: (picture row col rows cols) for each picture placed.
-  (define-record-type grid (fields rows cols chars faces (mutable images)))
+  ;; images: (picture row col rows cols) for each picture placed; effects:
+  ;; (effect row col rows cols) for each effect (anim.sls) placed.
+  (define-record-type grid (fields rows cols chars faces (mutable images) (mutable effects)))
 
   (define (new-grid rows cols face)
     (make-grid rows cols
@@ -41,7 +43,7 @@
                  (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols #\space))))
                (let ([v (make-vector rows)])
                  (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols face))))
-               '()))
+               '() '()))
 
   (define (put! g r c ch face)
     (when (and (< -1 r (grid-rows g)) (< -1 c (grid-cols g)))
@@ -88,7 +90,11 @@
     (grid-images-set! g (append (map (lambda (im) (list (car im) (+ row (cadr im)) (+ col (caddr im))
                                                        (cadddr im) (list-ref im 4)))
                                      (grid-images sub))
-                                (grid-images g))))
+                                (grid-images g)))
+    (grid-effects-set! g (append (map (lambda (e) (list (car e) (+ row (cadr e)) (+ col (caddr e))
+                                                        (cadddr e) (list-ref e 4)))
+                                      (grid-effects sub))
+                                 (grid-effects g))))
 
   (define (draw-box! g top left height width title)
     (let ([border (UI 'ui.popup.border)] [bg (UI 'ui.popup)])
