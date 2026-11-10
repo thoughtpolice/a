@@ -238,17 +238,57 @@ fn classify(e: &std::io::Error) -> AcceptError {
         _ => {}
     }
     match e.raw_os_error() {
-        Some(libc::EMFILE | libc::ENFILE | libc::ENOBUFS | libc::ENOMEM) => AcceptError::Exhausted,
-        // accept(2): Linux hands back errors already pending on the new
-        // socket, which callers should treat like EAGAIN; a firewall rule
-        // refusing the connection reports EPERM.
-        Some(
-            libc::EPROTO | libc::ENOPROTOOPT | libc::EHOSTDOWN | libc::EOPNOTSUPP | libc::EPERM,
-        ) => AcceptError::Connection,
-        #[cfg(target_os = "linux")]
-        Some(libc::ENONET) => AcceptError::Connection,
+        Some(code) if code::EXHAUSTED.contains(&code) => AcceptError::Exhausted,
+        Some(code) if code::CONNECTION.contains(&code) => AcceptError::Connection,
         _ => AcceptError::Fatal,
     }
+}
+
+/// The system's error codes for what [`classify`] tells apart that
+/// [`std::io::ErrorKind`] does not.
+#[cfg(unix)]
+mod code {
+    /// Out of descriptors, or of memory.
+    pub(super) const EXHAUSTED: &[i32] = &[libc::EMFILE, libc::ENFILE, libc::ENOBUFS, libc::ENOMEM];
+
+    /// accept(2): Linux hands back errors already pending on the new
+    /// socket, which callers should treat like EAGAIN; a firewall rule
+    /// refusing the connection reports EPERM.
+    #[cfg(target_os = "linux")]
+    pub(super) const CONNECTION: &[i32] = &[
+        libc::EPROTO,
+        libc::ENOPROTOOPT,
+        libc::EHOSTDOWN,
+        libc::EOPNOTSUPP,
+        libc::EPERM,
+        libc::ENONET,
+    ];
+    #[cfg(not(target_os = "linux"))]
+    pub(super) const CONNECTION: &[i32] = &[
+        libc::EPROTO,
+        libc::ENOPROTOOPT,
+        libc::EHOSTDOWN,
+        libc::EOPNOTSUPP,
+        libc::EPERM,
+    ];
+}
+
+/// Winsock's codes (winerror.h), which a socket's errors are on Windows,
+/// rather than errno's.
+#[cfg(windows)]
+mod code {
+    const WSA_NOT_ENOUGH_MEMORY: i32 = 8;
+    const WSAEMFILE: i32 = 10024;
+    const WSAENOBUFS: i32 = 10055;
+    const WSAENETRESET: i32 = 10052;
+    const WSAEHOSTDOWN: i32 = 10064;
+
+    /// Out of sockets, buffers or memory.
+    pub(super) const EXHAUSTED: &[i32] = &[WSAEMFILE, WSAENOBUFS, WSA_NOT_ENOUGH_MEMORY];
+
+    /// The connection being accepted went away first (as ErrorKind has
+    /// the rest of them).
+    pub(super) const CONNECTION: &[i32] = &[WSAENETRESET, WSAEHOSTDOWN];
 }
 
 /// Call `accept` until it yields a connection or fails in a way that says
@@ -293,20 +333,44 @@ mod tests {
         std::io::Error::from_raw_os_error(code)
     }
 
-    #[test]
-    fn errors_are_told_apart() {
-        for code in [
+    /// Codes the tests make errors of, the system's.
+    #[cfg(unix)]
+    mod e {
+        pub const CONNABORTED: i32 = libc::ECONNABORTED;
+        pub const CONNRESET: i32 = libc::ECONNRESET;
+        pub const MFILE: i32 = libc::EMFILE;
+        pub const BADF: i32 = libc::EBADF;
+        pub const CONNECTION: &[i32] = &[
             libc::ECONNABORTED,
             libc::ECONNRESET,
             libc::EPROTO,
             libc::EPERM,
-        ] {
+        ];
+        pub const EXHAUSTED: &[i32] = &[libc::EMFILE, libc::ENFILE, libc::ENOBUFS, libc::ENOMEM];
+        pub const FATAL: &[i32] = &[libc::EBADF, libc::EINVAL, libc::ENOTSOCK];
+    }
+
+    /// Winsock's (winerror.h).
+    #[cfg(windows)]
+    mod e {
+        pub const CONNABORTED: i32 = 10053;
+        pub const CONNRESET: i32 = 10054;
+        pub const MFILE: i32 = 10024;
+        pub const BADF: i32 = 10009;
+        pub const CONNECTION: &[i32] = &[10053, 10054, 10052, 10064];
+        pub const EXHAUSTED: &[i32] = &[10024, 10055, 8];
+        pub const FATAL: &[i32] = &[10009, 10022, 10038];
+    }
+
+    #[test]
+    fn errors_are_told_apart() {
+        for &code in e::CONNECTION {
             assert_eq!(classify(&os(code)), AcceptError::Connection, "{code}");
         }
-        for code in [libc::EMFILE, libc::ENFILE, libc::ENOBUFS, libc::ENOMEM] {
+        for &code in e::EXHAUSTED {
             assert_eq!(classify(&os(code)), AcceptError::Exhausted, "{code}");
         }
-        for code in [libc::EBADF, libc::EINVAL, libc::ENOTSOCK] {
+        for &code in e::FATAL {
             assert_eq!(classify(&os(code)), AcceptError::Fatal, "{code}");
         }
     }
@@ -316,10 +380,10 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn accept_rides_out_transient_errors() {
         let script = std::cell::RefCell::new(vec![
-            Err(os(libc::ECONNABORTED)),
-            Err(os(libc::EMFILE)),
-            Err(os(libc::EMFILE)),
-            Err(os(libc::ECONNRESET)),
+            Err(os(e::CONNABORTED)),
+            Err(os(e::MFILE)),
+            Err(os(e::MFILE)),
+            Err(os(e::CONNRESET)),
             Ok(7),
         ]);
         let started = tokio::time::Instant::now();
@@ -332,10 +396,10 @@ mod tests {
         assert_eq!(got, 7);
         assert_eq!(started.elapsed(), ACCEPT_BACKOFF * 2);
 
-        let err = retry_accept(|| async { Err::<(), _>(os(libc::EBADF)) })
+        let err = retry_accept(|| async { Err::<(), _>(os(e::BADF)) })
             .await
             .unwrap_err();
-        assert_eq!(err.raw_os_error(), Some(libc::EBADF));
+        assert_eq!(err.raw_os_error(), Some(e::BADF));
     }
 
     /// Past the cap, accepting waits until a connection closes.
