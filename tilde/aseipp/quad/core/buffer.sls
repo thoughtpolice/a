@@ -257,6 +257,10 @@
   ;; Apply changes, each (start end text), to the text: sorted, applied last
   ;; to first, recorded as a transaction unless `record?` is false. Returns
   ;; the list of new start positions, in the order the changes were given.
+  (define (newlines s)
+    (let loop ([i 0] [n 0])
+      (if (= i (string-length s)) n (loop (+ i 1) (if (char=? (string-ref s i) #\newline) (+ n 1) n)))))
+
   (define (apply-changes! b changes record? sels-before)
     (when (buffer-read-only? b) (errorf 'edit "buffer ~a is read-only" (buffer-name b)))
     (let* ([t (buffer-text b)]
@@ -274,13 +278,19 @@
       (unless (null? sorted)
         (let ([cs (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)])
           (for-each (lambda (f) (f b cs)) change-listeners)))
-      ;; Apply from the last change backwards, so earlier positions hold.
-      (for-each
-       (lambda (c)
-         (text-delete! t (car c) (cadr c))
-         (text-insert! t (car c) (caddr c)))
-       (reverse sorted))
-      (hl-cache-invalidate! (buffer-hl-cache b) t (if (null? sorted) 0 (car (car sorted))))
+      ;; The lines changed, measured in the old text, for the highlighter.
+      (let ([lines (and (pair? sorted)
+                        (list (text-line-of t (car (car sorted)))
+                              (text-line-of t (cadr (car (last-pair sorted))))
+                              (fold-left (lambda (n c old) (+ n (- (newlines (caddr c)) (newlines old))))
+                                         0 sorted old-texts)))])
+        ;; Apply from the last change backwards, so earlier positions hold.
+        (for-each
+         (lambda (c)
+           (text-delete! t (car c) (cadr c))
+           (text-insert! t (car c) (caddr c)))
+         (reverse sorted))
+        (when lines (apply hl-cache-edit! (buffer-hl-cache b) lines)))
       (let ([changes (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)])
         (remap-views! b changes)
         (remap-regions! b changes))

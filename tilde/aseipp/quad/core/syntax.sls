@@ -13,7 +13,7 @@
   (export make-syntax syntax? syntax-name syntax-lisp? syntax-word-char?
           syntax-line-comment syntax-indent-unit
           plain-syntax keyword-table
-          lex-line make-hl-cache hl-cache-invalidate! highlight-region
+          lex-line make-hl-cache hl-cache-edit! highlight-region
           node? node-start node-end node-kids node-parent node-list?
           parse-tree node-at node-index lisp-word-char? default-word-char?)
   (import (chezscheme) (quad util) (quad text))
@@ -172,44 +172,122 @@
             (loop (+ i 1) 0 def)]
            [else (emit i (+ i 1) 'punctuation) (loop (+ i 1) 0 def)]))])))
 
-  ;; Lexer states at every 64th line start, valid up to the first edit.
-  (define-record-type hl-cache (fields (mutable states)) (protocol (lambda (new) (lambda () (new (make-eqv-hashtable))))))
-  (define bucket 64)
+  ;; Lexer states at line starts, a checkpoint about every 64 lines, kept
+  ;; across edits so that lexing after one goes only as far as it must.
+  ;;
+  ;; An edit drops the checkpoints among the lines it changed and moves the
+  ;; ones below it by the lines it added or removed, marking them stale: they
+  ;; hold the states the old text had there. Lexing down from the edit
+  ;; compares the state it reaches with each stale checkpoint it comes to;
+  ;; once they agree, the lines below lex as they did before, and the stale
+  ;; checkpoints are good again -- as far as the next edit's, which can be
+  ;; trusted only once lexing reaches that edit in turn. So the checkpoints
+  ;; are a run of good ones followed by stale ones, and the damage list
+  ;; (sorted lines, each an edit's first line) splits the stale ones into
+  ;; the runs that agree among themselves: those between one damage line
+  ;; and the next.
+  (define-record-type point (fields (mutable line) (mutable state) (mutable stale?)))
+  ;; points: a list behind a head pair, sorted by line, so that checkpoints
+  ;; can be put in and taken out in place. syntax: the lexer the states are
+  ;; for; another one's are no use.
+  (define-record-type hl-cache
+    (fields (mutable syntax) (mutable points) (mutable damage))
+    (protocol (lambda (new) (lambda () (new #f (list 'head) '())))))
+  (define spacing 64)
 
-  ;; Forget the states after position `pos` of `text`.
-  (define (hl-cache-invalidate! c text pos)
-    (let ([line (text-line-of text (min pos (text-length text)))])
-      (let-values ([(keys vals) (hashtable-entries (hl-cache-states c))])
-        (vector-for-each
-         (lambda (k) (when (> (* k bucket) line) (hashtable-delete! (hl-cache-states c) k)))
-         keys))))
+  ;; An edit changed lines l1 to l2 of the old text, and added delta lines
+  ;; (removed, if negative).
+  (define (hl-cache-edit! c l1 l2 delta)
+    (let loop ([prev (hl-cache-points c)] [moved? #f])
+      (let ([rest (cdr prev)])
+        (if (null? rest)
+            (let ([ds (filter-map (lambda (d) (cond [(<= d l1) d] [(<= d l2) #f] [else (+ d delta)]))
+                                  (hl-cache-damage c))])
+              (hl-cache-damage-set! c (if (or (not moved?) (memv l1 ds)) ds (sort < (cons l1 ds)))))
+            (let* ([p (car rest)] [l (point-line p)])
+              (cond
+               [(<= l l1) (loop rest moved?)]
+               [(<= l l2) (set-cdr! prev (cdr rest)) (loop prev moved?)]
+               [else (point-line-set! p (+ l delta)) (point-stale?-set! p #t) (loop rest #t)]))))))
 
-  (define (state-at syn text c line)
-    (let* ([b (quotient line bucket)]
-           [start (let loop ([k b]) (if (or (= k 0) (hashtable-contains? (hl-cache-states c) k)) k (loop (- k 1))))])
-      (let loop ([l (* start bucket)]
-                 [st (if (= start 0) 0 (hashtable-ref (hl-cache-states c) start 0))])
-        (cond
-         [(= l line) st]
-         [else
-          (let ([st (lex-line syn text (text-line-start text l) (text-line-end text l) st (lambda (s e f) (void)))])
-            (when (= 0 (remainder (+ l 1) bucket))
-              (hashtable-set! (hl-cache-states c) (quotient (+ l 1) bucket) st))
-            (loop (+ l 1) st))]))))
+  ;; The last good checkpoint's pair at or before line, or the head.
+  (define (good-before c line)
+    (let loop ([prev (hl-cache-points c)])
+      (let ([rest (cdr prev)])
+        (if (and (pair? rest) (not (point-stale? (car rest))) (<= (point-line (car rest)) line))
+            (loop rest)
+            prev))))
+
+  ;; Lex lines up to last, starting from the best state there is for line
+  ;; first; for lines first to last, (emit line spans). Checkpoints are
+  ;; checked, made good and added on the way.
+  (define (walk! syn text c first last emit)
+    (unless (eq? (hl-cache-syntax c) syn)
+      (hl-cache-syntax-set! c syn)
+      (hl-cache-points-set! c (list 'head))
+      (hl-cache-damage-set! c '()))
+    (let ([lines (text-line-count text)])
+      (define (line-of pr) (if (point? (car pr)) (point-line (car pr)) 0))
+      (define (state-of pr) (if (point? (car pr)) (point-state (car pr)) 0))
+      ;; Agreement at a stale checkpoint at line l: it and the ones after it
+      ;; up to the next damage line are good, and so are the edits above it.
+      (define (agree! rest l)
+        (let ([d (find (lambda (d) (>= d l)) (hl-cache-damage c))])
+          (let loop ([r rest])
+            (when (and (pair? r) (or (not d) (<= (point-line (car r)) d)))
+              (point-stale?-set! (car r) #f)
+              (loop (cdr r))))
+          (hl-cache-damage-set! c (filter (lambda (x) (>= x l)) (hl-cache-damage c)))))
+      ;; Done at line l: the edits above it are lexed past, and the stale
+      ;; checkpoints left below it are a run of their own.
+      (define (finish! prev l)
+        (let* ([ds (filter (lambda (x) (>= x l)) (hl-cache-damage c))]
+               [next (cdr prev)])
+          (hl-cache-damage-set!
+           c (if (and (pair? next) (point-stale? (car next))
+                      (not (and (pair? ds) (< (car ds) (point-line (car next))))))
+                 (cons l ds)
+                 ds))))
+      (let loop ([prev (good-before c first)])
+        (letrec
+            ;; st: the state at line l's start, checkpoints before l seen to;
+            ;; base: the line of the last checkpoint at or before l.
+            ([walk
+              (lambda (l st prev base)
+                (let ([next (cdr prev)])
+                  (cond
+                   [(and (pair? next) (= (point-line (car next)) l))
+                    (let ([p (car next)])
+                      (cond
+                       [(not (point-stale? p)) (continue l (point-state p) next l)]
+                       [(equal? (point-state p) st)
+                        (agree! next l)
+                        (if (< l first) (loop (good-before c first)) (continue l st next l))]
+                       [else (point-state-set! p st) (point-stale?-set! p #f) (continue l st next l)]))]
+                   [(and (>= (- l base) spacing) (< l lines))
+                    (let ([pr (cons (make-point l st #f) next)])
+                      (set-cdr! prev pr)
+                      (continue l st pr l))]
+                   [else (continue l st prev base)])))]
+             ;; Lex line l, unless it is past last.
+             [continue
+              (lambda (l st prev base)
+                (if (or (> l last) (>= l lines))
+                    (finish! prev l)
+                    (let* ([spans '()]
+                           [st (lex-line syn text (text-line-start text l) (text-line-end text l) st
+                                         (if (< l first)
+                                             (lambda (s e f) (void))
+                                             (lambda (s e f) (set! spans (cons (list s e f) spans)))))])
+                      (when (>= l first) (emit l (reverse spans)))
+                      (walk (+ l 1) st prev base))))])
+          (walk (line-of prev) (state-of prev) prev (line-of prev))))))
 
   ;; Highlight lines [first, last]: a vector of span lists, one per line,
   ;; each span (start end face) in buffer positions.
   (define (highlight-region syn text c first last)
     (let ([out (make-vector (+ 1 (- last first)) '())])
-      (let loop ([l first] [st (state-at syn text c first)])
-        (when (<= l last)
-          (let* ([spans '()]
-                 [st (lex-line syn text (text-line-start text l) (text-line-end text l) st
-                               (lambda (s e f) (set! spans (cons (list s e f) spans))))])
-            (vector-set! out (- l first) (reverse spans))
-            (when (= 0 (remainder (+ l 1) bucket))
-              (hashtable-set! (hl-cache-states c) (quotient (+ l 1) bucket) st))
-            (loop (+ l 1) st))))
+      (walk! syn text c first last (lambda (l spans) (vector-set! out (- l first) spans)))
       out))
 
   ;; ---------------------------------------------------------------------------

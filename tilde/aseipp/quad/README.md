@@ -49,7 +49,7 @@ quad --daemon --mesh       # ... joinable over iroh, from anywhere
 quad --connect=rock-stir-duct-feed-slick-showy   # by the code it printed
 ```
 
-`space j w` opens another window onto the same editor, from a window or a
+`space j W` opens another window onto the same editor, from a window or a
 terminal. A terminal or window can also switch to another editor and back, as
 tmux's switch-client does: `space j o` (`connect`) asks for a socket path,
 or a join code or ticket (empty: this machine's daemon), and shows that
@@ -172,7 +172,37 @@ Older terminals get the xterm encodings; `QUAD_LEGACY_KEYS=1` forces them.
 
 ## Keys
 
-The bindings are Ki's on QWERTY. A *selection mode* says what the units of
+quad edits with Ki's keys, or Vim's, or Helix's: a *key scheme* each, an
+extension's (`core/ext/ki.sls`, `vim.sls`, `helix.sls`). Pick one with
+`space j s`, or in the init file:
+
+```scheme
+(set-var! 'key-scheme 'vim)     ; or 'helix, or 'ki (the default)
+```
+
+Every scheme has quad's space menu (`space /` lists every key), panes
+(`ctrl+w`), insert mode and prompts; what an init file binds in
+`normal-keymap` wins in all of them. Vim's has its motions (`h j k l`, `w b
+e`, `0 ^ $`, `gg G`, `f t F T ; ,`, `{ }`, `%`, `H M L`), counts, the
+operators `d c y > < g~ gu gU` with a motion, a text object (`iw aw ip`,
+`i( a( i" a"` and the other pairs) or themselves (`dd yy cc`), `x X D C s S
+Y p P J r ~ u ctrl+r`, visual mode (`v V`), search (`/ ? n N * #`) and ex
+commands (`:w :q :wq :e FILE :N :bn :sp :vs :reg`), registers (`"a` to
+`"z`, `"A` appending, `"0` the last yank, `"1` to `"9` deleted lines, `"-`,
+`"_`), macros (`qa` … `q`, `@a`, `@@`, a count) and `.`, which repeats the
+last change (`3.` with a new count); not yet marks or replace mode. A macro
+does not stop where a motion fails, as Vim's does: give it the count it
+needs. Helix's selects first, every motion acting on every
+selection: `w b e` select words, `x` lines, `%` everything, `v` extends, `;
+alt+; ,` collapse, flip and keep the primary, `C` adds a cursor below, `s`
+selects what a pattern matches, `alt+s` splits lines, `d c y p P R` act on
+what is selected (in register `x` after `"x`), `Q` records a macro until
+`Q` again and `q` plays it, `g` goes places (`gg ge gh gl gs`, `gd gr` with a
+language server), `m` matches (`mm`, `mi( ma(`, `ms md mr` surrounds), `/ ? n
+N *` search and `:` runs ex commands. Each scheme has its own tutor: `quad
+--tutor` (or `space k h`) teaches the keys in use.
+
+The rest of this section is Ki's keys, on QWERTY. A *selection mode* says what the units of
 the text are; the same movements work in every mode. New to them? `quad
 --tutor` (or `space k h`) teaches them in about half an hour, vimtutor
 style: lessons, each with lines to practise on.
@@ -490,7 +520,8 @@ when it registers its modes, commands and keys. The built-in ones are `lisp` (Sc
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 (`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
 language servers, `people`, working together, `voice`, talking, and
-`tutor`, whose lessons are `core/ext/tutor.md`, compiled in (`EXTENSION_DATA`
+`tutor`, whose lessons are `core/ext/tutor.md` (and `tutor-vim.md`,
+`tutor-helix.md` for those keys), compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).
 
 ## Layout
@@ -508,7 +539,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/selection.sls` | selection modes and movements |
 | `core/event.sls` | input events, as clients report them |
 | `core/editor.sls` | the core and extension API, gathered from `client.sls` (clients, messages, variables, hooks), `keymap.sls` (commands, keymaps) and `prompt.sls` (prompts, popups, layers): buffers, selections, events |
-| `core/commands.sls` | the standard commands and Ki's keymaps |
+| `core/commands.sls`, `core/edit.sls`, `core/input.sls` | the standard commands and the menus every key scheme shares; editing; the mouse, pastes and scrolling |
 | `core/display.sls` | drawing each client's frame, sent as changed cells |
 | `core/canvas.sls`, `core/widget.sls` | grids of cells to draw on, and the widgets frames, overlays and components are drawn from |
 | `core/form.sls` | forms: fields that take keys, shown as overlays |
@@ -517,6 +548,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/grid.sls` | a client's model of its screen |
 | `core/json.sls`, `core/jsonrpc.sls` | JSON, and JSON-RPC with a subprocess |
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
+| `core/ext/ki.sls`, `vim.sls`, `helix.sls`, `vi.sls` | the key schemes: Ki's keys, Vim's, Helix's, and what the last two share |
 | `core/frontend.sls` | what clients share: extensions' messages and capabilities, diverting a client's input |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
 | `core/ext/mesh.sls`, `kernel/mesh/` | editors and clients over iroh (`iroh-mesh`), a transport for `server.sls` |

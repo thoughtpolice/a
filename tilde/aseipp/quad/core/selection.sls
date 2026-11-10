@@ -19,7 +19,7 @@
           selection-mode-line-wise? selection-mode-of-text?
           define-selection-mode! find-selection-mode selection-mode-names
           token-units line-range line-full-range blank-line? line-indent-end
-          search-pattern search-pattern-set! search-error search-matches goal-column)
+          search-pattern search-pattern-set! search-error search-matches search-from goal-column)
   (import (chezscheme) (quad util) (quad text) (quad syntax) (quad buffer)
           (only (quad native) search-new search-next search-prev search-all))
 

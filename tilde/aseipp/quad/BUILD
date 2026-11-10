@@ -34,6 +34,10 @@ EXTENSIONS = {
     "codex": [":ext-project"],
     "grep": [":native"],
     "image": [":native"],
+    "ki": [],
+    "vi": [],
+    "vim": [":ext-vi"],
+    "helix": [":ext-vi"],
     "link": [],
     "lisp": [],
     "lsp": [":ext-project"],
@@ -52,10 +56,18 @@ EXTENSIONS = {
 
 # Files beside an extension's source that it includes as it compiles.
 EXTENSION_DATA = {
-    "tutor": ["core/ext/tutor.md"],
+    "tutor": [
+        "core/ext/tutor.md",
+        "core/ext/tutor-helix.md",
+        "core/ext/tutor-vim.md",
+    ],
 }
 
 EXTENSION_ORDER = [
+    "ki",
+    "vi",
+    "vim",
+    "helix",
     "link",
     "lisp",
     "c",
@@ -368,6 +380,7 @@ shims.filegroup(
     )
     for t in [
         "text",
+        "highlight",
         "graphemes",
         "selection",
         "editing",
@@ -378,6 +391,8 @@ shims.filegroup(
         "native",
         "json",
         "tutor",
+        "tutor-vim",
+        "tutor-helix",
         "people",
         "gui",
         "scroll",
@@ -388,6 +403,8 @@ shims.filegroup(
         "regions",
         "panes",
         "widgets",
+        "vim",
+        "helix",
     ]
 ]
 

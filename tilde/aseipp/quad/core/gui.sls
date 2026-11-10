@@ -454,7 +454,7 @@
      (lambda ()
        (guard (e [#t (message-error "No window: ~a" (condition->string e))])
          (gui-attach! (gui-window)))))
-   (define-key (keymap-lookup-target space-keymap "j") "w" 'new-window "New Window"))
+   (define-key (keymap-lookup-target space-keymap "j") "W" 'new-window "New Window"))
 
   ;; ---------------------------------------------------------------------------
   ;; In the server's process

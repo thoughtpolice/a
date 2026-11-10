@@ -72,7 +72,9 @@
    make-keymap keymap? keymap-name keymap-title keymap-on-tap keymap-on-tap-set!
    keymap-momentary?-set!
    keymap-momentary? keymap-bindings define-key undefine-key! keymap-lookup
-   keymap-lookup-target
+   keymap-lookup-target keymap-parent keymap-parent-set!
+   key-scheme? key-scheme-name key-scheme-title key-scheme-doc key-scheme-keymap
+   define-key-scheme! use-key-scheme! find-key-scheme key-scheme-names current-key-scheme
    keymap-entries binding-target binding-label
    normal-keymap insert-keymap prompt-keymap global-keymap
    ;; layers, legend and jumps

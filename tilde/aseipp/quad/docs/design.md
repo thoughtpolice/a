@@ -232,7 +232,7 @@ memory is written only by a frame whose commands are done, and read only
 when the device is idle. Each `unsafe` call there says why it holds, and
 the rest of the renderer is safe code. Every window of a
 process runs on one thread, with one event loop, and draws with one Vulkan
-device; `new-window` (`space j w`) opens another onto the same editor, from
+device; `new-window` (`space j W`) opens another onto the same editor, from
 a window or a terminal, each a client of its own (with its own size, and
 zoom). Its three Slang pipelines (`kernel/render/gui.slang`) read a frame's data
 by buffer device address, with no descriptor sets: rectangles in cells
