@@ -27,3 +27,27 @@ load("@root//buck/shims:third_party_rust.bzl", "third_party_rust")
 
 # XXX: normal reindeer-generated code below
 """
+
+# The platforms crates are configured for: reindeer's own defaults, which
+# naming any replaces, and Windows on arm64, which they lack. Each name is
+# one buck/third-party/rust/PACKAGE maps a configuration to.
+[platform.linux-x86_64]
+target = "x86_64-unknown-linux-gnu"
+
+[platform.linux-arm64]
+target = "aarch64-unknown-linux-gnu"
+
+[platform.macos-x86_64]
+target = "x86_64-apple-darwin"
+
+[platform.macos-arm64]
+target = "aarch64-apple-darwin"
+
+[platform.windows-msvc]
+target = "x86_64-pc-windows-msvc"
+
+[platform.windows-msvc-arm64]
+target = "aarch64-pc-windows-msvc"
+
+[platform.windows-gnu]
+target = "x86_64-pc-windows-gnu"

@@ -332,6 +332,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":accesskit_windows-0.35"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":accesskit_windows-0.35"],
+        ),
     },
     visibility = [],
     deps = [
@@ -814,6 +817,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":anstyle-wincon-3"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":anstyle-wincon-3"],
+        ),
     },
     visibility = [],
     deps = [
@@ -909,6 +915,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -2934,6 +2943,10 @@ third_party_rust.rust_library(
                 ":cpufeatures-0.3",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            rustc_flags = ["--cfg=blake3_neon"],
+            deps = [":blake3-1-simd_neon-aarch64"],
+        ),
     },
     visibility = [],
     deps = [
@@ -4549,6 +4562,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-link-0.2"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-link-0.2"],
+        ),
     },
     visibility = [],
     deps = [
@@ -5246,6 +5262,12 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-msvc": dict(
+            deps = [
+                ":encode_unicode-1",
+                ":windows-sys-0.61",
+            ],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [
                 ":encode_unicode-1",
                 ":windows-sys-0.61",
@@ -6361,6 +6383,12 @@ third_party_rust.rust_library(
                 ":winapi-0.3",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [
+                ":crossterm_winapi-0.9",
+                ":winapi-0.3",
+            ],
+        ),
     },
     visibility = [],
     deps = [
@@ -6751,6 +6779,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -8208,6 +8239,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [":option-ext-0.2"],
@@ -8251,6 +8285,9 @@ third_party_rust.rust_library(
             deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-0.3"],
         ),
     },
@@ -8611,6 +8648,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -10083,6 +10123,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [":cfg-if-1"],
@@ -10460,6 +10503,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.59"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.59"],
+        ),
     },
     visibility = [],
     deps = [":cfg-if-1"],
@@ -10588,6 +10634,9 @@ third_party_rust.rust_library(
             deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-0.3"],
         ),
     },
@@ -11086,6 +11135,12 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-msvc": dict(
+            deps = [
+                ":windows-0.62",
+                ":windows-core-0.62",
+            ],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [
                 ":windows-0.62",
                 ":windows-core-0.62",
@@ -11645,6 +11700,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.59"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.59"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.59"],
         ),
     },
@@ -13095,6 +13153,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":dunce-1"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":dunce-1"],
+        ),
     },
     visibility = [],
     deps = [
@@ -14153,6 +14214,12 @@ third_party_rust.rust_library(
                 ":windows-sys-0.61",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [
+                ":gix-path-0.14",
+                ":windows-sys-0.61",
+            ],
+        ),
     },
     visibility = [],
     deps = [":bitflags-2"],
@@ -14216,6 +14283,9 @@ third_party_rust.rust_library(
             deps = [":hashbrown-0.16"],
         ),
         "windows-msvc": dict(
+            deps = [":hashbrown-0.16"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":hashbrown-0.16"],
         ),
     },
@@ -14315,6 +14385,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -15350,6 +15423,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [
@@ -15565,6 +15641,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -15608,6 +15687,9 @@ third_party_rust.rust_library(
             deps = [":windows-link-0.2"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-link-0.2"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-link-0.2"],
         ),
     },
@@ -16038,6 +16120,9 @@ third_party_rust.rust_library(
             deps = [":windows-registry-0.6"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-registry-0.6"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-registry-0.6"],
         ),
     },
@@ -16653,6 +16738,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":winapi-util-0.1"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":winapi-util-0.1"],
+        ),
     },
     visibility = [],
     deps = [
@@ -17222,6 +17310,9 @@ third_party_rust.rust_library(
             deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-0.3"],
         ),
     },
@@ -18337,6 +18428,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -18367,6 +18461,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -18591,6 +18688,12 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-msvc": dict(
+            deps = [
+                ":jiff-tzdb-platform-0.1",
+                ":windows-link-0.2",
+            ],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1",
                 ":windows-link-0.2",
@@ -19088,6 +19191,13 @@ third_party_rust.rust_library(
                 ":winreg-0.56",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [
+                ":same-file-1",
+                ":windows-sys-0.61",
+                ":winreg-0.56",
+            ],
+        ),
     },
     visibility = [],
     deps = [
@@ -19140,6 +19250,9 @@ third_party_rust.rust_library(
             deps = [":getrandom-0.4"],
         ),
         "windows-msvc": dict(
+            deps = [":getrandom-0.4"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":getrandom-0.4"],
         ),
     },
@@ -19201,6 +19314,9 @@ third_party_rust.rust_library(
             deps = [":cpufeatures-0.2"],
         ),
         "macos-arm64": dict(
+            deps = [":cpufeatures-0.2"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":cpufeatures-0.2"],
         ),
     },
@@ -19647,6 +19763,9 @@ third_party_rust.rust_library(
             deps = [":windows-link-0.2"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-link-0.2"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-link-0.2"],
         ),
     },
@@ -20727,6 +20846,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -21698,6 +21820,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -21819,6 +21944,9 @@ third_party_rust.rust_library(
             deps = [":ipconfig-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":ipconfig-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":ipconfig-0.3"],
         ),
     },
@@ -22135,6 +22263,9 @@ third_party_rust.rust_library(
             deps = [":schannel-0.1"],
         ),
         "windows-msvc": dict(
+            deps = [":schannel-0.1"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":schannel-0.1"],
         ),
     },
@@ -22633,6 +22764,15 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-msvc": dict(
+            deps = [
+                ":netdev-0.45",
+                ":serde-1",
+                ":windows-0.62",
+                ":windows-result-0.4",
+                ":wmi-0.18",
+            ],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [
                 ":netdev-0.45",
                 ":serde-1",
@@ -23246,6 +23386,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     rustc_flags = ["@$(location :noq-udp-1-build-script-run[rustc_flags])"],
     visibility = [],
@@ -23350,6 +23493,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -23491,6 +23637,11 @@ third_party_rust.rust_library(
             },
         ),
         "windows-msvc": dict(
+            named_deps = {
+                "windows": ":windows-sys-0.61",
+            },
+        ),
+        "windows-msvc-arm64": dict(
             named_deps = {
                 "windows": ":windows-sys-0.61",
             },
@@ -25095,6 +25246,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [
@@ -26228,6 +26382,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-link-0.2"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-link-0.2"],
+        ),
     },
     rustc_flags = ["@$(location :parking_lot_core-0.9-build-script-run[rustc_flags])"],
     visibility = [],
@@ -26668,6 +26825,12 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-msvc": dict(
+            deps = [
+                ":psm-0.1",
+                ":stacker-0.1",
+            ],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [
                 ":psm-0.1",
                 ":stacker-0.1",
@@ -27621,6 +27784,9 @@ third_party_rust.rust_library(
             deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-0.3"],
         ),
     },
@@ -28627,6 +28793,9 @@ third_party_rust.rust_library(
                 ":raw-cpuid-11",
                 ":winapi-0.3",
             ],
+        ),
+        "windows-msvc-arm64": dict(
+            deps = [":winapi-0.3"],
         ),
     },
     visibility = [],
@@ -29871,6 +30040,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-0.62"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-0.62"],
+        ),
     },
     visibility = [],
     deps = [":cfg-if-1"],
@@ -30283,6 +30455,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [":rtoolbox-0.0.6"],
@@ -30326,6 +30501,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -30861,6 +31039,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":schannel-0.1"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":schannel-0.1"],
+        ),
     },
     visibility = [],
 )
@@ -30949,6 +31130,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -31155,6 +31339,12 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-msvc": dict(
+            deps = [
+                ":clipboard-win-5",
+                ":windows-sys-0.52",
+            ],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [
                 ":clipboard-win-5",
                 ":windows-sys-0.52",
@@ -31577,6 +31767,9 @@ third_party_rust.rust_library(
             deps = [":winapi-util-0.1"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-util-0.1"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-util-0.1"],
         ),
     },
@@ -33889,6 +34082,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -34120,6 +34316,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -34995,6 +35194,13 @@ third_party_rust.rust_library(
                 ":windows-0.61",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            features = ["windows"],
+            deps = [
+                ":ntapi-0.4",
+                ":windows-0.61",
+            ],
+        ),
     },
     visibility = [],
     deps = [
@@ -35262,6 +35468,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [
@@ -35306,6 +35515,12 @@ third_party_rust.rust_library(
                 ":winapi-0.3",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [
+                ":rustversion-1",
+                ":winapi-0.3",
+            ],
+        ),
     },
     visibility = [],
     deps = [":dirs-next-2"],
@@ -35340,6 +35555,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -35370,6 +35588,9 @@ third_party_rust.rust_library(
             deps = [":winapi-util-0.1"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-util-0.1"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-util-0.1"],
         ),
     },
@@ -35414,6 +35635,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
@@ -35573,6 +35797,9 @@ third_party_rust.rust_library(
             deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-0.3"],
         ),
     },
@@ -36432,6 +36659,10 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            features = ["windows-sys"],
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             features = ["windows-sys"],
             deps = [":windows-sys-0.61"],
         ),
@@ -38875,6 +39106,9 @@ third_party_rust.rust_library(
         "windows-msvc": dict(
             deps = [":windows-sys-0.61"],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
 )
@@ -38905,6 +39139,9 @@ third_party_rust.rust_library(
             deps = [":winapi-util-0.1"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-util-0.1"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-util-0.1"],
         ),
     },
@@ -39234,6 +39471,9 @@ third_party_rust.rust_library(
             deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":winapi-0.3"],
         ),
     },
@@ -41133,6 +41373,12 @@ third_party_rust.rust_library(
                 ":windows-sys-0.52",
             ],
         ),
+        "windows-msvc-arm64": dict(
+            deps = [
+                ":unicode-segmentation-1",
+                ":windows-sys-0.52",
+            ],
+        ),
     },
     rustc_flags = ["@$(location :winit-0.30-build-script-run[rustc_flags])"],
     visibility = [],
@@ -42898,6 +43144,9 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc-arm64": dict(
             deps = [":windows-sys-0.61"],
         ),
     },
