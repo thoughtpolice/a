@@ -126,6 +126,7 @@ hyper-rustls = { version = "0.27.10", default-features = false, features = [
     "http1",
     "native-tokio",
 ] }
+ignore = "0.4.33"
 indexmap = { version = "2", features = ["serde"] }
 hyper-util = { version = "0.1", features = ["server-auto", "server-graceful", "http1", "http2", "tokio"] }
 insta = "1.49.0"
@@ -182,6 +183,11 @@ rand = "0.10.3"
 ratatui = "0.30"
 rayon = "1.12.0"
 regex = "1.13.1"
+# NOTE (quad): a line ends at "\n" alone, as quad's text has it: no
+# unicode_lines or cr_lines, which also end lines at CR, CRLF, NEL and the
+# Unicode separators.
+ropey = { version = "1.6.1", default-features = false, features = ["simd"] }
+regex-cursor = { version = "0.1.5", features = ["ropey"] }
 # NOTE (aseipp): no default features, ever: they pull in aws-lc-rs.
 rustls = { version = "0.23.46", default-features = false, features = ["std"] }
 # NOTE (aseipp): reqwest 0.13 flipped `default-tls` to rustls (which pulls

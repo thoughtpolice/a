@@ -16569,6 +16569,53 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "ignore",
+    actual = ":ignore-0.4",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "ignore-0.4.34.crate",
+    sha256 = "484be5657551d7868d67587df967fb4fcbe9d266a761cc855aaa148fda0b3cc7",
+    strip_prefix = "ignore-0.4.34",
+    urls = ["https://static.crates.io/crates/ignore/0.4.34/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ignore-0.4",
+    srcs = [":ignore-0.4.34.crate"],
+    crate = "ignore",
+    crate_root = "ignore-0.4.34.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ignore",
+            "version": "0.4.34",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
+    platform = {
+        "windows-gnu": dict(
+            deps = [":winapi-util-0.1"],
+        ),
+        "windows-msvc": dict(
+            deps = [":winapi-util-0.1"],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":crossbeam-deque-0.8",
+        ":globset-0.4",
+        ":log-0.4",
+        ":memchr-2",
+        ":regex-automata-0.4",
+        ":same-file-1",
+        ":walkdir-2",
+    ],
+)
+
 shims.http_archive(
     name = "im-rc-15.1.0.crate",
     sha256 = "af1955a75fa080c677d3972822ec4bad316169ab1cfc6c257a942c2265dbe5fe",
@@ -29880,6 +29927,48 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "regex-cursor",
+    actual = ":regex-cursor-0.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "regex-cursor-0.1.5.crate",
+    sha256 = "0497c781d2f982ae8284d2932aee6a877e58a4541daa5e8fadc18cc75c23a61d",
+    strip_prefix = "regex-cursor-0.1.5",
+    urls = ["https://static.crates.io/crates/regex-cursor/0.1.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "regex-cursor-0.1",
+    srcs = [":regex-cursor-0.1.5.crate"],
+    crate = "regex_cursor",
+    crate_root = "regex-cursor-0.1.5.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "perf-inline",
+        "ropey",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "regex-cursor",
+            "version": "0.1.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":log-0.4",
+        ":memchr-2",
+        ":regex-automata-0.4",
+        ":regex-syntax-0.8",
+        ":ropey-1",
+    ],
+)
+
 shims.http_archive(
     name = "regex-syntax-0.6.29.crate",
     sha256 = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1",
@@ -30054,6 +30143,41 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
+)
+
+shims.alias(
+    name = "ropey",
+    actual = ":ropey-1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "ropey-1.6.1.crate",
+    sha256 = "93411e420bcd1a75ddd1dc3caf18c23155eda2c090631a85af21ba19e97093b5",
+    strip_prefix = "ropey-1.6.1",
+    urls = ["https://static.crates.io/crates/ropey/1.6.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ropey-1",
+    srcs = [":ropey-1.6.1.crate"],
+    crate = "ropey",
+    crate_root = "ropey-1.6.1.crate/src/lib.rs",
+    edition = "2015",
+    features = ["simd"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ropey",
+            "version": "1.6.1",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":smallvec-1",
+        ":str_indices-0.4",
+    ],
 )
 
 shims.http_archive(
@@ -34220,6 +34344,31 @@ third_party_rust.rust_library(
         ":simdutf8-0.1",
         ":thiserror-2",
     ],
+)
+
+shims.http_archive(
+    name = "str_indices-0.4.4.crate",
+    sha256 = "d08889ec5408683408db66ad89e0e1f93dff55c73a4ccc71c427d5b277ee47e6",
+    strip_prefix = "str_indices-0.4.4",
+    urls = ["https://static.crates.io/crates/str_indices/0.4.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "str_indices-0.4",
+    srcs = [":str_indices-0.4.4.crate"],
+    crate = "str_indices",
+    crate_root = "str_indices-0.4.4.crate/src/lib.rs",
+    edition = "2021",
+    features = ["simd"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "str_indices",
+            "version": "0.4.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
 )
 
 shims.http_archive(
