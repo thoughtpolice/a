@@ -5,7 +5,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 
 BINDGEN_VERSION = "0.72.1"
 
-BINDGEN_TARGET = shims.select({
+BINDGEN_TARGET = "--target=" + shims.select({
     # Rust's UEFI targets use Windows COFF/ABI LLVM targets. Clang does not
     # recognize aarch64-unknown-uefi, so use the llvm-target values from the
     # corresponding Rust target specifications for both architectures.
@@ -33,35 +33,33 @@ shims.cxx_genrule(
     },
     # Bindgen parses target-dependent C types. Make the target explicit so a
     # cross build cannot silently generate host-ABI bindings, and fail closed
-    # if a developer or CI image supplies a different bindgen release.
-    cmd = """
-      bindgen --version | (
-        bindgen_version=
-        read -r bindgen_version
-        if [ "$bindgen_version" != "bindgen {BINDGEN_VERSION}" ]; then
-          echo "expected bindgen {BINDGEN_VERSION}, found $bindgen_version" >&2
-          exit 1
-        fi
-      )
-
-      bindgen \
-        wrapper.h -o $OUT/wrapper.rs \
-          --no-derive-default \
-          --enable-function-attribute-detection \
-          --use-core \
-          --default-macro-constant-type=signed \
-          --rustified-enum=point_conversion_form_t \
-          --allowlist-file=".*[[:punct:]]include[[:punct:]]openssl[[:punct:]].*\\.h" \
-          --experimental \
-          --wrap-static-fns \
-          --wrap-static-fns-path $OUT/extern.c \
-        -- --target=$BINDGEN_TARGET \
-          -I$(location third-party//by-name/bo/boringssl:src)/include
-    """.format(BINDGEN_VERSION = BINDGEN_VERSION),
+    # if a developer or CI image supplies a different bindgen release
+    # (bindgen.py). One command, with no shell in it, as cmd.exe runs it on
+    # Windows.
+    cmd = " ".join([
+        "$(exe :bindgen)",
+        BINDGEN_VERSION,
+        "wrapper.h",
+        "-o $OUT/wrapper.rs",
+        "--no-derive-default",
+        "--enable-function-attribute-detection",
+        "--use-core",
+        "--default-macro-constant-type=signed",
+        "--rustified-enum=point_conversion_form_t",
+        "\"--allowlist-file=.*[[:punct:]]include[[:punct:]]openssl[[:punct:]].*\\.h\"",
+        "--experimental",
+        "--wrap-static-fns",
+        "--wrap-static-fns-path $OUT/extern.c",
+        "--",
+        "-I$(location third-party//by-name/bo/boringssl:src)/include",
+    ]) + " " + BINDGEN_TARGET,
     default_outs = ["wrapper.rs"],
-    env = {
-        "BINDGEN_TARGET": BINDGEN_TARGET,
-    },
+    visibility = [],
+)
+
+shims.python_bootstrap_binary(
+    name = "bindgen",
+    main = "bindgen.py",
     visibility = [],
 )
 
