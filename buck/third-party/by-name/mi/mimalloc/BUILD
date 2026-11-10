@@ -106,7 +106,9 @@ MIMALLOC_CORE_SRCS = [
 MIMALLOC_SRCS = MIMALLOC_CORE_SRCS + shims.select(
     {
         "config//os:linux": [":src[src/prim/unix/prim.c]"],
-        "config//os:windows": [":src[src/prim/windows/prim.c]"],
+        # prim/prim.c includes windows/prim.c, whose /INCLUDE pragmas pull
+        # its object into every link: a second copy would be defined twice.
+        "config//os:windows": [],
         "config//os:macos": [
             ":src[src/prim/osx/alloc-override-zone.c]",
             ":src[src/prim/unix/prim.c]",
@@ -127,6 +129,7 @@ MIMALLOC_HEADERS = {
     "page-queue.c": ":src[src/page-queue.c]",
     "alloc-override.c": ":src[src/alloc-override.c]",
     "unix/prim.c": ":src[src/prim/unix/prim.c]",
+    "windows/prim.c": ":src[src/prim/windows/prim.c]",
     "free.c": ":src[src/free.c]",
 }
 
@@ -159,6 +162,12 @@ shims.cxx_library(
 
 # Static allocator override for final executables. link_whole is required so
 # constructor-only platform support (notably the macOS malloc zone) is kept.
+#
+# Not on Windows: there the C runtime that every object links (the dynamic
+# UCRT, /MD, as rustc's) owns malloc, and a static library cannot replace
+# it (alloc-override.c is compiled out under _DLL); mimalloc overrides it
+# only as a DLL, patched in by its prebuilt mimalloc-redirect.dll. On
+# Windows this is mimalloc alone, for what calls mi_malloc by name.
 shims.cxx_library(
     name = "mimalloc-override",
     srcs = MIMALLOC_OVERRIDE_SRCS,
