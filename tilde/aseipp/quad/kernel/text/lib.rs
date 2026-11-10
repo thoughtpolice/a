@@ -20,12 +20,23 @@ use ropey::Rope;
 
 pub struct Text {
     rope: Rope,
+    hashes: Option<LineHashes>,
+}
+
+/// The hashes of a text's lines (quad_diff's, for diffs against another
+/// version), kept once asked for: an edit marks the lines it touched as
+/// stale, and they alone are hashed again when next asked for.
+struct LineHashes {
+    hashes: Vec<u64>,
+    stale: Vec<bool>,
+    any_stale: bool,
 }
 
 impl Text {
     pub fn new(s: &str) -> Text {
         Text {
             rope: Rope::from_str(s),
+            hashes: None,
         }
     }
 
@@ -80,13 +91,64 @@ impl Text {
 
     pub fn insert(&mut self, pos: usize, s: &str) {
         let pos = self.clamp(pos);
+        if let Some(h) = &mut self.hashes {
+            let line = self.rope.char_to_line(pos);
+            let added = s.matches('\n').count();
+            h.stale[line] = true;
+            h.hashes
+                .splice(line + 1..line + 1, std::iter::repeat_n(0, added));
+            h.stale
+                .splice(line + 1..line + 1, std::iter::repeat_n(true, added));
+            h.any_stale = true;
+        }
         self.rope.insert(pos, s);
     }
 
     pub fn remove(&mut self, start: usize, end: usize) {
         let end = self.clamp(end);
         let start = start.min(end);
+        if let Some(h) = &mut self.hashes {
+            let (l1, l2) = (self.rope.char_to_line(start), self.rope.char_to_line(end));
+            h.hashes.drain(l1 + 1..=l2);
+            h.stale.drain(l1 + 1..=l2);
+            h.stale[l1] = true;
+            h.any_stale = true;
+        }
         self.rope.remove(start..end);
+    }
+
+    /// Each line's hash (quad_diff::hash_line, without its newline): from
+    /// now on, kept as the text is edited.
+    pub fn line_hashes(&mut self) -> &[u64] {
+        let rope = &self.rope;
+        let hash = |i: usize| {
+            let line = rope.line(i);
+            let n = line.len_chars();
+            let line = if n > 0 && line.char(n - 1) == '\n' {
+                line.slice(..n - 1)
+            } else {
+                line
+            };
+            quad_diff::hash_line(line.chunks())
+        };
+        let h = self.hashes.get_or_insert_with(|| {
+            let n = rope.len_lines();
+            LineHashes {
+                hashes: vec![0; n],
+                stale: vec![true; n],
+                any_stale: true,
+            }
+        });
+        if h.any_stale {
+            for (i, stale) in h.stale.iter_mut().enumerate() {
+                if *stale {
+                    h.hashes[i] = hash(i);
+                    *stale = false;
+                }
+            }
+            h.any_stale = false;
+        }
+        &h.hashes
     }
 
     /// Where `needle` first occurs at or after `from`.
@@ -186,6 +248,9 @@ mod tests {
     fn edits_and_lookups_agree_with_a_string(tc: TestCase) {
         let initial = text(&tc, 40);
         let mut t = Text::new(&initial);
+        if tc.draw(gs::booleans()) {
+            t.line_hashes();
+        }
         let mut m = Model(initial.chars().collect());
         for _ in 0..tc.draw(gs::integers::<usize>().max_value(8)) {
             let len = m.0.len();
@@ -201,6 +266,8 @@ mod tests {
             }
         }
         let starts = m.starts();
+        // Hashes kept through the edits are a fresh text's.
+        assert_eq!(t.line_hashes(), Text::new(&m.string()).line_hashes());
         assert_eq!(t.len(), m.0.len());
         assert_eq!(t.line_count(), starts.len());
         for (line, &s) in starts.iter().enumerate() {

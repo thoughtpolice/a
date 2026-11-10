@@ -17,6 +17,7 @@
 ;; and the frame's placements whenever they change ("images").
 (library (quad display)
   (export render-client! invalidate-client! define-status-segment! status-segments
+          define-gutter! remove-gutter! gutter-names
           face-id add-decorator! remove-decorator! add-view-decorator! remove-view-decorator!
           define-buffer-drawer!
           make-picture picture? picture-key picture-width picture-height picture-png
@@ -418,12 +419,68 @@
             0)
           (draw-buffer! g v row0 height width focused?))))
 
+  ;; ---------------------------------------------------------------------------
+  ;; Gutters: columns left of a view's text, for line numbers and whatever
+  ;; extensions show beside lines (what changed, who changed it). Each has
+  ;; a place, smaller ones further left; (width view), its columns there,
+  ;; 0 to leave it out; and (cell view line current? width), what to show
+  ;; beside line: text (drawn from its left), or (text . face), or #f. The
+  ;; faces are drawn over the row's. With none, there is a blank column.
+
+  (define-record-type gutter (fields name place width cell))
+  (define gutters '())
+
+  (define (define-gutter! name place width cell)
+    (set! gutters (sort (lambda (a b) (< (gutter-place a) (gutter-place b)))
+                        (cons (make-gutter name place width cell) (remp (lambda (x) (eq? (gutter-name x) name)) gutters)))))
+  (define (remove-gutter! name) (set! gutters (remp (lambda (x) (eq? (gutter-name x) name)) gutters)))
+  (define (gutter-names) (map gutter-name gutters))
+
+  ;; The gutters view v shows, each (gutter column width), and their width
+  ;; in all.
+  (define (view-gutters v)
+    (let loop ([gs gutters] [col 0] [acc '()])
+      (if (null? gs)
+          (values (reverse acc) (max 1 col))
+          (let ([w (guard (e [#t 0]) ((gutter-width (car gs)) v))])
+            (if (> w 0)
+                (loop (cdr gs) (+ col w) (cons (list (car gs) col w) acc))
+                (loop (cdr gs) col acc))))))
+
+  (define (draw-gutters! g row v line cur? shown row-face)
+    (for-each
+     (lambda (x)
+       (let* ([gt (car x)] [col (cadr x)] [w (caddr x)]
+              [c (guard (e [#t #f]) ((gutter-cell gt) v line cur? w))])
+         (when c
+           (let ([text (if (pair? c) (car c) c)] [face (if (pair? c) (cdr c) #f)])
+             (put-string! g row col text
+                          (if face (face-merge row-face (if (face? face) face (F face))) row-face)
+                          (+ col w))))))
+     shown))
+
+  ;; Line numbers: absolute, or relative to the cursor's line.
+  (at-load
+   (define-gutter! 'line-numbers 50
+     (lambda (v)
+       (if (get-var 'line-numbers (view-buffer v))
+           (+ 2 (max 3 (string-length (number->string (text-line-count (buffer-text (view-buffer v)))))))
+           0))
+     (lambda (v line cur? w)
+       (let* ([numbers (get-var 'line-numbers (view-buffer v))]
+              [primary-line (text-line-of (buffer-text (view-buffer v)) (head-position v (view-primary v)))]
+              [str (number->string (if (and (eq? numbers 'relative) (not cur?)) (abs (- line primary-line)) (+ line 1)))])
+         (cons (string-append (make-string (max 0 (- w 1 (string-length str))) #\space) str)
+               (if cur? 'ui.linenr.selected 'ui.linenr))))))
+
   (define (draw-buffer! g v row0 height width focused?)
+    (let*-values ([(shown gutter) (view-gutters v)])
+     (draw-buffer* g v row0 height width focused? shown gutter)))
+
+  (define (draw-buffer* g v row0 height width focused? shown gutter)
     (let* ([b (view-buffer v)]
            [t (buffer-text b)]
            [nlines (text-line-count t)]
-           [numbers (get-var 'line-numbers b)]
-           [gutter (if numbers (+ 2 (max 3 (string-length (number->string nlines)))) 1)]
            [_ (scroll-into-view! v height width gutter)]
            [top (view-top v)] [left (view-left v)]
            [last (min (- nlines 1) (+ top height -1))]
@@ -451,9 +508,7 @@
                                    (face-merge text-face (F 'ui.cursorline))
                                    text-face)])
                 (fill-row! g row 0 width row-face)
-                (when numbers
-                  (draw-line-number! g row gutter row-face cur?
-                                     (if (and (eq? numbers 'relative) (not cur?)) (abs (- line primary-line)) (+ line 1))))
+                (draw-gutters! g row v line cur? shown row-face)
                 (draw-line! g b row s e gutter width left row-face (vector-ref spans r)
                             (append (filter (lambda (d) (and (< (car d) (+ e 1)) (> (cadr d) s))) decos)
                                     (selection-spans v s e))
@@ -479,12 +534,6 @@
                   (if (null? view-decorators)
                       '()
                       (decoration-spans view-decorators (lambda (f) (f v start end))))))))
-
-  ;; Line number n, right-aligned in the gutter of row.
-  (define (draw-line-number! g row gutter row-face cur? n)
-    (let ([str (number->string n)])
-      (put-string! g row (- gutter 1 (string-length str)) str
-                   (face-merge row-face (F (if cur? 'ui.linenr.selected 'ui.linenr))))))
 
   ;; The names of the people (others' views) whose cursors are on the line
   ;; [s, e] drawn in row, from column col on.

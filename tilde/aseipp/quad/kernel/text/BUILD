@@ -6,6 +6,7 @@
 load("@root//buck/shims:shims.bzl", "shims")
 
 DEPS = [
+    "//aseipp/quad/kernel/diff:diff",
     "third-party//rust:regex-cursor",
     "third-party//rust:ropey",
 ]

@@ -317,6 +317,15 @@
          "~" (lambda () (case! swap-case)) "Switch Case"
          "`" (lambda () (case! string-downcase)) "Lower" "alt+`" (lambda () (case! string-upcase)) "Upper"
          "g" goto-keymap "Goto" "m" match-keymap "Match"
+         ;; ]g and [g: the next and previous change (the jj extension's).
+         "]" (let ([km (make-keymap 'helix-next "Next")])
+               (define-key km "g" (lambda () (run-command-if 'jj-next-change)) "Change")
+               km)
+         "Next"
+         "[" (let ([km (make-keymap 'helix-previous "Previous")])
+               (define-key km "g" (lambda () (run-command-if 'jj-previous-change)) "Change")
+               km)
+         "Previous"
          "/" (lambda () (vi-search-prompt! 1 select-search!)) "Search"
          "?" (lambda () (vi-search-prompt! -1 select-search!)) "Search Back"
          "n" (lambda () (search-next! #t)) "Next Match" "N" (lambda () (search-next! #f)) "Previous Match"

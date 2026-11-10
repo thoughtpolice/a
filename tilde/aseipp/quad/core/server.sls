@@ -14,7 +14,7 @@
 ;; sockets are built in (server-listen!); others, like Iroh's QUIC streams
 ;; from the kernel's Rust half, hand the server a descriptor per stream.
 (library (quad server)
-  (export make-source source? add-source! remove-source! sources watch-fd!
+  (export make-source source? add-source! remove-source! sources watch-fd! run-program!
           server-connect! client-receive! server-render! server-run!
           serve-stream! server-listen! server-unlisten! server-listening-paths default-socket-path
           socket-dir-safe? define-pointer-handler!
@@ -23,7 +23,8 @@
           define-transport! transport-for find-transport
           frame-sender)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad buffer)
-          (quad editor) (quad commands) (quad display) (quad protocol))
+          (quad editor) (quad commands) (quad display) (quad protocol)
+          (only (quad native) command-start command-fd command-take!))
 
   ;; ---------------------------------------------------------------------------
   ;; Sources
@@ -45,6 +46,21 @@
     (let ([s (make-source fd on-readable (lambda () -1) void void)])
       (add-source! s)
       s))
+
+  ;; Run argv (searched for in PATH) in directory cwd (#f: the editor's),
+  ;; with env's "NAME=value" strings added to its environment and nothing
+  ;; to read, on a thread of its own; once it ends, (done status output
+  ;; errors) from the loop, status -1000 if it could not start. Returns a
+  ;; thunk that forgets it, so that done is not called.
+  (define (run-program! argv cwd env done)
+    (let* ([r (command-start argv cwd env)] [src #f])
+      (set! src (watch-fd! (command-fd r)
+                           (lambda ()
+                             (let ([got (command-take! r)])
+                               (when (pair? got)
+                                 (remove-source! src)
+                                 (apply done (car got)))))))
+      (lambda () (remove-source! src))))
 
   ;; ---------------------------------------------------------------------------
   ;; Clients

@@ -416,6 +416,12 @@
          "ctrl+d" 'scroll-down "Scroll ↓" "ctrl+u" 'scroll-up "Scroll ↑"
          "ctrl+f" 'scroll-down "Page ↓" "ctrl+b" 'scroll-up "Page ↑"
          "enter" (lambda () (vim-move! (list "enter" 'linewise (lambda (p n) (first-nonblank (line-step p n 1)))))) "Next Line")
+   ;; ]c and [c: the next and previous change (the jj extension's).
+   (let ([next (make-keymap 'vim-next "Next")] [prev (make-keymap 'vim-previous "Previous")])
+     (define-key next "c" (lambda () (run-command-if 'jj-next-change)) "Change")
+     (define-key prev "c" (lambda () (run-command-if 'jj-previous-change)) "Change")
+     (define-key vim-keymap "]" next "Next")
+     (define-key vim-keymap "[" prev "Previous"))
    (let ([z (make-keymap 'vim-z "View")] [g (keymap-lookup-target vim-keymap "g")])
      (define-key z "z" 'center "Center")
      (define-key vim-keymap "z" z "View")

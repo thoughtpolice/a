@@ -457,6 +457,38 @@ uses, and trims whitespace on save as `.helix/` has it.
 `trim-trailing-whitespace` and `trim-final-newlines` are variables of
 their own, for any buffer.
 
+## Jujutsu
+
+In a [jj](https://jj-vcs.github.io) repository, the gutter marks the lines
+that differ from the file in `@-`: `▎` added (green) or changed (purple),
+`▔` on the line after lines deleted. The marks follow the buffer as you
+edit it, saved or not; the diff is quad's own, against the file as jj gives
+it once. The status line shows the working copy's change: its ID,
+bookmarks, `(empty)` or `(conflict)`, and its description.
+
+| Keys | |
+| --- | --- |
+| `space g n` `space g p` | next and previous change (`]c` `[c` with Vim's keys, `]g` `[g` with Helix's) |
+| `space g d` | the change at the cursor, as a diff |
+| `space g r` | put it back as `@-` has it |
+| `space g b` | blame: who last changed each line, beside it |
+| `space g a` | who changed this line, and why |
+| `space g s` `space g l` | `jj status`, `jj log` |
+| `space g g` | ask jj again |
+
+```scheme
+(set-var! 'jj-diff-base "trunk()")  ; mark what changed since another revision
+(set-var! 'jj-program "/opt/jj")    ; another jj (PATH's, by default)
+(set-var! 'jj-gutter #f)            ; no marks
+```
+
+jj runs in the background, and nothing quad does changes the repository:
+the base and blame are read with `--ignore-working-copy`, and the working
+copy's change with `--no-integrate-operation`, which snapshots it without
+recording that in the operation log. When the repository changes elsewhere
+(jj in a terminal), quad notices its operation heads changing after the
+next command, or when its window is focused.
+
 ## The kernel
 
 `kernel/kernel.c` boots Chez Scheme from the boot files appended to its
@@ -470,7 +502,8 @@ so that a change to one rebuilds it and the few above it:
 | Crate | Holds | Over |
 | --- | --- | --- |
 | `kernel/timing` | startup's steps, timed (`QUAD_TIMING=1`) | |
-| `kernel/text` | buffer text (a rope), and searching it | |
+| `kernel/diff` | line diffs, for the gutter's marks | |
+| `kernel/text` | buffer text (a rope), its line hashes, and searching it | diff |
 | `kernel/files` | a project's files, and grep | |
 | `kernel/image` | PNGs, decoded and scaled | |
 | `kernel/mesh` | editors and clients over iroh | |
@@ -519,7 +552,7 @@ with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 (`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
-language servers, `people`, working together, `voice`, talking, and
+language servers, `jj`, Jujutsu, `people`, working together, `voice`, talking, and
 `tutor`, whose lessons are `core/ext/tutor.md` (and `tutor-vim.md`,
 `tutor-helix.md` for those keys), compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).

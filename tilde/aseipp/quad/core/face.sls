@@ -178,6 +178,12 @@
       (ui.message.warning . lightning)
       (ui.virtual . comet)
       (ui.virtual.whitespace . bossanova)
+      ;; Lines added, deleted and changed (in the gutter, by the jj
+      ;; extension); and who changed a line, beside it.
+      (diff.plus . "#35bf86")
+      (diff.minus . "#f22c86")
+      (diff.delta . delta)
+      (ui.gutter.blame . comet)
       (comment . ((fg sirocco) italic))
       (keyword . almond)
       (keyword.special . ((fg lilac) bold))

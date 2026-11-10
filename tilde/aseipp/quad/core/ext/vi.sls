@@ -24,9 +24,13 @@
           take-register! recording record-start! record-stop! play-macro! run-macro!
           change-made! repeat-change!
           vi-search-prompt! search-step
-          ex-prompt! ex-run!)
+          ex-prompt! ex-run! run-command-if)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display))
+
+  ;; Run the command named name, if an extension defined it.
+  (define (run-command-if name)
+    (if (find-command name) (run-command name) (message "~a is not in this quad" name)))
 
   ;; ---------------------------------------------------------------------------
   ;; Positions

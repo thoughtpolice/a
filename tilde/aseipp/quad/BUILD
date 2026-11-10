@@ -34,6 +34,7 @@ EXTENSIONS = {
     "codex": [":ext-project"],
     "grep": [":native"],
     "image": [":native"],
+    "jj": [":native"],
     "ki": [],
     "vi": [],
     "vim": [":ext-vi"],
@@ -77,6 +78,7 @@ EXTENSION_ORDER = [
     "blake3",
     "grep",
     "project",
+    "jj",
     "codex",
     "lsp",
     "people",
@@ -95,6 +97,7 @@ EXTENSION_ORDER = [
 #
 #   kernel/timing   startup's steps, timed
 #   kernel/text     buffer text (a rope) and searching it
+#   kernel/diff     line diffs, for the gutter
 #   kernel/files    a project's files, and grep
 #   kernel/image    images: PNGs decoded and scaled
 #   kernel/mesh     editors and clients over iroh
@@ -105,6 +108,7 @@ EXTENSION_ORDER = [
 KERNEL_CRATES = [
     "//aseipp/quad/kernel/" + crate + ":" + crate
     for crate in [
+        "diff",
         "files",
         "font",
         "gui",
@@ -440,6 +444,15 @@ shims.dynamic_test(
         "golden",
     ],
     dep = ":gui-render",
+)
+
+# The jj extension, against repositories made by third-party's jj (so that
+# its version is known, and the user's jj and config are not involved).
+shims.command_test(
+    name = "test-jj",
+    script = """
+        QUAD_JJ=$(exe third-party//by-name/jj/jj:jj) $(exe :quad) -q --batch $(location :tests)/tests/jj.ss
+    """,
 )
 
 # A daemon, and clients in other processes: a scripted one speaking the

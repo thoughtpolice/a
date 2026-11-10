@@ -27,6 +27,7 @@ use std::time::{Duration, Instant};
 
 use chez::{ByteVec, Bytes, Mailbox, Object, Ref, RefMut};
 
+use quad_diff as diff;
 use quad_files as files;
 use quad_font as font;
 use quad_gui as gui;
@@ -221,6 +222,90 @@ fn launch_process(argv: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+/// A command run to its end on a thread of its own, its output and errors
+/// collected: they come through command-take! once command-fd is
+/// readable.
+pub struct Run {
+    done: Mailbox<RunDone>,
+}
+
+/// How a run ended: its exit status (a signal's number, negated, if one
+/// killed it; -1000 if it could not start), what it printed, and its
+/// errors, as text (invalid UTF-8 replaced).
+pub struct RunDone {
+    status: i32,
+    out: String,
+    err: String,
+}
+
+impl chez::IntoScheme for RunDone {
+    fn into_scheme(self, s: &chez::Scope) -> chez::Result<chez::Value<'_>> {
+        Ok(s.list([
+            s.integer(i64::from(self.status)),
+            s.string(&self.out),
+            s.string(&self.err),
+        ]))
+    }
+}
+
+/// Run `argv` (searched for in PATH) in directory `cwd` (#f: the editor's),
+/// with `env`'s "NAME=value" strings added to the environment and nothing
+/// to read; a thread waits for it.
+#[chez::procedure(name = "command-start")]
+fn command_start(
+    argv: Vec<String>,
+    cwd: Option<String>,
+    env: Vec<String>,
+) -> Result<Object<Run>, String> {
+    use std::os::unix::process::ExitStatusExt;
+    let (program, args) = argv
+        .split_first()
+        .ok_or("command-start: an empty command")?;
+    let mut cmd = Command::new(program);
+    cmd.args(args).stdin(Stdio::null());
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    for kv in &env {
+        let (k, v) = kv
+            .split_once('=')
+            .ok_or_else(|| format!("command-start: {kv} is not NAME=value"))?;
+        cmd.env(k, v);
+    }
+    let (tx, done) = Mailbox::new().map_err(|e| e.to_string())?;
+    let program = program.clone();
+    std::thread::spawn(move || {
+        let _ = tx.send(match cmd.output() {
+            Ok(o) => RunDone {
+                status: o
+                    .status
+                    .code()
+                    .unwrap_or_else(|| -o.status.signal().unwrap_or(0)),
+                out: String::from_utf8_lossy(&o.stdout).into_owned(),
+                err: String::from_utf8_lossy(&o.stderr).into_owned(),
+            },
+            Err(e) => RunDone {
+                status: -1000,
+                out: String::new(),
+                err: format!("{program}: {e}"),
+            },
+        });
+    });
+    Ok(Object(Run { done }))
+}
+
+#[chez::procedure]
+fn command_fd(r: Ref<Run>) -> i32 {
+    r.done.fd()
+}
+
+/// The run's end, once: a list of (status output errors), or the empty
+/// list while it runs.
+#[chez::procedure(name = "command-take!")]
+fn command_take(r: Ref<Run>) -> Vec<RunDone> {
+    r.done.take()
+}
+
 /// The descriptor to write the process's input to, or -1 once closed.
 #[chez::procedure]
 fn process_input_fd(p: Ref<Process>) -> i32 {
@@ -398,6 +483,72 @@ fn grep_fd(g: Ref<files::Grep>) -> i32 {
 #[chez::procedure(name = "grep-take!")]
 fn grep_take(g: Ref<files::Grep>) -> Vec<files::Found> {
     g.found.take()
+}
+
+// ---------------------------------------------------------------------------
+// Line diffs (diff/): where a buffer's lines differ from a version of its
+// file, for the gutter
+
+/// A version of a file to diff buffers against: its text, where its lines
+/// start (in bytes), and their hashes.
+pub struct DiffBase {
+    text: String,
+    starts: Vec<usize>,
+    hashes: Vec<u64>,
+}
+
+#[chez::procedure(name = "diff-base")]
+fn diff_base(text: String) -> Object<DiffBase> {
+    let starts = std::iter::once(0)
+        .chain(text.match_indices('\n').map(|(i, _)| i + 1))
+        .collect();
+    let hashes = diff::hash_lines(&text);
+    Object(DiffBase {
+        text,
+        starts,
+        hashes,
+    })
+}
+
+#[chez::procedure(name = "diff-base-line-count")]
+fn diff_base_line_count(b: Ref<DiffBase>) -> usize {
+    b.starts.len()
+}
+
+/// The base's lines from `start`, `count` of them, with their newlines.
+#[chez::procedure(name = "diff-base-lines")]
+fn diff_base_lines(b: Ref<DiffBase>, start: usize, count: usize) -> String {
+    let at = |line: usize| b.starts.get(line).copied().unwrap_or(b.text.len());
+    let start = start.min(b.starts.len());
+    b.text[at(start)..at(start.saturating_add(count))].to_string()
+}
+
+/// The base's lines from `start`, `count` of them, as the text that
+/// stands for them between the lines around them: with their newlines;
+/// or, running to the end, with the newline before them instead (the last
+/// line has none of its own), so that a hunk at the end can be put back.
+#[chez::procedure(name = "diff-base-block")]
+fn diff_base_block(b: Ref<DiffBase>, start: usize, count: usize) -> String {
+    let n = b.starts.len();
+    let start = start.min(n);
+    let end = start.saturating_add(count);
+    if end < n {
+        b.text[b.starts[start]..b.starts[end]].to_string()
+    } else if start > 0 {
+        b.text[b.starts[start] - 1..].to_string()
+    } else {
+        b.text.clone()
+    }
+}
+
+/// Where the lines of `t` differ from the base's: a list of hunks, each
+/// (old-start old-length new-start new-length) in lines, in order.
+#[chez::procedure(name = "diff-hunks")]
+fn diff_hunks(b: Ref<DiffBase>, mut t: RefMut<text::Text>) -> Vec<Vec<usize>> {
+    diff::diff(&b.hashes, t.line_hashes())
+        .into_iter()
+        .map(|h| vec![h.old_start, h.old_len, h.new_start, h.new_len])
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -741,7 +892,9 @@ chez::library! {
         rope_insert, rope_remove, rope_find_forward, rope_find_backward,
         search_new, search_next, search_prev, search_all,
         project_files, grep_start, grep_fd, grep_take,
+        diff_base, diff_base_line_count, diff_base_lines, diff_base_block, diff_hunks,
         spawn_process, launch_process, process_input_fd, process_output_fd,
+        command_start, command_fd, command_take,
         process_close_input, process_status, process_stop,
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
         mesh_target_kind, mesh_connect, mesh_connect_start, mesh_pending_fd, mesh_pending_take,
