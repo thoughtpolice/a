@@ -92,7 +92,8 @@ shims.http_archive(
 )
 
 # src/Makefile's CFLAGS and its `linux-noreadline` and `macosx` platform
-# settings (macosx's readline aside). Every user of luaconf.h must see the
+# settings (macosx's readline aside). Windows needs none: luaconf.h turns
+# on LUA_USE_WINDOWS for _WIN32 itself. Every user of luaconf.h must see the
 # same LUA_COMPAT_5_3, so it is exported.
 LUA_PLATFORM_FLAGS = shims.select({
     "config//os:macos": ["-DLUA_USE_MACOSX"],
@@ -107,11 +108,13 @@ shims.cxx_library(
         h: ":src[src/{}]".format(h)
         for h in PUBLIC_HEADERS
     },
+    # The math library, which on Windows is the C runtime itself.
     exported_linker_flags = shims.select({
         "config//os:linux": [
             "-ldl",
             "-lm",
         ],
+        "config//os:windows": [],
         "DEFAULT": ["-lm"],
     }),
     exported_preprocessor_flags = ["-DLUA_COMPAT_5_3"],

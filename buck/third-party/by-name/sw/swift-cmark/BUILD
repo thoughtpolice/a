@@ -83,7 +83,8 @@ shims.http_archive(
 
 # Without CMARK_USE_CMAKE_HEADERS, cmark-gfm_config.h is the configuration
 # the Swift package ships in place of CMake's config.h: thread-safe, with
-# pthread locks around cmark's static state.
+# pthread locks around cmark's static state, or on Windows the system's
+# own (mutex.h).
 shims.cxx_library(
     name = "swift-cmark",
     srcs = [":src[src/{}]".format(f) for f in SOURCES],
@@ -91,7 +92,10 @@ shims.cxx_library(
         h: ":src[src/include/{}]".format(h)
         for h in HEADERS
     },
-    exported_linker_flags = ["-pthread"],
+    exported_linker_flags = shims.select({
+        "config//os:windows": [],
+        "DEFAULT": ["-pthread"],
+    }),
     exported_preprocessor_flags = ["-DCMARK_GFM_STATIC_DEFINE"],
     header_namespace = "",
     headers = {
