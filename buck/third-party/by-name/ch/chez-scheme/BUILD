@@ -17,10 +17,13 @@
 #
 # :test-fixpoint checks that the compiler in those boot files, run natively,
 # compiles itself into the same boot files.
+#
+# Every step runs a C compiler or Chez Scheme itself, never a shell, so the
+# build is the same on Linux, macOS and Windows.
 
 load("@root//buck/shims:package.bzl", "pkg")
 load("@root//buck/shims:shims.bzl", "shims")
-load(":defs.bzl", "HEADERS", "chez_boot_files")
+load(":defs.bzl", "HEADERS", "chez_boot_files", "chez_install")
 
 VERSION = pkg.version()
 
@@ -81,11 +84,16 @@ KERNEL_HEADERS = [
     "version.h",
 ]
 
-# The CPU-specific sources.
+# The CPU-specific sources, and on Windows the system's, which take the
+# place of the CPU's (upstream's `or-windows` and `add-windows`), and the
+# assembly for setjmp and longjmp there.
 ARCH_SRCS = [
+    "a6nt-jump.asm",
+    "arm64nt-jump.S",
     "clearcache.c",
     "i3le.c",
     "pb.c",
+    "windows.c",
 ]
 
 shims.http_archive(
@@ -116,31 +124,63 @@ MACHINE = shims.select({
         "config//cpu:arm64": "tarm64osx",
         "config//cpu:x86_64": "ta6osx",
     }),
+    "config//os:windows": shims.select({
+        "config//cpu:arm64": "tarm64nt",
+        "config//cpu:x86_64": "ta6nt",
+    }),
+})
+
+# The architecture in MACHINE, as Chez Scheme names it.
+ARCH = shims.select({
+    "config//cpu:arm64": "arm64",
+    "config//cpu:x86_64": "a6",
 })
 
 # What configure records for these platforms, with no curses (there are no
 # ncurses headers to build the expression editor with) and no X11 (whose
 # headers its clipboard support needs). The boot files are found relative to
-# the executable, in ../lib/csv<version>/<machine>.
+# the executable, in ../lib/csv<version>/<machine>, as installed (:install),
+# or beside it. Upstream's Windows build writes no search path, and the
+# kernel's default there is the executable's directory and ..\..\boot\<machine>
+# of a build tree; this one adds the installed layout, in the kernel's own
+# spelling, with `;` between directories.
 shims.write_file(
     name = "config.h",
     contents = [
         "#define DISABLE_CURSES",
         "#define DISABLE_X11",
-        '#define DEFAULT_HEAP_PATH "%x:%x/../lib/csv%v/%m:%x/../../boot/%m"',
+    ] + shims.select({
+        "config//os:windows": [
+            '#define DEFAULT_HEAP_PATH "%x;%x\\\\..\\\\lib\\\\csv%v\\\\%m;%x\\\\..\\\\..\\\\boot\\\\%m"',
+        ],
+        "DEFAULT": [
+            '#define DEFAULT_HEAP_PATH "%x:%x/../lib/csv%v/%m:%x/../../boot/%m"',
+        ],
+    }) + [
         "",
     ],
 )
 
 # configure's CFLAGS, which take the place of the toolchain's optimization
-# level (the collector is slow at -Og), and its default warnings.
-CFLAGS = [
-    "-O2",
-    "-Wpointer-arith",
-    "-Wall",
-    "-Wextra",
-    "-Wno-implicit-fallthrough",
-] + shims.select({
+# level (the collector is slow at -Og), and its default warnings. On
+# Windows, upstream's for MSVC, which clang-cl takes too: the kernel keys on
+# WIN32, which only MSVC's headers define (clang-cl defines _WIN32), and
+# /W3 since clang-cl reads -Wall as -Weverything.
+CFLAGS = shims.select({
+    "config//os:windows": [
+        "-O2",
+        "/W3",
+        "/DWIN32",
+        "/D_CRT_SECURE_NO_WARNINGS",
+    ],
+    "DEFAULT": [
+        "-O2",
+        "-Wpointer-arith",
+        "-Wall",
+        "-Wextra",
+        "-Wno-implicit-fallthrough",
+    ],
+}) + shims.select({
     "config//os:linux": [
         "-D_REENTRANT",
         "-pthread",
@@ -149,10 +189,15 @@ CFLAGS = [
         "config//cpu:x86_64": ["-msse2"],
     }),
     "config//os:macos": [],
+    "config//os:windows": [],
 })
 
 # configure's LDFLAGS and LIBS. The executable exports the kernel's symbols,
-# for shared objects that load-shared-object loads to call back into.
+# for shared objects that load-shared-object loads to call back into. On
+# Windows, the kernel's own declarations do that (scheme.h marks them
+# __declspec(dllexport) unless SCHEME_STATIC is defined, which it is not),
+# and the libraries are upstream's, with the C stack upstream gives its
+# executable, which a program running Chez Scheme needs as much.
 LINKER_FLAGS = shims.select({
     "config//os:linux": [
         "-rdynamic",
@@ -165,6 +210,15 @@ LINKER_FLAGS = shims.select({
         "-liconv",
         "-lm",
     ],
+    "config//os:windows": [
+        "advapi32.lib",
+        "ole32.lib",
+        "rpcrt4.lib",
+        "shell32.lib",
+        "user32.lib",
+        "uuid.lib",
+        "/STACK:16777216",
+    ],
 })
 
 # MARK: Bootstrap
@@ -173,7 +227,10 @@ LINKER_FLAGS = shims.select({
 # bootstrap.
 shims.cxx_library(
     name = "pb-kernel",
-    srcs = [":src[c/{}]".format(f) for f in KERNEL_SRCS + ["pb.c"]],
+    srcs = [":src[c/{}]".format(f) for f in KERNEL_SRCS + ["pb.c"]] + shims.select({
+        "config//os:windows": [":src[c/windows.c]"],
+        "DEFAULT": [],
+    }),
     compiler_flags = CFLAGS,
     exported_deps = [
         LZ4,
@@ -183,6 +240,12 @@ shims.cxx_library(
         "scheme.h": ":src[boot/pb/scheme.h]",
     },
     exported_linker_flags = LINKER_FLAGS,
+    # Which the native machine types' scheme.h defines, and pb's can't: it
+    # declares the Windows API (Sgetenv, Swide_to_utf8) for main.c too.
+    exported_preprocessor_flags = shims.select({
+        "config//os:windows": ["-DFEATURE_WINDOWS"],
+        "DEFAULT": [],
+    }),
     header_namespace = "",
     headers = {h: ":src[c/{}]".format(h) for h in KERNEL_HEADERS} | {
         h: ":src[boot/pb/{}]".format(h)
@@ -210,12 +273,18 @@ shims.cxx_binary(
 
 chez_boot_files(
     name = "boot",
+    src = ":src",
+    arch = ARCH,
     cross = True,
-    host = " ".join([
+    # The boot files' paths start with `.`: Chez Scheme looks for a boot
+    # file named any other way (but absolutely) in its search path.
+    host = [
         "$(exe :pb-scheme)",
-        "-b $root/$(location :src)/boot/pb/petite.boot",
-        "-b $root/$(location :src)/boot/pb/scheme.boot",
-    ]),
+        "-b",
+        "./$(location :src)/boot/pb/petite.boot",
+        "-b",
+        "./$(location :src)/boot/pb/scheme.boot",
+    ],
     machine = MACHINE,
 )
 
@@ -224,17 +293,38 @@ chez_boot_files(
 # The runtime, for a C program that embeds Chez Scheme: scheme.h and the
 # kernel. The program loads petite.boot or scheme.boot (`:install[lib]`)
 # with Sregister_boot_file.
+# setjmp and longjmp for Windows (version.h's HAND_CODED_SETJMP_SIZE), which
+# Chez Scheme's stack frames need: the C runtime's longjmp unwinds the stack
+# for C++, and they don't have what that takes. MASM on x86_64 (llvm-ml);
+# arm64's is GNU syntax, which the C compiler assembles.
+shims.cxx_library(
+    name = "jump",
+    srcs = shims.select({
+        "config//cpu:arm64": [":src[c/arm64nt-jump.S]"],
+        "config//cpu:x86_64": [":src[c/a6nt-jump.asm]"],
+    }),
+    preferred_linkage = "static",
+    target_compatible_with = ["config//os:windows"],
+    visibility = [],
+)
+
 shims.cxx_library(
     name = "kernel",
     srcs = [":src[c/{}]".format(f) for f in KERNEL_SRCS] + shims.select({
-        "config//cpu:arm64": [":src[c/clearcache.c]"],
-        "config//cpu:x86_64": [":src[c/i3le.c]"],
+        "config//os:windows": [":src[c/windows.c]"],
+        "DEFAULT": shims.select({
+            "config//cpu:arm64": [":src[c/clearcache.c]"],
+            "config//cpu:x86_64": [":src[c/i3le.c]"],
+        }),
     }),
     compiler_flags = CFLAGS,
     exported_deps = [
         LZ4,
         ZLIB,
-    ],
+    ] + shims.select({
+        "config//os:windows": [":jump"],
+        "DEFAULT": [],
+    }),
     exported_headers = {
         "scheme.h": ":boot-headers[scheme.h]",
     },
@@ -267,57 +357,14 @@ shims.cxx_binary(
     deps = [":kernel"],
 )
 
-# The installed files dependents use, by name; `{lib}` is the machine's
-# library directory.
-INSTALL_OUTS = {
-    "bin": "bin",
-    "lib": "{lib}",
-    "petite": "bin/petite",
-    "petite.boot": "{lib}/petite.boot",
-    "scheme": "bin/scheme",
-    "scheme-script": "bin/scheme-script",
-    "scheme.boot": "{lib}/scheme.boot",
-    "scheme.h": "{lib}/scheme.h",
-}
-
-# Upstream's install layout. The executable picks its boot file from the
-# name it was run as, so `petite` and `scheme-script` are copies of it, and
-# scheme-script.boot of scheme.boot.
-shims.genrule(
+chez_install(
     name = "install",
-    outs = shims.select({
-        os: shims.select({
-            cpu: {
-                name: [path.format(lib = "lib/csv{}/{}".format(VERSION, machine))]
-                for name, path in INSTALL_OUTS.items()
-            }
-            for cpu, machine in machines.items()
-        })
-        for os, machines in {
-            "config//os:linux": {
-                "config//cpu:arm64": "tarm64le",
-                "config//cpu:x86_64": "ta6le",
-            },
-            "config//os:macos": {
-                "config//cpu:arm64": "tarm64osx",
-                "config//cpu:x86_64": "ta6osx",
-            },
-        }.items()
-    }),
-    cmd = """
-        set -eu
-        lib=$OUT/lib/csv{version}/$MACHINE
-        mkdir -p $OUT/bin $lib
-        for exe in scheme petite scheme-script; do
-            cp $(location :scheme-exe) $OUT/bin/$exe
-        done
-        cp $(location :boot[petite.boot]) $(location :boot[scheme.boot]) $lib
-        cp $(location :boot[scheme.boot]) $lib/scheme-script.boot
-        cp $(location :boot-headers[scheme.h]) $lib
-    """.format(version = VERSION),
-    env = {
-        "MACHINE": MACHINE,
-    },
+    machine = MACHINE,
+    petite_boot = ":boot[petite.boot]",
+    scheme = ":scheme-exe",
+    scheme_boot = ":boot[scheme.boot]",
+    scheme_h = ":boot-headers[scheme.h]",
+    version = VERSION,
 )
 
 [
@@ -337,26 +384,30 @@ shims.genrule(
 
 # The installed tools from the outside: the version, the machine type and
 # its threads, the compiler (which petite lacks), and a script.
+shims.export_file(
+    name = "test-install.ss",
+    visibility = [],
+)
+
+shims.export_file(
+    name = "sum.ss",
+    visibility = [],
+)
+
 shims.command_test(
     name = "test-install",
-    script = "machine=" + MACHINE + """
-        scheme=$(location :install[scheme])
-        petite=$(location :install[petite])
-        script=$(location :install[scheme-script])
-
-        test "`$scheme --version 2>&1`" = "{version}"
-        test "`echo '(machine-type)' | $scheme -q`" = "$machine"
-        test "`echo '(threaded?)' | $scheme -q`" = "#t"
-        test "`echo '(petite?)' | $petite -q`" = "#t"
-        echo "(compile '(+ 1 2))" | $scheme -q | grep -qx 3
-
-        dir=`mktemp -d`
-        trap 'rm -rf "$dir"' EXIT
-        printf '%s\\n' '(import (chezscheme))' \\
-            '(printf "~a\\n" (apply + (map string->number (command-line-arguments))))' \\
-            > "$dir/sum.ss"
-        test "`$script $dir/sum.ss 1 2 3`" = 6
-    """.format(version = VERSION),
+    cmd = [
+        "$(location :install[scheme])",
+        "-q",
+        "--script",
+        "$(location :test-install.ss)",
+        VERSION,
+        MACHINE,
+        "$(location :install[scheme])",
+        "$(location :install[petite])",
+        "$(location :install[scheme-script])",
+        "$(location :sum.ss)",
+    ],
 )
 
 # Upstream's `bootstrap` rebuilds the boot files with the system they built
@@ -364,27 +415,41 @@ shims.command_test(
 # that fixpoint: the same compiler, run natively, makes the same files.
 chez_boot_files(
     name = "rebuild",
+    src = ":src",
+    arch = ARCH,
     cross = False,
-    host = "$(location :install[scheme])",
+    host = ["$(location :install[scheme])"],
     machine = MACHINE,
+)
+
+shims.export_file(
+    name = "test-fixpoint.ss",
+    visibility = [],
 )
 
 shims.command_test(
     name = "test-fixpoint",
-    script = """
-        export BOOT=$(location :boot) REBUILD=$(location :rebuild)
-        echo '
-            (reset-handler abort)
-            (for-each
-              (lambda (boot)
-                (#%$fasl-file-equal?
-                  (format "~a/~a" (getenv "BOOT") boot)
-                  (format "~a/~a" (getenv "REBUILD") boot)
-                  #t))
-              (list "petite.boot" "scheme.boot"))
-        ' | $(location :install[scheme]) -q
-    """ + "\n".join([
-        "cmp $(location :boot-headers[{h}]) $(location :rebuild-headers[{h}])".format(h = h)
+    cmd = [
+        "$(location :install[scheme])",
+        "-q",
+        "--script",
+        "$(location :test-fixpoint.ss)",
+    ] + [
+        "$(location :{}[{}])".format(target, f)
+        for f in [
+            "petite.boot",
+            "scheme.boot",
+        ]
+        for target in [
+            "boot",
+            "rebuild",
+        ]
+    ] + [
+        "$(location :{}[{}])".format(target, h)
         for h in HEADERS
-    ]),
+        for target in [
+            "boot-headers",
+            "rebuild-headers",
+        ]
+    ],
 )

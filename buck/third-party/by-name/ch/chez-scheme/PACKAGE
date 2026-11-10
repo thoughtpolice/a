@@ -20,6 +20,7 @@ pkg.info(
     compatible_with = [
         "config//os:linux",
         "config//os:macos",
+        "config//os:windows",
     ],
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/cisco/ChezScheme",
