@@ -45,10 +45,17 @@
    client-user set-client-user! client-color person? people default-user-name peer-colors
    clients current-client set-current-client! with-client with-client-or-any add-client! remove-client! client-send!
    client-quit! client-switch-buffer! view-of
+   ;; panes
+   pane? pane-rect pane-rect-set! split? split-dir split-ratio split-ratio-set! split-first split-second
+   client-focused-pane client-layout client-panes pane-view-of focus-pane! for-each-pane
+   split-pane! close-pane! pane-at
+   make-component component? component-name component-draw component-key show-component!
+   focused-component pane-component
    ;; editor state
    current-view current-buffer set-current-buffer! switch-to-buffer! buffers
    editor-running? editor-quit! editor-stop! editor-restart! editor-daemon? editor-daemon?-set!
    find-buffer-named kill-buffer! add-buffer!
+   span buffer-render! rendered-buffer! data-at-point
    open-file! new-buffer! show-text-buffer! save-buffer! buffer-display-name
    ;; messages
    message message-error current-message clear-message! messages-buffer log-message!
@@ -85,7 +92,11 @@
    make-prompt prompt? prompt-label prompt-input prompt-input-set! prompt-cursor
    prompt-cursor-set! prompt-items prompt-index prompt-index-set! prompt-style prompt-hint prompt-most
    current-prompt open-prompt! close-prompt! prompt-refresh! prompt-accept!
-   read-string-prompt read-string-dialog pick
+   read-string-prompt read-string-dialog pick unfiltered unfiltered?
+   ;; overlays
+   make-overlay overlay? overlay-name overlay-place overlay-widget overlay-key
+   make-area area? area-rows area-cols area-top area-bottom area-cursor
+   client-overlays show-overlay! hide-overlay! key-overlay
    ;; popups
    make-popup popup? popup-title popup-lines popup-footer current-popup show-popup! hide-popup!
    ;; geometry, for the mouse
@@ -215,7 +226,7 @@
       (or existing
           (let* ([_ (run-hooks 'before-open-file-hook path)]
                  [mode (major-mode-for-path path)]
-                 [contents (if (and (file-exists? path) (not (binary-mode? mode))) (read-file-string path) "")]
+                 [contents (if (and (file-exists? path) (not (binary-mode? mode))) (read-text-file path) "")]
                  [b (make-buffer (unique-name (path-basename path)) path contents mode)])
             (buffer-local-set! b 'mtime (and (file-exists? path) (file-modification-time path)))
             (when (binary-mode? mode) (buffer-read-only?-set! b #t))
@@ -273,17 +284,93 @@
       (new-buffer! "*scratch*" "" (or (find-major-mode 'scheme) fundamental-mode)))
     (for-each
      (lambda (c)
-       (let ([v (hashtable-ref (client-views c) b #f)])
-         (when v
-           (hashtable-delete! (client-views c) b)
-           (detach-view! v)
-           (when (eq? (client-view c) v)
-             (client-view-set! c #f)
-             (let-values ([(bs vs) (hashtable-entries (client-views c))])
-               (let ([recent (sort (lambda (x y) (> (view-last-seen x) (view-last-seen y)))
-                                   (filter (lambda (v) (memq (view-buffer v) (buffers))) (vector->list vs)))])
-                 (client-switch-buffer! c (if (pair? recent) (view-buffer (car recent)) (car (buffers))))))))))
+       ;; In every pane of c's.
+       (for-each-pane
+        c
+        (lambda ()
+          (let ([v (hashtable-ref (client-views c) b #f)])
+            (when v
+              (hashtable-delete! (client-views c) b)
+              (detach-view! v)
+              (when (eq? (client-view c) v)
+                (client-view-set! c #f)
+                (let-values ([(bs vs) (hashtable-entries (client-views c))])
+                  (let ([recent (sort (lambda (x y) (> (view-last-seen x) (view-last-seen y)))
+                                      (filter (lambda (v) (memq (view-buffer v) (buffers))) (vector->list vs)))])
+                    (client-switch-buffer! c (if (pair? recent) (view-buffer (car recent)) (car (buffers))))))))))))
      (cons background (clients))))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Rendered buffers
+  ;;
+  ;; An extension shows what it has -- a list, a report, a tree -- as a
+  ;; buffer's text with regions over it (buffer.sls): faces to draw it in,
+  ;; keys that act on the thing under the cursor, the thing itself as data.
+  ;; It describes the content as pieces, each a string, a list of pieces,
+  ;; or (span props piece ...): pieces that the one region with properties
+  ;; props covers, an alist, as for buffer-add-region!.
+  ;;
+  ;;   (buffer-render! b
+  ;;     (span '((face . ui.text.focus)) "Files\n")
+  ;;     (map (lambda (f)
+  ;;            (span `((item . #t) (data . ,f) (keymap . ,file-keys)) f "\n"))
+  ;;          files))
+  ;;
+  ;; Rendering again (the list changed) keeps each view's cursor on the
+  ;; item it was on, by its data (equal?), else on the item where it was.
+
+  (define-record-type span-piece (fields props pieces))
+  (define (span props . pieces) (make-span-piece props pieces))
+
+  ;; The text of pieces, and their regions: (start end props) each.
+  (define (flatten-pieces pieces)
+    (let-values ([(out get) (open-string-output-port)])
+      (let ([regions '()] [pos 0])
+        (let walk ([p pieces])
+          (cond
+           [(string? p) (put-string out p) (set! pos (+ pos (string-length p)))]
+           [(null? p) (void)]
+           [(pair? p) (walk (car p)) (walk (cdr p))]
+           [(span-piece? p)
+            (let ([start pos])
+              (walk (span-piece-pieces p))
+              (set! regions (cons (list start pos (span-piece-props p)) regions)))]
+           [else (walk (format "~a" p))]))
+        (values (get) regions))))
+
+  (define (buffer-render! b . pieces)
+    (let-values ([(text regions) (flatten-pieces pieces)])
+      (let ([marks (map (lambda (v)
+                          (let* ([t (buffer-text b)] [p (sel-range-start (view-primary v))] [line (text-line-of t p)])
+                            (list v (region-property b p 'data) line (- p (text-line-start t line)))))
+                        (buffer-views b))])
+        (buffer-clear-regions! b)
+        (buffer-set-text! b text)
+        (buffer-set-regions! b regions)
+        (for-each
+         (lambda (m)
+           (let* ([v (car m)] [data (cadr m)] [t (buffer-text b)]
+                  [item (and data (find (lambda (r) (and (region-get r 'item) (equal? (region-get r 'data) data)))
+                                        (buffer-regions b)))])
+             (view-sels-set! v (list (let* ([p (text-pos-at t (min (caddr m) (- (text-line-count t) 1)) (cadddr m))]
+                                            ;; Its item gone: the one where it was.
+                                            [item (or item (find (lambda (r) (region-get r 'item)) (regions-at b p)))])
+                                       (if item
+                                           (make-sel (region-start item) (region-end item))
+                                           (make-sel p p)))))))
+         marks))))
+
+  ;; The buffer named name, made read-only in the major mode named mode if
+  ;; there is none: for an extension to render into.
+  (define (rendered-buffer! name mode)
+    (or (find-buffer-named name)
+        (let ([b (new-buffer! name "" (or (find-major-mode mode) fundamental-mode))])
+          (buffer-read-only?-set! b #t)
+          b)))
+
+  ;; What the innermost region at the cursor stands for (its data), or #f.
+  (define (data-at-point)
+    (region-property (current-buffer) (sel-range-start (primary)) 'data))
 
   ;; ---------------------------------------------------------------------------
   ;; Selections
@@ -394,8 +481,15 @@
   ;; ---------------------------------------------------------------------------
   ;; Events, from the current client
 
+  ;; A key in normal mode: the keymaps of the regions at the cursor
+  ;; (innermost first), the major mode's, then normal mode's.
   (define (lookup-normal b key)
-    (or (keymap-lookup (major-mode-keymap (buffer-major-mode b)) key)
+    (or (let ([v (current-view)])
+          (and v (eq? (view-buffer v) b) (pair? (buffer-regions b))
+               (exists (lambda (r)
+                         (let ([km (region-get r 'keymap)]) (and km (keymap-lookup km key))))
+                       (regions-at b (sel-range-start (view-primary v))))))
+        (keymap-lookup (major-mode-keymap (buffer-major-mode b)) key)
         (keymap-lookup normal-keymap key)
         (keymap-lookup global-keymap key)))
 
@@ -480,9 +574,25 @@
                      (prompt-cursor-set! p (+ c (string-length s)))
                      (prompt-index-set! p 0)
                      (prompt-refresh! p)))])))]
+       ;; An extension's overlay, over the panes, that takes the key.
+       [(and (key-event-press? ev) (key-overlay (current-client))
+             ((overlay-key (key-overlay (current-client))) key (self-insert-text ev)))
+        (void)]
        [(pair? (jump-labels)) (when (key-event-press? ev) (handle-jump-key ev))]
        [(active-layer) (handle-layer-key ev)]
        [(not (key-event-press? ev)) (void)]
+       ;; A component's pane: the keys it takes, then the global keymap's,
+       ;; and normal mode's space and pane (ctrl+w) layers, which do not
+       ;; edit (others, such as deleting's, would edit the view behind it).
+       [(focused-component (current-client))
+        => (lambda (comp)
+             (unless ((component-key comp) key (self-insert-text ev))
+               (let ([bnd (or (keymap-lookup global-keymap key)
+                              (let ([b (keymap-lookup normal-keymap key)])
+                                (and b (keymap? (binding-target b))
+                                     (memq (keymap-name (binding-target b)) '(space pane))
+                                     b)))])
+                 (if bnd (run-binding bnd key) (message "~a is not bound here" key)))))]
        [(eq? (view-input-mode v) 'insert)
         (cond
          [(lookup-insert (view-buffer v) key) => (lambda (bnd) (run-binding bnd key))]

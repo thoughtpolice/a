@@ -77,6 +77,33 @@
 (expect-equal "search next" (sel-start (car (view-sels (current-view)))) 8)
 (press! "l" "l")
 (expect-equal "search wraps" (sel-start (car (view-sels (current-view)))) 0)
+(press! "j")
+(expect-equal "search back wraps" (sel-start (car (view-sels (current-view)))) 17)
+
+;; Literal text is itself, its metacharacters too; smart case.
+(headless-buffer! "a.b axb A.B" 'text)
+(press! "n" "d")
+(type! "a.b")
+(press! "enter")
+(expect-equal "a literal search" (map car (search-matches (current-buffer) 0 11)) '(0 8))
+
+;; A regular expression: n e.
+(headless-buffer! "foo1 bar22 foo333\nfoo" 'text)
+(press! "n" "e")
+(type! "[0-9]+")
+(press! "enter")
+(expect-equal "a regex search" (primary-text) "1")
+(press! "l")
+(expect-equal "its next match" (primary-text) "22")
+(expect-equal "every match in range" (search-matches (current-buffer) 0 21) '((3 . 4) (8 . 10) (14 . 17)))
+(press! "n" "e")
+(type! "^foo")
+(press! "enter")
+(expect-equal "lines anchor ^" (map car (search-matches (current-buffer) 0 21)) '(0 18))
+(press! "n" "e")
+(type! "(")
+(check "what is wrong with a bad pattern is said" (string-contains (cdr (current-message)) "Not a pattern"))
+(press! "esc")
 
 ;; Extend: f, then movements grow the selection.
 (headless-buffer! "one two three four" 'text)

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Images in the GUI's frames: PNGs the editor sends ("image"), placed
-//! over rectangles of cells ("images"), as kernel/gui.slang's image
+//! over rectangles of cells ("images"), as kernel/render/gui.slang's image
 //! pipeline draws them.
 //!
 //! An image fits its rectangle, keeping its shape and never growing past
@@ -16,13 +16,13 @@
 
 use std::collections::HashMap;
 
-/// The size of an image pipeline instance (kernel/gui.slang's `Picture`):
+/// The size of an image pipeline instance (kernel/render/gui.slang's `Picture`):
 /// its rectangle in pixels (four f32s), where its pixels start in the
 /// frame's and how many make a row (u32s), padded.
 pub const PICTURE_BYTES: usize = 32;
 
 /// An image, decoded: RGBA, sRGB-encoded, alpha not premultiplied.
-pub(crate) struct Decoded {
+pub struct Decoded {
     pub width: u32,
     pub height: u32,
     pub rgba: Vec<u8>,
@@ -147,7 +147,7 @@ impl Images {
     }
 }
 
-pub(crate) fn decode(png: &[u8]) -> Result<Decoded, String> {
+pub fn decode(png: &[u8]) -> Result<Decoded, String> {
     let mut decoder = png::Decoder::new(std::io::Cursor::new(png));
     // Palettes, low bit depths and transparency become RGB(A), 16 bits 8.
     decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
@@ -223,7 +223,7 @@ fn to_srgb(v: f32) -> u8 {
 /// `image` scaled to `w` by `h` (no larger than it): each pixel the
 /// average of those its box covers, weighted by how much it covers them,
 /// in linear light with premultiplied alpha.
-pub(crate) fn scale_to(image: &Decoded, w: u32, h: u32) -> Vec<u32> {
+pub fn scale_to(image: &Decoded, w: u32, h: u32) -> Vec<u32> {
     let pack = |p: [u8; 4]| u32::from_le_bytes(p);
     if (w, h) == (image.width, image.height) {
         return image

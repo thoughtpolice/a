@@ -51,7 +51,7 @@ use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::Window;
 
 use super::{Buffers, Data, DrawList, Pipeline, SHADERS, clear_color, put};
-use crate::timing;
+use quad_timing as timing;
 
 fn ns_error(what: &str) -> impl Fn(Retained<NSError>) -> String + '_ {
     move |e| format!("metal: {what}: {}", e.localizedDescription())
@@ -210,7 +210,7 @@ fn compile_shaders(
 
 // MARK: Pipelines
 
-/// The three pipelines (kernel/gui.slang), drawing in `format`: four-vertex
+/// The three pipelines (kernel/render/gui.slang), drawing in `format`: four-vertex
 /// strips, blending by alpha over what was drawn before, their data found
 /// by address in buffer 0 of their argument table ([`Params`]).
 pub(super) struct Pipelines {

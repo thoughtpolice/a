@@ -19,8 +19,9 @@
           selection-mode-line-wise? selection-mode-of-text?
           define-selection-mode! find-selection-mode selection-mode-names
           token-units line-range line-full-range blank-line? line-indent-end
-          search-pattern search-pattern-set! goal-column)
-  (import (chezscheme) (quad util) (quad text) (quad syntax) (quad buffer))
+          search-pattern search-pattern-set! search-error search-matches goal-column)
+  (import (chezscheme) (quad util) (quad text) (quad syntax) (quad buffer)
+          (only (quad native) search-new search-next search-prev search-all))
 
   (define-record-type selection-mode
     (fields name
@@ -394,22 +395,60 @@
 
   (define search-pattern-key 'search-pattern)
   (define (search-pattern b) (buffer-local b search-pattern-key #f))
-  (define (search-pattern-set! b p) (buffer-local-set! b search-pattern-key p))
+
+  ;; b's search pattern: literal text, or with regex? a regular expression
+  ;; (the regex crate's syntax; see kernel/text/search.rs).
+  (define search-pattern-set!
+    (case-lambda
+     [(b p) (search-pattern-set! b p #f)]
+     [(b p regex?)
+      (buffer-local-set! b search-pattern-key p)
+      (buffer-local-set! b 'search-regex? regex?)]))
+
+  ;; b's search, compiled in the kernel, kept while its pattern is: smart
+  ;; case, a pattern with no capitals matching either case. (pattern regex?
+  ;; search error): search #f, and error what is wrong, if it is no pattern.
+  (define (compiled-search b)
+    (let ([pat (search-pattern b)] [regex? (buffer-local b 'search-regex? #f)])
+      (and pat (> (string-length pat) 0)
+           (let ([c (buffer-local b 'search-compiled #f)])
+             (if (and c (equal? (car c) pat) (eq? (cadr c) regex?))
+                 c
+                 (let ([c (guard (e [#t (list pat regex? #f (condition->string e))])
+                            (list pat regex?
+                                  (search-new pat regex? (not (exists char-upper-case? (string->list pat))))
+                                  #f))])
+                   (buffer-local-set! b 'search-compiled c)
+                   c))))))
+
+  (define (condition->string e)
+    (if (condition? e)
+        (call-with-string-output-port (lambda (p) (display-condition e p)))
+        (format "~a" e)))
+
+  ;; What is wrong with b's search pattern, if it is not a pattern.
+  (define (search-error b)
+    (let ([c (compiled-search b)]) (and c (cadddr c))))
 
   ;; Where b's search pattern matches next from pos, in direction dir,
-  ;; wrapping around once: (start . end), or #f. Smart case: a pattern
-  ;; with no capitals matches either case.
+  ;; wrapping around once: (start . end), or #f.
   (define (search-from b pos dir)
-    (let* ([t (buffer-text b)] [pat (search-pattern b)] [n (text-length t)])
-      (and pat (> (string-length pat) 0)
-           (let ([fold? (not (exists char-upper-case? (string->list pat)))]
-                 [m (string-length pat)])
-             (let loop ([i pos] [wrapped? #f])
-               (cond
-                [(and (> dir 0) (> (+ i m) n)) (and (not wrapped?) (loop 0 #t))]
-                [(and (< dir 0) (< i 0)) (and (not wrapped?) (loop (- n m) #t))]
-                [(text-match-at? t i pat fold?) (cons i (+ i m))]
-                [else (loop (+ i dir) wrapped?)]))))))
+    (let* ([c (compiled-search b)] [s (and c (caddr c))] [r (text-rope (buffer-text b))])
+      (and s
+           (let ([m (cond
+                     [(> dir 0) (search-next s r (max 0 pos) #t)]
+                     ;; Before the start: from the end, around.
+                     [(< pos 0) (search-prev s r (buffer-length b) #t)]
+                     [else (search-prev s r pos #t)])])
+             (and m (cons (car m) (cadr m)))))))
+
+  ;; The matches of b's search pattern from start to end, apart.
+  (define (search-matches b start end)
+    (let* ([c (compiled-search b)] [s (and c (caddr c))])
+      (if (not s)
+          '()
+          (let loop ([l (search-all s (text-rope (buffer-text b)) start end)] [acc '()])
+            (if (null? l) (reverse acc) (loop (cddr l) (cons (cons (car l) (cadr l)) acc)))))))
 
   (define search-mode
     (make-selection-mode
@@ -423,12 +462,39 @@
          [(last) (search-from b (buffer-length b) -1)]
          [else #f]))
      (lambda (b first last)
-       (let* ([t (buffer-text b)] [hi (text-line-end t last)])
-         (let loop ([pos (text-line-start t first)] [acc '()])
-           (let ([m (search-from b pos 1)])
-             (if (and m (>= (car m) pos) (<= (cdr m) hi))
-                 (loop (+ 1 (car m)) (cons m acc))
-                 (reverse acc))))))
+       (let ([t (buffer-text b)])
+         (search-matches b (text-line-start t first) (text-line-end t last))))
+     #f #f))
+
+  ;; Items: the regions an extension marks as the things a list shows
+  ;; (buffer.sls, item), each a unit; movements step from one to the next.
+  (define (items b) (filter (lambda (r) (region-get r 'item)) (buffer-regions b)))
+  (define (item-range r) (cons (region-start r) (region-end r)))
+
+  (define item-mode
+    (make-selection-mode
+     'item "ITEM"
+     (lambda (b r)
+       (let* ([pos (car r)] [is (items b)])
+         (cond
+          [(find (lambda (i) (and (<= (region-start i) pos) (< pos (region-end i)))) (reverse is)) => item-range]
+          [(find (lambda (i) (>= (region-start i) pos)) is) => item-range]
+          [(pair? is) (item-range (car (last-pair* is)))]
+          [else #f])))
+     (lambda (b r dir)
+       (let ([is (items b)] [pos (car r)])
+         (case dir
+           [(right next down)
+            (let ([i (find (lambda (i) (> (region-start i) pos)) is)]) (and i (item-range i)))]
+           [(left previous up)
+            (let ([i (find (lambda (i) (< (region-start i) pos)) (reverse is))]) (and i (item-range i)))]
+           [(first) (and (pair? is) (item-range (car is)))]
+           [(last) (and (pair? is) (item-range (car (last-pair* is))))]
+           [else #f])))
+     (lambda (b first last)
+       (let ([t (buffer-text b)])
+         (map item-range (filter (lambda (i) (<= (text-line-start t first) (region-start i) (text-line-end t last)))
+                                 (items b)))))
      #f #f))
 
   (for-each define-selection-mode!
@@ -438,4 +504,4 @@
                   (tokens-mode 'big-word "WORD*" 'big-word)
                   (lines-mode 'line "LINE" line-range)
                   (lines-mode 'line-full "LINE*" line-full-range)
-                  paragraph-mode node-mode search-mode)))
+                  paragraph-mode node-mode search-mode item-mode)))

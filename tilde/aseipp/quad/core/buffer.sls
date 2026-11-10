@@ -39,6 +39,11 @@
    view-cursor-start? view-cursor-start?-set! view-extending? view-extending?-set!
    view-last-seen view-last-seen-set! view-local view-local-set!
    attach-view! detach-view! current-edit-view set-current-edit-view! map-position
+   ;; regions
+   make-region region? region-start region-end region-props region-get
+   buffer-regions buffer-add-region! buffer-clear-regions! buffer-set-regions!
+   regions-at regions-in region-property
+   buffer-set-text!
    add-change-listener! remove-change-listener!
    read-file-string write-file-string)
   (import (chezscheme) (quad util) (quad text) (quad syntax))
@@ -71,8 +76,9 @@
             (mutable tree-cache) (mutable views))
     (protocol
      (lambda (new)
+       ;; contents: a string, or a text (read-text-file's).
        (lambda (name path contents major-mode)
-         (new name path (make-text contents) major-mode (make-eq-hashtable)
+         (new name path (if (text? contents) contents (make-text contents)) major-mode (make-eq-hashtable)
               '() '() #f 0 (make-hl-cache) #f #f '())))))
 
   (define (buffer-version b) (text-version (buffer-text b)))
@@ -142,6 +148,80 @@
                                   (view-sels v)))))
        (buffer-views b))))
 
+  ;; ---------------------------------------------------------------------------
+  ;; Regions
+  ;;
+  ;; A region is a range of a buffer's text, [start, end), that carries
+  ;; properties, an alist: what an extension says of that text. The editor
+  ;; knows a few -- face (drawn over it), keymap (consulted first for a key
+  ;; pressed with the cursor in it), item (one of the things a list shows,
+  ;; which the item selection mode steps between), data (what it stands
+  ;; for, to the extension) -- and any other is the extension's own.
+  ;; Regions move with edits, as selections do; one left empty goes.
+  ;; Regions may nest: the innermost at a position comes first.
+
+  (define-record-type region (fields (mutable start) (mutable end) props))
+
+  (define region-get
+    (case-lambda
+     [(r key) (region-get r key #f)]
+     [(r key default) (let ([p (assq key (region-props r))]) (if p (cdr p) default))]))
+
+  ;; Sorted by start, then the longer (the outer) first.
+  (define (buffer-regions b) (buffer-local b 'regions '()))
+  (define (buffer-regions-set! b rs) (buffer-local-set! b 'regions rs))
+
+  (define (region<? x y)
+    (or (< (region-start x) (region-start y))
+        (and (= (region-start x) (region-start y)) (> (region-end x) (region-end y)))))
+
+  (define (buffer-add-region! b start end props)
+    (let ([r (make-region start end props)])
+      (when (< start end)
+        (buffer-regions-set! b (merge region<? (buffer-regions b) (list r))))
+      r))
+
+  (define (buffer-clear-regions! b) (buffer-regions-set! b '()))
+
+  ;; Make b's regions these, each (start end props), at once.
+  (define (buffer-set-regions! b specs)
+    (buffer-regions-set! b (sort region<? (filter-map (lambda (s)
+                                                        (and (< (car s) (cadr s))
+                                                             (make-region (car s) (cadr s) (caddr s))))
+                                                      specs))))
+
+  ;; The regions over position pos, innermost first.
+  (define (regions-at b pos)
+    (let loop ([rs (buffer-regions b)] [acc '()])
+      (cond
+       [(or (null? rs) (> (region-start (car rs)) pos)) acc]
+       [(< pos (region-end (car rs))) (loop (cdr rs) (cons (car rs) acc))]
+       [else (loop (cdr rs) acc)])))
+
+  ;; The regions that overlap [start, end), in order.
+  (define (regions-in b start end)
+    (let loop ([rs (buffer-regions b)] [acc '()])
+      (if (or (null? rs) (>= (region-start (car rs)) end))
+          (reverse acc)
+          (loop (cdr rs) (if (> (region-end (car rs)) start) (cons (car rs) acc) acc)))))
+
+  ;; key's value in the innermost region at pos that has it, or default.
+  (define region-property
+    (case-lambda
+     [(b pos key) (region-property b pos key #f)]
+     [(b pos key default)
+      (let ([r (find (lambda (r) (assq key (region-props r))) (regions-at b pos))])
+        (if r (region-get r key) default))]))
+
+  (define (remap-regions! b changes)
+    (let ([rs (buffer-regions b)])
+      (unless (null? rs)
+        (for-each (lambda (r)
+                    (region-start-set! r (map-position changes (region-start r)))
+                    (region-end-set! r (map-position changes (region-end r))))
+                  rs)
+        (buffer-regions-set! b (sort region<? (filter (lambda (r) (< (region-start r) (region-end r))) rs))))))
+
   (define (clamp-sels b sels)
     (let ([len (buffer-length b)])
       (map (lambda (s) (make-sel (clamp (sel-start s) 0 len) (clamp (sel-end s) 0 len))) sels)))
@@ -201,7 +281,9 @@
          (text-insert! t (car c) (caddr c)))
        (reverse sorted))
       (hl-cache-invalidate! (buffer-hl-cache b) t (if (null? sorted) 0 (car (car sorted))))
-      (remap-views! b (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted))
+      (let ([changes (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)])
+        (remap-views! b changes)
+        (remap-regions! b changes))
       ;; New starts: each change shifts the ones after it.
       (let loop ([l sorted] [delta 0])
         (unless (null? l)
@@ -225,6 +307,15 @@
 
   (define (buffer-replace-all! b s)
     (buffer-edit! b (list (list 0 (buffer-length b) s))))
+
+  ;; Make s b's text, as what an extension shows rather than an edit: even
+  ;; read-only, with no undo, and unmodified after.
+  (define (buffer-set-text! b s)
+    (let ([ro? (buffer-read-only? b)])
+      (buffer-read-only?-set! b #f)
+      (apply-changes! b (list (list 0 (buffer-length b) s)) #f #f)
+      (buffer-read-only?-set! b ro?)
+      (buffer-mark-saved! b)))
 
   ;; Group the transactions until buffer-end-group! into one undo step.
   (define (buffer-begin-group! b)

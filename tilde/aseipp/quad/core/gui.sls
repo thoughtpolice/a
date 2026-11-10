@@ -16,7 +16,7 @@
 ;;
 ;; A frame is painted as rectangles -- each cell's background, and the
 ;; cursor -- then the cells' text, which the Rust half shapes and draws
-;; from the fonts' curves (kernel/font/, kernel/slug.rs). Set the font
+;; from the fonts' curves (kernel/font/, kernel/font/slug.rs). Set the font
 ;; with the variables gui-font-family and gui-font-size, before the window
 ;; opens (in the init file).
 (library (quad gui)
@@ -49,11 +49,12 @@
 ;; ---------------------------------------------------------------------------
   ;; Painting
   ;;
-  ;; The window keeps its screen a row at a time (kernel/screen.rs): each
+  ;; The window keeps its screen a row at a time (kernel/gui/screen.rs): each
   ;; flush sends it the rows that changed, encoded as below, and the
   ;; scrolls that moved the rest. A row is rectangles -- as
-  ;; kernel/gui.slang's Rect has them: x, y, width and height in cells
-  ;; (32-bit floats), then the color, 0xAARRGGBB, padded to 32 bytes -- and
+  ;; kernel/render/gui.slang's Rect has them: x, y, width and height in cells
+  ;; (32-bit floats), the color, 0xAARRGGBB, and the edges it reaches on to
+  ;; (below), padded to 32 bytes -- and
   ;; cells, as kernel/font/cells.rs reads them: seven native u32s each -- row << 16
   ;; | column, width << 16 | attributes (the protocol's flags), the text's
   ;; color (0xAARRGGBB), what is behind it (0xRRGGBB), the underline's color
@@ -64,13 +65,14 @@
   (define rect-bytes 32)
   (define cell-bytes 28)
 
-  (define (put-rect! bv i x y w h color)
+  (define (put-rect! bv i x y w h color edges)
     (let ([o (* i rect-bytes)])
       (bytevector-ieee-single-native-set! bv o (inexact x))
       (bytevector-ieee-single-native-set! bv (+ o 4) (inexact y))
       (bytevector-ieee-single-native-set! bv (+ o 8) (inexact w))
       (bytevector-ieee-single-native-set! bv (+ o 12) (inexact h))
-      (bytevector-u32-native-set! bv (+ o 16) (logior #xff000000 color))))
+      (bytevector-u32-native-set! bv (+ o 16) (logior #xff000000 color))
+      (bytevector-u32-native-set! bv (+ o 20) edges)))
 
   (define (rects->bytevector rects)
     (let ([bv (make-bytevector (* rect-bytes (length rects)) 0)])
@@ -89,27 +91,50 @@
             (if (logtest flags 32) (or f fg) (or b bg)))
           bg)))
 
+  ;; The window's padding, between the grid and its edges, takes the
+  ;; backgrounds of the cells along them, as ghostty's
+  ;; window-padding-color = extend does, so that a bar at the edge reaches
+  ;; the window's (perhaps rounded) corners: a rectangle's edges say which
+  ;; of its sides reach on to the window's. A run of cells at either end of
+  ;; its row reaches left or right. A run in a row with no cell in the
+  ;; default background is marked edge-row, which the window makes reach up
+  ;; in the top row and down in the bottom one, as it places the rows
+  ;; (kernel/gui/screen.rs); a row with default cells, as text with a word
+  ;; highlighted is, would have its highlights stick out of the window.
+  (define edge-left 1)
+  (define edge-right 2)
+  (define edge-row 16)
+
   ;; Row `row`'s rectangles, at y: a run of cells with the same background
   ;; is one (cells in the default one need none, since the window is
   ;; cleared to it), then the cursor, if it is there.
   (define (row-rects model row y fg bg cursor)
-    (let ([rects '()])
+    (let ([cols (grid-model-cols model)] [runs '()] [gap? #f] [rects '()])
       (define (add! . r) (set! rects (cons r rects)))
       (let loop ([col 0] [start 0] [color #f])
-        (let ([c (and (< col (grid-model-cols model))
+        (let ([c (and (< col cols)
                       (cell-background model (cdr (grid-model-cell model row col)) fg bg))])
           (unless (eqv? c color)
-            (when (and color (not (= color bg)))
-              (add! start y (- col start) 1 color)))
+            (when color
+              (if (= color bg)
+                  (set! gap? #t)
+                  (set! runs (cons (list start col color) runs)))))
           (when c
             (loop (+ col 1) (if (eqv? c color) start col) c))))
+      (for-each (lambda (run)
+                  (let-values ([(start end color) (apply values run)])
+                    (add! start y (- end start) 1 color
+                          (logior (if gap? 0 edge-row)
+                                  (if (= start 0) edge-left 0)
+                                  (if (= end cols) edge-right 0)))))
+                (reverse runs))
       (when (and cursor (= (car cursor) row))
         (let ([col (cadr cursor)])
           (case (string->symbol (caddr cursor))
-            [(bar) (add! col y 0.15 1 fg)]
-            [(underline) (add! col (+ y 0.9) 1 0.1 fg)]
+            [(bar) (add! col y 0.15 1 fg 0)]
+            [(underline) (add! col (+ y 0.9) 1 0.1 fg 0)]
             [(hidden) (void)]
-            [else (add! col y 1 1 fg)])))
+            [else (add! col y 1 1 fg 0)])))
       (reverse rects)))
 
   ;; Row `row`'s cells with something to draw, at row y, their text from
@@ -181,7 +206,7 @@
               (put-bytevector port t)
               (loop (+ r 1) (cons cs cells) (+ offset (bytevector-length t))))))))
 
-  ;; The images placed over model's cells, as kernel/image.rs reads them:
+  ;; The images placed over model's cells, as kernel/image/ reads them:
   ;; their keys, and five native u32s each -- row, column, rows, columns,
   ;; and the rows of them shown.
   (define (frame-images model)

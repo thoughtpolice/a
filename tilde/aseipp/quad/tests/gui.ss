@@ -27,7 +27,8 @@
                           (bytevector-ieee-single-native-ref bv (+ o 4))
                           (bytevector-ieee-single-native-ref bv (+ o 8))
                           (bytevector-ieee-single-native-ref bv (+ o 12))
-                          (bytevector-u32-native-ref bv (+ o 16)))
+                          (bytevector-u32-native-ref bv (+ o 16))
+                          (bytevector-u32-native-ref bv (+ o 20)))
                     acc)))))
 
 (define default-bg (or (face-bg (face-ref 'ui.background)) #x282c34))
@@ -45,12 +46,16 @@
 (define (painted rects)
   (let ([g (make-vector (* 12 50) default-bg)])
     (for-each (lambda (r)
-                (let-values ([(x y w h color) (apply values r)])
+                (let-values ([(x y w h color edges) (apply values r)])
                   (do ([row (exact (floor y)) (+ row 1)]) ((>= row (+ y h)))
                     (do ([col (exact (floor x)) (+ col 1)]) ((>= col (+ x w)))
                       (vector-set! g (+ (* row 50) col) (logand color #xffffff))))))
               rects)
     g))
+
+(define (row-colored? row)
+  (let loop ([col 0])
+    (or (= col 50) (and (not (= (cell-bg row col) default-bg)) (loop (+ col 1))))))
 
 (let* ([cursor (grid-model-cursor model)]
        [rects (rects-of (frame-rects model))]
@@ -67,7 +72,22 @@
             [(= col 50) (loop (+ row 1) 0)]
             [(= (vector-ref g (+ (* row 50) col)) (cell-bg row col)) (loop row (+ col 1))]
             [else (printf "row ~a col ~a: ~x, not ~x\n" row col (vector-ref g (+ (* row 50) col)) (cell-bg row col))
-                  #f]))))
+                  #f])))
+  ;; The window's padding takes the backgrounds along the grid's edges:
+  ;; those at a row's ends reach left or right, and those of a row with
+  ;; no cell in the default background may reach up or down.
+  (check "backgrounds at a row's ends reach past them, and only they"
+         (for-all (lambda (r)
+                    (let-values ([(x y w h color edges) (apply values r)])
+                      (and (eq? (logtest edges 1) (= x 0))
+                           (eq? (logtest edges 2) (= (+ x w) 50)))))
+                  cells))
+  (check "a row's backgrounds may reach up or down when no cell is in the default one"
+         (for-all (lambda (r)
+                    (eq? (logtest (list-ref r 5) 16) (row-colored? (exact (list-ref r 1)))))
+                  cells))
+  (check "some row reaches up or down" (exists (lambda (r) (logtest (list-ref r 5) 16)) cells))
+  (check "the cursor reaches nowhere" (or (not cursor) (= (list-ref (car (reverse rects)) 5) 0))))
 
 ;; The terminal cursor is drawn over its row's cells, as its shape says:
 ;; the last of its row's rectangles.

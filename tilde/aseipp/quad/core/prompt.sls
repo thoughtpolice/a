@@ -18,7 +18,10 @@
           active-layer active-layer-keymap exit-layer! enter-layer! layer-legend-visible?
           idle-timeout jump-labels jump-callback jump-labels-set! view-geometry
           view-geometry-set! cluster grapheme-after grapheme-before display-column
-          screen->position)
+          screen->position unfiltered unfiltered?
+          make-overlay overlay? overlay-name overlay-place overlay-widget overlay-key
+          make-area area? area-rows area-cols area-top area-bottom area-cursor
+          client-overlays show-overlay! hide-overlay! key-overlay)
   (import (chezscheme) (quad util) (quad text) (quad buffer) (quad client) (quad keymap))
 
   ;; ---------------------------------------------------------------------------
@@ -49,17 +52,27 @@
 
   (define (current-prompt) (and (current-client) (client-prompt (current-client))))
 
+  ;; Candidates as a procedure gives them, not filtered by the input: they
+  ;; are what it asks for already (the lines a search finds, say).
+  (define-record-type (unfiltered-candidates unfiltered unfiltered?) (fields procedure))
+
+  (define (candidates-of p input)
+    (let ([c (prompt-candidates p)])
+      (if (unfiltered? c) ((unfiltered-candidates-procedure c) input) (c input))))
+
   (define (prompt-refresh! p)
     (when (prompt-candidates p)
       (let* ([input (prompt-input p)]
-             [all ((prompt-candidates p) input)]
-             [scored (if (string=? input "")
+             [all (candidates-of p input)]
+             [scored (if (or (string=? input "") (unfiltered? (prompt-candidates p)))
                          (map (lambda (c) (list 0 '() c)) all)
                          (filter-map (lambda (c)
                                        (let ([s (fuzzy-score input (car c))])
                                          (and s (list (car s) (cdr s) c))))
                                      all))]
-             [sorted (if (string=? input "") scored (sort (lambda (a b) (> (car a) (car b))) scored))])
+             [sorted (if (or (string=? input "") (unfiltered? (prompt-candidates p)))
+                         scored
+                         (sort (lambda (a b) (> (car a) (car b))) scored))])
         (prompt-items-set! p (map (lambda (x) (cons (caddr x) (cadr x))) sorted))
         (prompt-most-set! p (max (prompt-most p) (length sorted)))
         (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- (length sorted) 1))))))
@@ -103,6 +116,41 @@
      [(label candidates k style hint)
       (open-prompt! (make-prompt label "" (if (procedure? candidates) candidates (lambda (_) candidates))
                                  k #f style hint))]))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Overlays
+  ;;
+  ;; An overlay floats over a client's panes: a widget (widget.sls), where
+  ;; it goes, and what it does with keys. (place area) gives its rectangle,
+  ;; (row col rows cols), or #f to be nowhere this frame; area is what it
+  ;; may go over (an area: the screen's size, the rows the panes have, the
+  ;; focused pane's cursor). (key spec text) says whether it took a key,
+  ;; text what the key types (#f if nothing); or key is #f: it takes none. The editor's own overlays -- prompts, popups,
+  ;; the key legend -- follow from a client's state (display.sls makes
+  ;; them); an extension shows its own with show-overlay!, the last shown
+  ;; on top, and a prompt over them all.
+
+  (define-record-type overlay (fields name place widget key))
+
+  ;; rows, cols: the screen's. top, bottom: the first row the panes have
+  ;; and the one after their last. cursor: where the focused pane's cursor
+  ;; is, (row col), or #f.
+  (define-record-type area (fields rows cols top bottom cursor))
+
+  ;; The current client's overlays, from the bottom up.
+  (define (client-overlays c) (client-local c 'overlays '()))
+
+  (define (show-overlay! o)
+    (let ([c (current-client)])
+      (client-local-set! c 'overlays (append (remq o (client-overlays c)) (list o)))))
+
+  (define (hide-overlay! o)
+    (let ([c (current-client)])
+      (client-local-set! c 'overlays (remq o (client-overlays c)))))
+
+  ;; The overlay on top that takes keys, or #f.
+  (define (key-overlay c)
+    (find overlay-key (reverse (client-overlays c))))
 
   ;; ---------------------------------------------------------------------------
   ;; Popups

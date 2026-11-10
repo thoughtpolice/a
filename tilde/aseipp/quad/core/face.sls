@@ -156,6 +156,7 @@
       (ui.peer.5.cursor . ((fg revolver) (bg lime))) (ui.peer.5.selection . ((bg lime-dim))) (ui.peer.5.name . ((fg lime) italic))
       (ui.statusline . ((fg white) (bg revolver)))
       (ui.statusline.inactive . ((fg lavender) (bg revolver)))
+      (ui.window . comet)
       (ui.statusline.normal . ((fg revolver) (bg lilac) bold))
       (ui.statusline.insert . ((fg revolver) (bg mint) bold))
       (ui.statusline.extend . ((fg revolver) (bg honey) bold))

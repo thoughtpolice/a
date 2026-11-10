@@ -17,7 +17,7 @@
 // - Rectangles, placed in cells and filled with a color: the cells'
 //   backgrounds, the cursor, underlines.
 // - Images (pictures), placed in pixels and read from the frame's pixels,
-//   one for each drawn (kernel/image.rs scales them so).
+//   one for each drawn (kernel/image/ scales them so).
 // - Glyphs, drawn from their curves with Slug: text, and box drawing.
 //
 // Colors are sRGB-encoded 0xAARRGGBB. Where the image drawn into is sRGB
@@ -32,7 +32,10 @@ struct Rect
 {
     float4 bounds; // x, y, width, height, in cells: (0, 0) is the top left
     uint color;    // 0xAARRGGBB; alpha 255 is opaque
-    uint3 reserved;
+    // The sides that reach on to the window's edge, over its padding: left
+    // (1), right (2), top (4), bottom (8) (core/gui.sls's edge-left...).
+    uint edges;
+    uint2 reserved;
 };
 
 // A glyph, placed (kernel/font/layout.rs makes these; slug.rs, the data).
@@ -47,7 +50,7 @@ struct Glyph
     uint background; // 0xRRGGBB behind it, for the blending correction
 };
 
-// An image, placed (kernel/image.rs makes these).
+// An image, placed (kernel/image/ makes these).
 struct Picture
 {
     float4 rect;  // where, in pixels: x, y, width, height
@@ -134,8 +137,18 @@ struct RectVertex
 RectVertex rectVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID)
 {
     Rect rect = params.rects[instance];
+    float2 lo = rect.bounds.xy * params.cell;
+    float2 hi = (rect.bounds.xy + rect.bounds.zw) * params.cell;
+    if ((rect.edges & 1) != 0)
+        lo.x = -params.origin.x;
+    if ((rect.edges & 2) != 0)
+        hi.x = params.viewport.x - params.origin.x;
+    if ((rect.edges & 4) != 0)
+        lo.y = -params.origin.y;
+    if ((rect.edges & 8) != 0)
+        hi.y = params.viewport.y - params.origin.y;
     RectVertex output;
-    output.position = clipPosition((rect.bounds.xy + corner(vertex) * rect.bounds.zw) * params.cell);
+    output.position = clipPosition(lerp(lo, hi, corner(vertex)));
     output.color = unpackColor(rect.color);
     return output;
 }

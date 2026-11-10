@@ -3,7 +3,7 @@
 
 //! Glyph data for the Slug algorithm, which draws text (and other vector
 //! shapes) from their curves on the GPU, at any size, with no rasterized
-//! atlas: kernel/gui.slang's text shader is Eric Lengyel's reference
+//! atlas: kernel/render/gui.slang's text shader is Eric Lengyel's reference
 //! shader, and this builds the data it reads, as his notes describe
 //! (<https://github.com/EricLengyel/Slug>; the patent is dedicated to the
 //! public domain, and the shaders are MIT OR Apache-2.0, credit required).
@@ -296,7 +296,7 @@ fn unit(v: [f32; 2]) -> [f32; 2] {
 }
 
 /// Where a shape's data is, and what the shader needs to find its bands:
-/// `Glyph` in kernel/gui.slang, less its placement.
+/// `Glyph` in kernel/render/gui.slang, less its placement.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Shape {
     /// Its bounds in em space: x and y minimum, x and y maximum.

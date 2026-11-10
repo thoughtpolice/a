@@ -11,7 +11,8 @@
           make-connection connection? connection-send connection-close make-client client?
           client-id client-name client-name-set! client-connection client-connection-set!
           client-rows client-rows-set! client-cols client-cols-set! client-capabilities
-          client-capabilities-set! client-view client-view-set! client-views client-prompt
+          client-capabilities-set! client-view client-view-set! client-views client-views-set!
+          client-prompt
           client-prompt-set! client-layer client-layer-set! client-jumps client-jumps-set!
           client-jump-callback client-jump-callback-set! client-message client-message-set!
           client-geometry client-geometry-set! client-pending-clipboard
@@ -26,7 +27,12 @@
           log-message! show! message message-error variables define-variable define-variable*
           variable-names variable-doc get-var set-var! local-keys local-key set-local! hooks
           add-hook! remove-hook! run-hooks condition->string buffers add-buffer! remove-buffer!
-          background)
+          background
+          pane? pane-rect pane-rect-set! split? split-dir split-ratio split-ratio-set! split-first
+          split-second client-focused-pane client-layout client-panes pane-view-of focus-pane!
+          for-each-pane split-pane! close-pane! pane-at
+          make-component component? component-name component-draw component-key
+          pane-component pane-component-set! show-component! focused-component)
   (import (chezscheme) (quad util) (quad text) (quad buffer)
           (only (quad kernel) kernel-hostname))
 
@@ -42,8 +48,8 @@
   (define-record-type client
     (fields id (mutable name) (mutable connection)
             (mutable rows) (mutable cols) (mutable capabilities)
-            (mutable view)            ; the view shown
-            views                     ; buffer -> view
+            (mutable view)            ; the view shown (the focused pane's)
+            (mutable views)           ; buffer -> view (the focused pane's)
             (mutable prompt) (mutable layer) (mutable jumps) (mutable jump-callback)
             (mutable message) (mutable geometry) (mutable pending-clipboard)
             (mutable dirty?) (mutable frame) locals (mutable popup))
@@ -152,10 +158,12 @@
   (define (remove-client! c)
     (when (memq c the-clients)
       (set! the-clients (remq c the-clients))
-      (let-values ([(bs vs) (hashtable-entries (client-views c))])
-        (vector-for-each detach-view! vs))
-      (hashtable-clear! (client-views c))
-      (client-view-set! c #f)
+      (for-each-pane c
+                     (lambda ()
+                       (let-values ([(bs vs) (hashtable-entries (client-views c))])
+                         (vector-for-each detach-view! vs))
+                       (hashtable-clear! (client-views c))
+                       (client-view-set! c #f)))
       (let ([conn (client-connection c)])
         (client-connection-set! c #f)
         (when conn ((connection-close conn))))
@@ -177,6 +185,146 @@
         (client-view-set! c v)
         (when (eq? c the-client) (set-current-edit-view! v))
         (with-client c (lambda () (run-hooks 'buffer-switch-hook b))))))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Panes
+  ;;
+  ;; A client shows its views in panes, side by side or one above another:
+  ;; its layout, a tree of splits with a pane at each leaf, the whole of
+  ;; the screen between the buffer line and the bottom row. Each pane has
+  ;; views of its own (one per buffer it has shown, as a client had before
+  ;; it had panes) and a status line. The focused pane's view, views and
+  ;; geometry are the client's own -- client-view, client-views,
+  ;; client-geometry -- so that what works with the client's view works
+  ;; with the focused pane's; another pane keeps its own while unfocused.
+
+  (define-record-type pane
+    (fields (mutable view) (mutable views) (mutable geometry)
+            (mutable rect)              ; (row col rows cols), as last drawn
+            (mutable component)))       ; what it shows instead of its view, or #f
+
+  ;; A component is what a pane shows that is not a buffer's text: it
+  ;; draws itself, (draw canvas focused?) -> its cursor, (row col shape)
+  ;; on the canvas, or #f (display.sls makes the canvas, a grid the pane's
+  ;; size); and takes the keys it wants while its pane is focused, (key
+  ;; spec text) -> whether it took it, text what the key types or #f. What it does not take goes to the global
+  ;; keymap and to normal mode's space and pane (ctrl+w) layers, but no
+  ;; command acts on the view behind it.
+  (define-record-type component (fields name draw key))
+
+  ;; dir: 'right, the second beside the first; 'below, under it. ratio:
+  ;; the first's share of the space.
+  (define-record-type split (fields dir (mutable ratio) (mutable first) (mutable second)))
+
+  (define (client-focused-pane c)
+    (or (client-local c 'pane #f)
+        (let ([p (make-pane #f #f #f #f #f)])
+          (client-local-set! c 'pane p)
+          (client-local-set! c 'layout p)
+          p)))
+
+  (define (client-layout c) (client-focused-pane c) (client-local c 'layout #f))
+
+  ;; c's panes, in order: left to right, top to bottom.
+  (define (client-panes c)
+    (let leaves ([n (client-layout c)])
+      (if (split? n) (append (leaves (split-first n)) (leaves (split-second n))) (list n))))
+
+  ;; The view pane p of client c shows.
+  (define (pane-view-of c p) (if (eq? p (client-focused-pane c)) (client-view c) (pane-view p)))
+
+  (define (focus-pane! c p)
+    (let ([old (client-focused-pane c)])
+      (unless (eq? old p)
+        (pane-view-set! old (client-view c))
+        (pane-views-set! old (client-views c))
+        (pane-geometry-set! old (client-geometry c))
+        (client-view-set! c (pane-view p))
+        (client-views-set! c (pane-views p))
+        (client-geometry-set! c (pane-geometry p))
+        (client-local-set! c 'pane p)
+        (when (eq? c the-client) (set-current-edit-view! (client-view c))))))
+
+  ;; Run thunk with each of c's panes focused in turn, the focus as it was
+  ;; after (or the first pane's, if that one went).
+  (define (for-each-pane c thunk)
+    (let ([focused (client-focused-pane c)])
+      (for-each (lambda (p) (focus-pane! c p) (thunk)) (client-panes c))
+      (focus-pane! c (if (memq focused (client-panes c)) focused (car (client-panes c))))))
+
+  ;; Put node new where old is in c's layout.
+  (define (replace-node! c old new)
+    (let ([root (client-layout c)])
+      (if (eq? root old)
+          (client-local-set! c 'layout new)
+          (let walk ([n root])
+            (when (split? n)
+              (cond
+               [(eq? (split-first n) old) (split-first-set! n new)]
+               [(eq? (split-second n) old) (split-second-set! n new)]
+               [else (walk (split-first n)) (walk (split-second n))]))))))
+
+  ;; Split client c's focused pane: a new one, dir ('right or 'below) of
+  ;; it, showing its buffer as it does, focused. Returns the new pane.
+  (define (split-pane! c dir)
+    (let* ([old (client-focused-pane c)] [v (client-view c)]
+           [new (make-pane #f (make-eq-hashtable) #f #f #f)])
+      (replace-node! c old (make-split dir 1/2 old new))
+      (focus-pane! c new)
+      (when v
+        (client-switch-buffer! c (view-buffer v))
+        (let ([nv (client-view c)])
+          (view-sels-set! nv (view-sels v))
+          (view-top-set! nv (view-top v))
+          (view-left-set! nv (view-left v))
+          (view-selection-mode-set! nv (view-selection-mode v))))
+      new))
+
+  ;; Show component comp in a new pane dir ('right or 'below) of client
+  ;; c's focused one, focused. Returns the pane.
+  (define (show-component! c comp dir)
+    (let ([p (split-pane! c dir)])
+      (pane-component-set! p comp)
+      p))
+
+  ;; The component client c's focused pane shows, or #f.
+  (define (focused-component c) (pane-component (client-focused-pane c)))
+
+  ;; The parent split of node in c's layout, or #f.
+  (define (parent-of c node)
+    (let walk ([n (client-layout c)])
+      (and (split? n)
+           (if (or (eq? (split-first n) node) (eq? (split-second n) node))
+               n
+               (or (walk (split-first n)) (walk (split-second n)))))))
+
+  (define (first-pane node) (if (split? node) (first-pane (split-first node)) node))
+
+  ;; Close client c's focused pane, unless it is the only one: its views
+  ;; go, and the pane beside it takes its space, focused. Whether it closed.
+  (define (close-pane! c)
+    (let* ([p (client-focused-pane c)] [parent (parent-of c p)])
+      (and parent
+           (let ([sibling (if (eq? (split-first parent) p) (split-second parent) (split-first parent))])
+             (let-values ([(bs vs) (hashtable-entries (client-views c))])
+               (vector-for-each detach-view! vs))
+             (replace-node! c parent sibling)
+             ;; Nothing of the closed pane's is kept: focus moves without
+             ;; saving it.
+             (let ([next (first-pane sibling)])
+               (client-local-set! c 'pane next)
+               (client-view-set! c (pane-view next))
+               (client-views-set! c (pane-views next))
+               (client-geometry-set! c (pane-geometry next))
+               (when (eq? c the-client) (set-current-edit-view! (client-view c))))
+             #t))))
+
+  ;; The pane of c's whose last drawn place has (row, col), or #f.
+  (define (pane-at c row col)
+    (find (lambda (p)
+            (let ([r (pane-rect p)])
+              (and r (<= (car r) row (+ (car r) (caddr r) -1)) (<= (cadr r) col (+ (cadr r) (cadddr r) -1)))))
+          (client-panes c)))
 
   ;; The editor runs as long as it has clients, or as a daemon until told
   ;; to stop. A client quitting just leaves, unless it is the last.

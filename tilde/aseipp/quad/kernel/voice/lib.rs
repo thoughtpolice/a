@@ -46,9 +46,9 @@ use std::time::{Duration, Instant};
 use chez::{Mailbox, Sender};
 use iroh::endpoint::Connection;
 
-use crate::mesh;
 use mix::Mixer;
 use opus::{Encoder, FRAME};
+use quad_mesh as mesh;
 
 /// The datagram format's version, its first byte.
 const VERSION: u8 = 1;

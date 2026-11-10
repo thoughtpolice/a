@@ -21,7 +21,7 @@
 //! chez.standalone). macOS's frameworks are the system's, linked as usual.
 //!
 //! The renderer has no render passes, descriptor sets or vertex buffers:
-//! three pipelines (kernel/gui.slang) are given a frame's data by address
+//! three pipelines (kernel/render/gui.slang) are given a frame's data by address
 //! (render/). A frame is the cells' backgrounds and the cursor, as
 //! rectangles Scheme makes; then images; then their text, as glyphs font/
 //! lays out and Slug draws from their curves; then underlines. A window
@@ -47,18 +47,21 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::{CursorIcon, Window, WindowId};
 
-use crate::access::{self, Access};
-use crate::font::Colors;
-pub use crate::font::FontSpec;
-use crate::font::{Fonts, Metrics};
-use crate::image::{Images, PICTURE_BYTES, Placement};
-use crate::render::{DrawList, Gpu, Headless, Renderer};
+use crate::access::Access;
 use crate::screen::{Screen, Update};
-use crate::timing;
+use quad_font::Colors;
+pub use quad_font::FontSpec;
+use quad_font::{Fonts, Metrics};
+use quad_image::{Images, PICTURE_BYTES, Placement};
+use quad_render::{DrawList, Gpu, Headless, Renderer};
+use quad_timing as timing;
 
+mod access;
 mod input;
 #[cfg(target_os = "macos")]
 mod macos;
+mod main_thread;
+pub mod screen;
 mod snapshots;
 mod window;
 mod windows;
@@ -94,7 +97,7 @@ pub fn display_available() -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn quad_gui_prepare_early() {
     if display_available() {
-        crate::render::prepare();
+        quad_render::prepare();
     }
 }
 

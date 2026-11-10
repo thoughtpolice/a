@@ -37,7 +37,7 @@ pub(super) fn system() -> Result<&'static System, String> {
                 return Err("there is no display to open a window on".into());
             }
             // The device, while the event loop and the window are made.
-            crate::render::prepare();
+            quad_render::prepare();
             let (ready, started) = mpsc::channel();
             start(ready)?;
             started

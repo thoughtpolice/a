@@ -59,7 +59,7 @@ pub extern "C" fn quad_main_thread_run(scheme: extern "C" fn() -> c_int, stack: 
 /// Ends the process with `status`, from the main thread: through the
 /// windows' event loop if it runs there, else as the next job.
 fn exit(status: c_int) {
-    if !crate::gui::exit_from_windows(status) {
+    if !crate::exit_from_windows(status) {
         // The main thread serves jobs, so this cannot fail.
         let _ = run(move || std::process::exit(status));
     }

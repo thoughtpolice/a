@@ -10,8 +10,15 @@
 
 use std::rc::Rc;
 
-use crate::font::{CELL_BYTES, Fonts, Layout, RECT_BYTES};
-use crate::image::Placement;
+use quad_font::{CELL_BYTES, Fonts, Layout, RECT_BYTES};
+use quad_image::Placement;
+
+/// A rectangle's edges (gui.slang's `Rect::edges`, at byte 20): the sides
+/// that reach on to the window's edge, over its padding. core/gui.sls marks
+/// a row's backgrounds that may reach up or down `EDGE_ROW`.
+const EDGE_TOP: u32 = 4;
+const EDGE_BOTTOM: u32 = 8;
+const EDGE_ROW: u32 = 16;
 
 /// A row's rectangles (backgrounds, the cursor: [`RECT_BYTES`] each) and
 /// cells ([`CELL_BYTES`] each, with their `text`), at the top.
@@ -163,7 +170,7 @@ impl Screen {
     pub fn characters(&self) -> Vec<Vec<(u32, u32, String)>> {
         self.rows
             .iter()
-            .map(|r| crate::font::characters(&r.data.cells, &r.data.text))
+            .map(|r| quad_font::characters(&r.data.cells, &r.data.text))
             .collect()
     }
 
@@ -178,16 +185,37 @@ impl Screen {
             self.epoch = fonts.epoch;
         }
         let ch = fonts.metrics.cell[1];
-        let mut rects = Vec::new();
         let mut out = Layout::default();
         for (y, row) in self.rows.iter_mut().enumerate() {
-            moved(&mut rects, &row.data.rects, RECT_BYTES, y as f32);
             let laid = row
                 .laid
                 .get_or_insert_with(|| fonts.row(&row.data.cells, &row.data.text));
             out.append_moved(laid, y as f32 * ch, y as f32);
         }
-        (rects, out)
+        (self.rects(), out)
+    }
+
+    /// Its rectangles, every row's in its place. Those core/gui.sls marks
+    /// [`EDGE_ROW`] reach up to the window's top in the top row, and down
+    /// to its bottom in the bottom one, over its padding.
+    fn rects(&self) -> Vec<u8> {
+        let mut rects = Vec::new();
+        let last = self.rows.len().saturating_sub(1);
+        for (y, row) in self.rows.iter().enumerate() {
+            let start = rects.len();
+            moved(&mut rects, &row.data.rects, RECT_BYTES, y as f32);
+            let reach = if y == 0 { EDGE_TOP } else { 0 } | if y == last { EDGE_BOTTOM } else { 0 };
+            if reach == 0 {
+                continue;
+            }
+            for record in rects[start..].chunks_exact_mut(RECT_BYTES) {
+                let edges = u32::from_ne_bytes(record[20..24].try_into().unwrap());
+                if edges & EDGE_ROW != 0 {
+                    record[20..24].copy_from_slice(&(edges | reach).to_ne_bytes());
+                }
+            }
+        }
+        rects
     }
 }
 
@@ -238,6 +266,55 @@ mod tests {
         let mut row = rect_row(0.0);
         row.rects[0..4].copy_from_slice(&x.to_ne_bytes());
         row
+    }
+
+    /// Whatever rows are at the top and bottom, once scrolled, their
+    /// backgrounds that may reach up or down do, and no others reach
+    /// further than core/gui.sls sent them.
+    #[hegel::test(test_cases = 300, database = None)]
+    fn only_the_top_and_bottom_rows_reach_past_them(tc: TestCase) {
+        let edges_of = |rects: &[u8]| -> Vec<u32> {
+            rects
+                .chunks_exact(RECT_BYTES)
+                .map(|r| u32::from_ne_bytes(r[20..24].try_into().unwrap()))
+                .collect()
+        };
+        let n = tc.draw(gs::integers::<u32>().min_value(1).max_value(8));
+        let mut screen = Screen::default();
+        let changed = (0..n)
+            .map(|i| {
+                let mut row = rect_row(0.0);
+                let e = [0, 1, 2, EDGE_ROW, EDGE_ROW | 3]
+                    [tc.draw(gs::integers::<usize>().max_value(4))];
+                row.rects[20..24].copy_from_slice(&e.to_ne_bytes());
+                (i, row)
+            })
+            .collect();
+        screen.apply(Update {
+            rows: n,
+            whole: true,
+            changed,
+            ..Update::default()
+        });
+        let by = tc.draw(
+            gs::integers::<i32>()
+                .min_value(-(n as i32))
+                .max_value(n as i32),
+        );
+        screen.apply(Update {
+            rows: n,
+            scrolls: vec![(0, n, by)],
+            ..Update::default()
+        });
+        let mut want = Vec::new();
+        for (y, row) in screen.rows.iter().enumerate() {
+            for e in edges_of(&row.data.rects) {
+                let reach = if y == 0 { EDGE_TOP } else { 0 }
+                    | if y + 1 == n as usize { EDGE_BOTTOM } else { 0 };
+                want.push(if e & EDGE_ROW != 0 { e | reach } else { e });
+            }
+        }
+        assert_eq!(edges_of(&screen.rects()), want);
     }
 
     #[test]

@@ -6,7 +6,7 @@
 //! (slug.rs) at whatever size, on a grid of cells as a terminal's.
 //!
 //! [`Fonts::layout`] takes a frame's cells and returns what to draw: glyphs
-//! (kernel/gui.slang's `Glyph`) and rectangles for underlines. Runs of
+//! (kernel/render/gui.slang's `Glyph`) and rectangles for underlines. Runs of
 //! cells in one style and color are shaped together, so ligatures and
 //! combining marks work; each glyph is placed at the cell its cluster
 //! starts in, so the grid stays a grid whatever the font's advances.
@@ -35,14 +35,16 @@ use fontique::{
 use harfrust::{Buffer, Feature, ShapeOptions, ShaperFont};
 use skrifa::{DrawMemory, GlyphId, ScalerFont};
 
-use crate::color::{self, Placing};
-use crate::image::PICTURE_BYTES;
+use crate::color::Placing;
 use crate::slug::{Atlas, Curve, Outline, Shape, embolden, slant};
-use crate::timing;
+use quad_image::PICTURE_BYTES;
+use quad_timing as timing;
 
 mod cells;
+pub mod color;
 mod faces;
 mod layout;
+pub mod slug;
 mod sprites;
 
 pub use cells::characters;
@@ -51,9 +53,9 @@ use faces::*;
 pub use layout::Layout;
 use sprites::Sprite;
 
-/// A glyph as the shader reads it: `Glyph` in kernel/gui.slang.
+/// A glyph as the shader reads it: `Glyph` in kernel/render/gui.slang.
 pub const GLYPH_BYTES: usize = 64;
-/// A rectangle as the shader reads it: `Rect` in kernel/gui.slang.
+/// A rectangle as the shader reads it: `Rect` in kernel/render/gui.slang.
 pub const RECT_BYTES: usize = 32;
 /// A cell as Scheme sends it (core/gui.sls): seven u32s.
 pub const CELL_BYTES: usize = 28;
@@ -166,7 +168,7 @@ struct Face {
 /// Color glyphs painted so far (color.rs), their pixels end to end: what
 /// the pictures of [`Layout`]s show.
 pub struct Colors {
-    /// 0xAABBGGRR, as kernel/image.rs's pixels are.
+    /// 0xAABBGGRR, as kernel/image/'s pixels are.
     pub pixels: Vec<u32>,
     /// Changes whenever `pixels` does; never the same for two contents.
     pub generation: u64,

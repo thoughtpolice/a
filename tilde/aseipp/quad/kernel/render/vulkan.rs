@@ -32,7 +32,7 @@ use super::{
     Buffers, DrawList, GLYPH_FRAGMENT, GLYPH_VERTEX, IMAGE_FRAGMENT, IMAGE_VERTEX, Params,
     Pipeline, RECT_FRAGMENT, RECT_VERTEX, clear_color, entry_point_name, is_srgb, vk_error,
 };
-use crate::timing;
+use quad_timing as timing;
 
 // MARK: The instance and devices
 
@@ -254,7 +254,7 @@ impl Drop for Device {
 
 // MARK: Pipelines
 
-/// The three pipelines (kernel/gui.slang), drawing in `format`: four-vertex
+/// The three pipelines (kernel/render/gui.slang), drawing in `format`: four-vertex
 /// strips, blending by alpha over what was drawn before, their data found
 /// by address in their push constants ([`Params`]).
 pub(super) struct Pipelines {
@@ -1117,7 +1117,7 @@ impl Surface {
 
     /// Its format on `physical`: sRGB, so that frames blend in linear
     /// light, else UNORM, which takes sRGB colors as they are (see
-    /// kernel/gui.slang).
+    /// kernel/render/gui.slang).
     pub(super) fn format(&self, physical: &Physical) -> Result<vk::SurfaceFormatKHR, String> {
         self.checked(physical)?;
         // SAFETY: as for supports.

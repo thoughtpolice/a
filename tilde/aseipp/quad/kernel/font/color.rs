@@ -8,8 +8,8 @@
 //!
 //! Text is drawn from outlines on the GPU (slug.rs); color glyphs are
 //! painted here instead, on the CPU, once for each size and cell, into
-//! pictures as big as their cells, which kernel/gui.slang's image pipeline
-//! draws as it does images (kernel/image.rs). Paths are filled with
+//! pictures as big as their cells, which kernel/render/gui.slang's image pipeline
+//! draws as it does images (kernel/image/). Paths are filled with
 //! coverage found exactly from their areas, as font-rs's accumulation
 //! rasterizer does, and layers are composited as the `COLR` specification
 //! says, in premultiplied sRGB, as browsers do.
@@ -20,11 +20,11 @@ use skrifa::font::glyph::color::{Brush, Color, ColorStop, CompositeMode, Extend,
 use skrifa::metrics::BoundingBox;
 use skrifa::{DrawMemory, GlyphId, PathSink, ScalerFont};
 
-use crate::image;
+use quad_image as image;
 
 /// A color glyph, painted: `width` by `height` pixels, each 0xAABBGGRR
 /// (RGBA bytes, little-endian), sRGB-encoded, alpha not premultiplied, as
-/// kernel/image.rs's pixels are.
+/// kernel/image/'s pixels are.
 #[derive(Debug)]
 pub struct Painted {
     pub width: u32,
@@ -963,7 +963,7 @@ mod tests {
     fn layers_clip_and_fill() {
         // Boxes filled with a palette color and the text's (the font is
         // only for its outlines, which boxes do not need).
-        let font = skrifa::Font::new(crate::font::BUILT_IN[0], 0).unwrap();
+        let font = skrifa::Font::new(crate::BUILT_IN[0], 0).unwrap();
         let palette = [Color {
             red: 255,
             green: 0,

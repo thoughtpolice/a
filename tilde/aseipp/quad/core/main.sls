@@ -18,6 +18,8 @@
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
           (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad testing)
+          ;; Loaded for init files and extensions, which nothing here uses.
+          (quad form)
           (quad frontend) (only (quad native) timing-mark gui-prepare gui-display?))
 
   ;; Sessions over iroh, held while their connections are used: one that

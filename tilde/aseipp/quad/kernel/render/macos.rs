@@ -8,7 +8,7 @@
 //! as on Linux. Metal is called in metal.rs alone.
 //!
 //! A window draws in BGRA8 sRGB, so that frames blend in linear light (see
-//! kernel/gui.slang), and its layer says its colors are sRGB's, which macOS
+//! kernel/render/gui.slang), and its layer says its colors are sRGB's, which macOS
 //! matches to the display's, as terminals' are. Metal presents whole
 //! drawables, so the rows a frame changed are not told to the compositor.
 

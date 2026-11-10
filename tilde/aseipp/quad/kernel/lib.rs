@@ -27,18 +27,17 @@ use std::time::{Duration, Instant};
 
 use chez::{ByteVec, Bytes, Mailbox, Object, Ref, RefMut};
 
-mod access;
-mod color;
-mod font;
-mod gui;
-mod image;
-mod main_thread;
-mod mesh;
-mod render;
-mod screen;
-mod slug;
-mod timing;
-mod voice;
+use quad_files as files;
+use quad_font as font;
+use quad_gui as gui;
+use quad_gui::screen;
+use quad_image as image;
+use quad_mesh as mesh;
+use quad_render as render;
+use quad_text as text;
+use quad_text::search;
+use quad_timing as timing;
+use quad_voice as voice;
 
 /// The BLAKE3 hash of a bytevector: a 32-byte bytevector.
 #[chez::procedure]
@@ -255,6 +254,150 @@ fn process_status(mut p: RefMut<Process>) -> Result<Option<i32>, String> {
 #[chez::procedure(name = "process-stop!")]
 fn process_stop(mut p: RefMut<Process>, grace_ms: u64) {
     p.stop(Duration::from_millis(grace_ms));
+}
+
+// ---------------------------------------------------------------------------
+// Buffer text (text.rs, for core/text.sls): positions in characters, lines
+// ending at "\n".
+
+#[chez::procedure(name = "rope-new")]
+fn rope_new(s: String) -> Object<text::Text> {
+    Object(text::Text::new(&s))
+}
+
+/// The file at path, read straight into a rope: a file of tens of
+/// megabytes need not become a Scheme string first.
+#[chez::procedure(name = "rope-read")]
+fn rope_read(path: String) -> Result<Object<text::Text>, String> {
+    text::Text::read(&path)
+        .map(Object)
+        .map_err(|e| format!("{path}: {e}"))
+}
+
+#[chez::procedure]
+fn rope_length(t: Ref<text::Text>) -> usize {
+    t.len()
+}
+
+#[chez::procedure]
+fn rope_line_count(t: Ref<text::Text>) -> usize {
+    t.line_count()
+}
+
+#[chez::procedure]
+fn rope_line_start(t: Ref<text::Text>, line: usize) -> usize {
+    t.line_start(line)
+}
+
+#[chez::procedure]
+fn rope_line_end(t: Ref<text::Text>, line: usize) -> usize {
+    t.line_end(line)
+}
+
+#[chez::procedure]
+fn rope_line_of(t: Ref<text::Text>, pos: usize) -> usize {
+    t.line_of(pos)
+}
+
+/// The text from start to end, clamped to it.
+#[chez::procedure]
+fn rope_slice(t: Ref<text::Text>, start: usize, end: usize) -> String {
+    t.slice(start, end)
+}
+
+#[chez::procedure(name = "rope-insert!")]
+fn rope_insert(mut t: RefMut<text::Text>, pos: usize, s: String) {
+    t.insert(pos, &s);
+}
+
+#[chez::procedure(name = "rope-remove!")]
+fn rope_remove(mut t: RefMut<text::Text>, start: usize, end: usize) {
+    t.remove(start, end);
+}
+
+/// Where needle first occurs at or after from, or #f.
+#[chez::procedure]
+fn rope_find_forward(t: Ref<text::Text>, needle: String, from: usize) -> Option<usize> {
+    t.find_forward(&needle, from)
+}
+
+/// Where needle last occurs starting at or before from, or #f.
+#[chez::procedure]
+fn rope_find_backward(t: Ref<text::Text>, needle: String, from: usize) -> Option<usize> {
+    t.find_backward(&needle, from)
+}
+
+/// A search for pattern (a regular expression if regex, else the text
+/// itself), ignoring case with fold: an error says what is wrong with a
+/// pattern that is not one.
+#[chez::procedure(name = "search-new")]
+fn search_new(pattern: String, regex: bool, fold: bool) -> Result<Object<search::Search>, String> {
+    search::Search::new(&pattern, regex, fold).map(Object)
+}
+
+/// The first match at or after pos, as (start end); with wrap, else the
+/// first in the text; or #f.
+#[chez::procedure]
+fn search_next(
+    s: Ref<search::Search>,
+    t: Ref<text::Text>,
+    pos: usize,
+    wrap: bool,
+) -> Option<Vec<usize>> {
+    s.next(&t, pos, wrap).map(|(a, b)| vec![a, b])
+}
+
+/// The match starting nearest before pos, or at it; with wrap, else the
+/// last in the text; or #f.
+#[chez::procedure]
+fn search_prev(
+    s: Ref<search::Search>,
+    t: Ref<text::Text>,
+    pos: usize,
+    wrap: bool,
+) -> Option<Vec<usize>> {
+    s.prev(&t, pos, wrap).map(|(a, b)| vec![a, b])
+}
+
+/// The matches from start to end, apart: (start end start end ...).
+#[chez::procedure]
+fn search_all(s: Ref<search::Search>, t: Ref<text::Text>, start: usize, end: usize) -> Vec<usize> {
+    s.all(&t, start, end)
+}
+
+// ---------------------------------------------------------------------------
+// A project's files (files.rs)
+
+/// The files under dir that its ignore files do not ignore, relative to
+/// it, at most limit of them.
+#[chez::procedure]
+fn project_files(dir: String, limit: usize) -> Vec<String> {
+    files::project_files(&dir, limit)
+}
+
+/// Search the files under dir for pattern (a regular expression if regex,
+/// else the text), ignoring case with fold: what it finds comes through
+/// grep-take!, once grep-fd is readable. It stops when collected.
+#[chez::procedure(name = "grep-start")]
+fn grep_start(
+    dir: String,
+    pattern: String,
+    regex: bool,
+    fold: bool,
+) -> Result<Object<files::Grep>, String> {
+    files::Grep::start(&dir, &pattern, regex, fold).map(Object)
+}
+
+#[chez::procedure]
+fn grep_fd(g: Ref<files::Grep>) -> i32 {
+    g.found.fd()
+}
+
+/// What the search found since last asked: ("hit" path line column text)
+/// for each line, from line 0 and column 0, then ("done" hits stopped?).
+#[chez::procedure(name = "grep-take!")]
+fn grep_take(g: Ref<files::Grep>) -> Vec<files::Found> {
+    g.found.take()
 }
 
 // ---------------------------------------------------------------------------
@@ -594,6 +737,10 @@ chez::library! {
     /// `(quad native)`.
     pub fn native() -> "quad native" {
         blake3, version, timing_mark, png_file_write, png_file_read, make_ticker, ticker_fd, ticker_take,
+        rope_new, rope_read, rope_length, rope_line_count, rope_line_start, rope_line_end, rope_line_of, rope_slice,
+        rope_insert, rope_remove, rope_find_forward, rope_find_backward,
+        search_new, search_next, search_prev, search_all,
+        project_files, grep_start, grep_fd, grep_take,
         spawn_process, launch_process, process_input_fd, process_output_fd,
         process_close_input, process_status, process_stop,
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,

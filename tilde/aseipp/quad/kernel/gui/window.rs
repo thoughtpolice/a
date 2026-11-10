@@ -366,11 +366,12 @@ impl Win {
         // frame callback that paces the next request_redraw.
         self.window.pre_present_notify();
         let damage = self.damage.as_deref().map(|rows| {
+            let size = self.window.inner_size();
             damage_bands(
                 rows,
                 self.fonts.metrics.cell[1],
                 self.fonts.metrics.padding,
-                self.window.inner_size().width,
+                [size.width, size.height],
             )
         });
         match self.renderer.draw(&list, damage.as_deref()) {
@@ -420,8 +421,15 @@ pub(super) fn access_view(
 
 /// Rows that changed, as rectangles of the window (x, y, width, height,
 /// in pixels): a band across it for each run of changed rows, `cell_h`
-/// pixels high each, below `padding`.
-pub(super) fn damage_bands(rows: &[bool], cell_h: f32, padding: f32, width: u32) -> Vec<[u32; 4]> {
+/// pixels high each, below `padding`. The top row's reaches up to the
+/// window's top, and the bottom row's down to its bottom, as their
+/// backgrounds may (Screen::rects).
+pub(super) fn damage_bands(
+    rows: &[bool],
+    cell_h: f32,
+    padding: f32,
+    [width, height]: [u32; 2],
+) -> Vec<[u32; 4]> {
     let mut bands = Vec::new();
     let mut r = 0;
     while r < rows.len() {
@@ -433,9 +441,17 @@ pub(super) fn damage_bands(rows: &[bool], cell_h: f32, padding: f32, width: u32)
         while r < rows.len() && rows[r] {
             r += 1;
         }
-        let top = (padding + start as f32 * cell_h).floor() as u32;
-        let bottom = (padding + r as f32 * cell_h).ceil() as u32;
-        bands.push([0, top, width, bottom - top]);
+        let top = if start == 0 {
+            0
+        } else {
+            (padding + start as f32 * cell_h).floor() as u32
+        };
+        let bottom = if r == rows.len() {
+            height
+        } else {
+            (padding + r as f32 * cell_h).ceil() as u32
+        };
+        bands.push([0, top, width, bottom.saturating_sub(top)]);
     }
     bands
 }
@@ -492,25 +508,43 @@ mod tests {
     fn changed_rows_are_bands_across_the_window() {
         let rows = [false, true, true, false, true];
         assert_eq!(
-            damage_bands(&rows, 10.5, 2.0, 300),
-            [[0, 12, 300, 22], [0, 44, 300, 11]]
+            damage_bands(&rows, 10.5, 2.0, [300, 60]),
+            [[0, 12, 300, 22], [0, 44, 300, 16]]
         );
-        assert!(damage_bands(&[false; 3], 10.0, 0.0, 300).is_empty());
+        assert_eq!(
+            damage_bands(&[true, false], 10.5, 2.0, [300, 60]),
+            [[0, 0, 300, 13]]
+        );
+        assert!(damage_bands(&[false; 3], 10.0, 0.0, [300, 60]).is_empty());
     }
 
     /// The compositor is told of exactly the rows that changed: the bands
-    /// cover them, and only them.
+    /// cover them, and only them, but for the padding past the top and
+    /// bottom rows.
     #[hegel::test(test_cases = 300, database = None)]
     fn bands_are_the_changed_rows(tc: TestCase) {
         let rows = tc.draw(gs::vecs(gs::booleans()).max_size(40));
         let (cell_h, padding) = (tc.draw(gs::integers::<u32>().min_value(1).max_value(40)), 2);
-        let bands = damage_bands(&rows, cell_h as f32, padding as f32, 300);
+        // The grid, its padding, and what is left of a cell at the bottom.
+        let grid = rows.len() as u32 * cell_h;
+        let height = grid + 2 * padding + tc.draw(gs::integers::<u32>().max_value(cell_h - 1));
+        let bands = damage_bands(&rows, cell_h as f32, padding as f32, [300, height]);
+        // A band's edge, as a row's: the window's edges are the grid's.
+        let row_at = |y: u32| {
+            let y = if y == 0 {
+                padding
+            } else if y == height {
+                padding + grid
+            } else {
+                y
+            };
+            assert_eq!((y - padding) % cell_h, 0);
+            (y - padding) / cell_h
+        };
         let mut covered = vec![false; rows.len()];
         for [x, y, w, h] in bands {
             assert_eq!((x, w), (0, 300));
-            assert_eq!((y - padding) % cell_h, 0);
-            assert_eq!(h % cell_h, 0);
-            for r in (y - padding) / cell_h..(y - padding + h) / cell_h {
+            for r in row_at(y)..row_at(y + h) {
                 assert!(!covered[r as usize], "row {r} twice");
                 covered[r as usize] = true;
             }

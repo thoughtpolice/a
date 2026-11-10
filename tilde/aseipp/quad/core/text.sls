@@ -1,180 +1,110 @@
-;; text.sls -- buffer text: a gap buffer of characters, with a line index
+;; text.sls -- buffer text: a rope, in the kernel, with a window onto it here
 ;;
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
 ;; Positions are character offsets in [0, length]. Lines are separated by
-;; #\newline; line n starts after the n-th newline. The line index, a vector
-;; of line starts, is built on first use and then updated by each edit, in
-;; time proportional to the number of lines rather than characters.
+;; #\newline; line n starts after the n-th newline. The text is a rope in
+;; the Rust half (kernel/text/, on ropey), so an edit or a lookup of a
+;; line takes time in the logarithm of the text's size, however big it is.
+;;
+;; A call into Rust costs ten times a string-ref, and the highlighter,
+;; movements and searches read a character at a time: text-ref reads from
+;; a window of the text kept here, a string of a few thousand characters
+;; around the last one read, fetched again when a read falls outside it.
+;; An edit closes the window.
 (library (quad text)
-  (export make-text text? text-length text-ref text-substring text->string
+  (export make-text read-text-file text? text-rope text-length text-ref text-substring text->string
           text-insert! text-delete! text-version
           text-line-count text-line-start text-line-end text-line-of
           text-line-string text-column text-pos-at text-match-at?
           text-search-forward text-search-backward)
-  (import (chezscheme))
+  (import (chezscheme)
+          (only (quad native) rope-new rope-read rope-length rope-line-count rope-line-start rope-line-end
+                rope-line-of rope-slice rope-insert! rope-remove! rope-find-forward
+                rope-find-backward))
 
+  ;; rope: the kernel's. len: its length, kept here, as it is asked for
+  ;; often. window: the text from window-start on, "" when closed.
   (define-record-type text
-    (fields (mutable buf) (mutable gs) (mutable ge)
-            (mutable lines) (mutable version))
+    (fields rope (mutable len) (mutable version) (mutable window-start) (mutable window))
     (protocol
      (lambda (new)
        (case-lambda
-        [() (new (make-string 64) 0 64 #f 0)]
-        [(s)
-         (let* ([n (string-length s)]
-                [cap (+ n 64)]
-                [buf (make-string cap)])
-           (string-copy! s 0 buf 0 n)
-           (new buf n cap #f 0))]))))
+        [() (new (rope-new "") 0 0 0 "")]
+        ;; A string, or a rope from rope-read.
+        [(s) (if (string? s)
+                 (new (rope-new s) (string-length s) 0 0 "")
+                 (new s (rope-length s) 0 0 ""))]))))
 
-  (define (text-length t) (- (string-length (text-buf t)) (- (text-ge t) (text-gs t))))
+  ;; The text of the file at path, as UTF-8 (what is not, U+FFFD), read in
+  ;; the kernel.
+  (define (read-text-file path) (make-text (rope-read path)))
+
+  (define (text-length t) (text-len t))
+
+  ;; A window is this many characters, from this many before the one read:
+  ;; reads that move backwards (a movement left, a search back) fetch as
+  ;; seldom as those that move forwards.
+  (define window-size 4096)
+  (define window-before 2048)
 
   (define (text-ref t i)
-    (let ([gs (text-gs t)])
-      (string-ref (text-buf t) (if (< i gs) i (+ i (- (text-ge t) gs))))))
+    (let ([j (- i (text-window-start t))] [w (text-window t)])
+      (if (and (fixnum? j) (fx>= j 0) (fx< j (string-length w)))
+          (string-ref w j)
+          (begin
+            (unless (and (fixnum? i) (fx>= i 0) (fx< i (text-len t)))
+              (errorf 'text-ref "~s is not a position in a text of ~s characters" i (text-len t)))
+            (let* ([s (max 0 (- i window-before))]
+                   [w (rope-slice (text-rope t) s (+ s window-size))])
+              (text-window-start-set! t s)
+              (text-window-set! t w)
+              (string-ref w (- i s)))))))
 
   (define (text-substring t s e)
-    (let* ([s (max 0 s)] [e (min e (text-length t))]
-           [out (make-string (max 0 (- e s)))]
-           [gs (text-gs t)] [gap (- (text-ge t) gs)] [buf (text-buf t)])
-      (when (< s e)
-        (cond
-         [(<= e gs) (string-copy! buf s out 0 (- e s))]
-         [(>= s gs) (string-copy! buf (+ s gap) out 0 (- e s))]
-         [else
-          (string-copy! buf s out 0 (- gs s))
-          (string-copy! buf (text-ge t) out (- gs s) (- e gs))]))
-      out))
-
-  (define (text->string t) (text-substring t 0 (text-length t)))
-
-  (define (move-gap! t pos)
-    (let ([gs (text-gs t)] [ge (text-ge t)] [buf (text-buf t)])
+    (let ([s (max 0 s)] [e (min e (text-len t))])
       (cond
-       [(< pos gs)
-        (let ([n (- gs pos)])
-          (string-copy! buf pos buf (- ge n) n)
-          (text-gs-set! t pos)
-          (text-ge-set! t (- ge n)))]
-       [(> pos gs)
-        (let ([n (- pos gs)])
-          (string-copy! buf ge buf gs n)
-          (text-gs-set! t pos)
-          (text-ge-set! t (+ ge n)))])))
+       [(>= s e) ""]
+       ;; Within the window: no call needed (a line drawn, a word read).
+       [(let ([ws (text-window-start t)])
+          (and (>= s ws) (<= e (+ ws (string-length (text-window t))))))
+        (let ([ws (text-window-start t)]) (substring (text-window t) (- s ws) (- e ws)))]
+       [else (rope-slice (text-rope t) s e)])))
 
-  (define (ensure-gap! t n)
-    (when (< (- (text-ge t) (text-gs t)) n)
-      (let* ([buf (text-buf t)] [len (string-length buf)]
-             [tail (- len (text-ge t))]
-             [cap (max (* 2 len) (+ len n 64))]
-             [new (make-string cap)])
-        (string-copy! buf 0 new 0 (text-gs t))
-        (string-copy! buf (text-ge t) new (- cap tail) tail)
-        (text-buf-set! t new)
-        (text-ge-set! t (- cap tail)))))
+  (define (text->string t) (text-substring t 0 (text-len t)))
 
-  (define (touch! t)
+  (define (edited! t)
+    (text-window-set! t "")
     (text-version-set! t (+ 1 (text-version t))))
-
-  ;; The index of the first line start greater than pos.
-  (define (first-start-after v pos)
-    (let loop ([lo 0] [hi (vector-length v)])
-      (if (>= lo hi) lo
-          (let ([mid (quotient (+ lo hi) 2)])
-            (if (<= (vector-ref v mid) pos) (loop (+ mid 1) hi) (loop lo mid))))))
-
-  ;; Update the line index for s inserted at pos.
-  (define (index-insert! t pos s)
-    (let ([v (text-lines t)])
-      (when v
-        (let* ([n (string-length s)]
-               [new (let loop ([i (- n 1)] [acc '()])
-                      (cond [(< i 0) acc]
-                            [(char=? (string-ref s i) #\newline) (loop (- i 1) (cons (+ pos i 1) acc))]
-                            [else (loop (- i 1) acc)]))]
-               [k (first-start-after v pos)]
-               [m (length new)]
-               [out (make-vector (+ (vector-length v) m))])
-          (do ([i 0 (+ i 1)]) ((= i k)) (vector-set! out i (vector-ref v i)))
-          (let loop ([l new] [i k]) (unless (null? l) (vector-set! out i (car l)) (loop (cdr l) (+ i 1))))
-          (do ([i k (+ i 1)]) ((= i (vector-length v)))
-            (vector-set! out (+ i m) (+ n (vector-ref v i))))
-          (text-lines-set! t out)))))
-
-  ;; Update the line index for [s, e) deleted.
-  (define (index-delete! t s e)
-    (let ([v (text-lines t)])
-      (when v
-        (let* ([k (first-start-after v s)]   ; starts in (s, e] go
-               [j (first-start-after v e)]
-               [gone (- j k)]
-               [out (make-vector (- (vector-length v) gone))])
-          (do ([i 0 (+ i 1)]) ((= i k)) (vector-set! out i (vector-ref v i)))
-          (do ([i j (+ i 1)]) ((= i (vector-length v)))
-            (vector-set! out (- i gone) (- (vector-ref v i) (- e s))))
-          (text-lines-set! t out)))))
 
   (define (text-insert! t pos s)
     (let ([n (string-length s)])
       (when (> n 0)
-        (move-gap! t pos)
-        (ensure-gap! t n)
-        (string-copy! s 0 (text-buf t) (text-gs t) n)
-        (text-gs-set! t (+ (text-gs t) n))
-        (index-insert! t pos s)
-        (touch! t))))
+        (rope-insert! (text-rope t) (max 0 (min pos (text-len t))) s)
+        (text-len-set! t (+ (text-len t) n))
+        (edited! t))))
 
   (define (text-delete! t s e)
-    (when (< s e)
-      (move-gap! t s)
-      (text-ge-set! t (+ (text-ge t) (- e s)))
-      (index-delete! t s e)
-      (touch! t)))
+    (let ([s (max 0 s)] [e (min e (text-len t))])
+      (when (< s e)
+        (rope-remove! (text-rope t) s e)
+        (text-len-set! t (- (text-len t) (- e s)))
+        (edited! t))))
 
-  ;; A vector of line start positions, built by scanning both sides of
-  ;; the gap.
-  (define (line-index t)
-    (or (text-lines t)
-        (let ([buf (text-buf t)] [gs (text-gs t)] [ge (text-ge t)])
-          (let ([acc (let scan ([i 0] [end gs] [offset 0] [acc '(0)])
-                       (cond
-                        [(< i end)
-                         (scan (+ i 1) end offset
-                               (if (char=? (string-ref buf i) #\newline) (cons (+ i offset 1) acc) acc))]
-                        [(= end gs) (scan ge (string-length buf) (- gs ge) acc)]
-                        [else acc]))])
-            (let ([v (list->vector (reverse acc))])
-              (text-lines-set! t v)
-              v)))))
+  (define (text-line-count t) (rope-line-count (text-rope t)))
 
-  (define (text-line-count t) (vector-length (line-index t)))
-
-  (define (text-line-start t line)
-    (let ([v (line-index t)])
-      (vector-ref v (max 0 (min line (- (vector-length v) 1))))))
+  ;; Where line starts, the line clamped to the text's.
+  (define (text-line-start t line) (rope-line-start (text-rope t) (max 0 line)))
 
   ;; The position of line's newline, or the end of the text.
-  (define (text-line-end t line)
-    (let ([v (line-index t)])
-      (if (>= (+ line 1) (vector-length v))
-          (text-length t)
-          (- (vector-ref v (+ line 1)) 1))))
+  (define (text-line-end t line) (rope-line-end (text-rope t) (max 0 line)))
 
   (define (text-line-string t line)
     (text-substring t (text-line-start t line) (text-line-end t line)))
 
-  ;; The line containing pos, by binary search.
-  (define (text-line-of t pos)
-    (let ([v (line-index t)])
-      (let loop ([lo 0] [hi (- (vector-length v) 1)])
-        (if (>= lo hi)
-            lo
-            (let ([mid (quotient (+ lo hi 1) 2)])
-              (if (<= (vector-ref v mid) pos)
-                  (loop mid hi)
-                  (loop lo (- mid 1))))))))
+  ;; The line containing pos.
+  (define (text-line-of t pos) (rope-line-of (text-rope t) (max 0 pos)))
 
   (define (text-column t pos) (- pos (text-line-start t (text-line-of t pos))))
 
@@ -189,23 +119,18 @@
      [(t i needle) (text-match-at? t i needle #f)]
      [(t i needle fold?)
       (let ([m (string-length needle)] [same? (if fold? char-ci=? char=?)])
-        (and (<= (+ i m) (text-length t))
+        (and (>= i 0) (<= (+ i m) (text-length t))
              (let loop ([j 0])
                (or (= j m)
                    (and (same? (text-ref t (+ i j)) (string-ref needle j))
                         (loop (+ j 1)))))))]))
 
+  ;; Where needle first occurs at or after pos, or #f.
   (define (text-search-forward t needle pos)
-    (let ([n (text-length t)])
-      (and (> (string-length needle) 0)
-           (let loop ([i pos])
-             (cond [(> (+ i (string-length needle)) n) #f]
-                   [(text-match-at? t i needle) i]
-                   [else (loop (+ i 1))])))))
-
-  (define (text-search-backward t needle pos)
     (and (> (string-length needle) 0)
-         (let loop ([i (min pos (- (text-length t) (string-length needle)))])
-           (cond [(< i 0) #f]
-                 [(text-match-at? t i needle) i]
-                 [else (loop (- i 1))])))))
+         (rope-find-forward (text-rope t) needle (max 0 pos))))
+
+  ;; Where needle last occurs starting at or before pos, or #f.
+  (define (text-search-backward t needle pos)
+    (and (> (string-length needle) 0) (>= pos 0)
+         (rope-find-backward (text-rope t) needle pos))))

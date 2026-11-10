@@ -20,68 +20,9 @@
           face-id add-decorator! remove-decorator! add-view-decorator! remove-view-decorator!
           define-buffer-drawer!
           make-picture picture? picture-key picture-width picture-height picture-png
-          place-picture! put-string! ui-face)
+          place-picture! put-string! ui-face fill-row! grid-rows grid-cols)
   (import (chezscheme) (quad util) (quad text) (quad face)
-          (quad syntax) (quad buffer) (quad selection) (quad editor))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Faces, interned so cells compare with eq?
-
-  (define merged (make-eq-hashtable))
-  (define (face-merge base top)
-    (if (eq? top default-face)
-        base
-        (let ([inner (or (hashtable-ref merged base #f)
-                         (let ([h (make-eq-hashtable)]) (hashtable-set! merged base h) h))])
-          (or (hashtable-ref inner top #f)
-              (let ([f (merge-faces base top)]) (hashtable-set! inner top f) f)))))
-
-  (define (F name) (face-ref name))
-  (define (UI name) (face-merge (F 'ui) (F name)))
-  (define (ui-face name) (UI name))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Grids
-
-  ;; images: (picture row col rows cols) for each picture placed.
-  (define-record-type grid (fields rows cols chars faces (mutable images)))
-
-  (define (new-grid rows cols face)
-    (make-grid rows cols
-               (let ([v (make-vector rows)])
-                 (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols #\space))))
-               (let ([v (make-vector rows)])
-                 (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols face))))
-               '()))
-
-  (define (put! g r c ch face)
-    (when (and (< -1 r (grid-rows g)) (< -1 c (grid-cols g)))
-      (vector-set! (vector-ref (grid-chars g) r) c ch)
-      (vector-set! (vector-ref (grid-faces g) r) c face)))
-
-  (define (face-at g r c) (vector-ref (vector-ref (grid-faces g) r) c))
-
-  ;; Write a string at (r, c), clipped to `limit` columns; returns the
-  ;; column after it.
-  (define put-string!
-    (case-lambda
-     [(g r c s face) (put-string! g r c s face (grid-cols g))]
-     [(g r c s face limit)
-      (let ([ref (lambda (i) (string-ref s i))] [n (string-length s)])
-        (let loop ([i 0] [col c])
-          (if (or (= i n) (>= col limit))
-              col
-              (let* ([j (grapheme-end ref i n)] [w (grapheme-columns ref i j)])
-                (cond
-                 [(= w 0) (loop j col)]
-                 [(> (+ col w) limit) col]
-                 [else
-                  (put! g r col (if (= j (+ i 1)) (string-ref s i) (substring s i j)) face)
-                  (when (= w 2) (put! g r (+ col 1) 'wide face))
-                  (loop j (+ col w))])))))]))
-
-  (define (fill-row! g r c0 c1 face)
-    (do ([c c0 (+ c 1)]) ((>= c c1)) (put! g r c #\space face)))
+          (quad syntax) (quad buffer) (quad selection) (quad editor) (quad canvas) (quad widget))
 
   ;; ---------------------------------------------------------------------------
   ;; Pictures: images over cells
@@ -530,6 +471,11 @@
         (let* ([b (view-buffer v)] [t (buffer-text b)]
                [start (text-line-start t top)] [end (+ 1 (text-line-end t last))])
           (append (if (null? decorators) '() (decorations b start end))
+                  ;; Regions' faces (buffer.sls).
+                  (filter-map (lambda (r)
+                                (let ([f (region-get r 'face)])
+                                  (and f (list (region-start r) (region-end r) (if (face? f) f (F f))))))
+                              (regions-in b start end))
                   (if (null? view-decorators)
                       '()
                       (decoration-spans view-decorators (lambda (f) (f v start end))))))))
@@ -615,8 +561,15 @@
   (define (define-status-segment! side proc)
     (set! the-status-segments (append the-status-segments (list (cons side proc)))))
 
-  (define (draw-status! g row v width)
-    (let ([base (UI 'ui.statusline)])
+  (define draw-status!
+    (case-lambda
+     [(g row v width) (draw-status! g row v width #t)]
+     [(g row v width active?) (draw-status* g row v width active?)]))
+
+  ;; A pane's status line: an unfocused pane's (not active?) in
+  ;; ui.statusline.inactive.
+  (define (draw-status* g row v width active?)
+    (let ([base (UI (if active? 'ui.statusline 'ui.statusline.inactive))])
       (fill-row! g row 0 width base)
       (let* ([segs (filter-map (lambda (s) (let ([x ((cdr s) v)]) (and x (cons (car s) x)))) the-status-segments)]
              [lefts (filter (lambda (s) (eq? (car s) 'left)) segs)]
@@ -641,45 +594,168 @@
 
   ;; The bottom row: the prompt when one is open, else the message.
   (define (draw-bottom! g row width)
-    (let ([p (current-prompt)])
-      (fill-row! g row 0 width (UI 'ui.prompt))
-      (cond
-       [(and p (eq? (prompt-style p) 'line))
-        (let* ([col (put-string! g row 0 (prompt-label p) (UI 'ui.prompt.label))]
-               [col (put-string! g row (+ col 1) (prompt-input p) (UI 'ui.prompt))])
-          (list row (+ (string-width (prompt-label p)) 1
-                       (string-width (substring (prompt-input p) 0 (prompt-cursor p))))
-                'bar))]
-       [(current-message)
-        => (lambda (m)
-             (let ([text (car (reverse (cons "" (string-split (cdr m) #\newline))))])
-               (put-string! g row 0 (let ([lines (string-split (cdr m) #\newline)]) (car lines))
-                            (UI (car m)))
-               #f))]
-       [else #f])))
+    (fill-row! g row 0 width (UI 'ui.prompt))
+    (let ([m (current-message)])
+      (when m
+        (put-string! g row 0 (car (string-split (cdr m) #\newline)) (UI (car m))))))
 
   ;; ---------------------------------------------------------------------------
-  ;; Popups
+  ;; Overlays: the editor's own, from widgets (widget.sls)
+  ;;
+  ;; What a client shows over its panes follows from its state: its popup,
+  ;; its prompt (a picker, a dialog, a menu at the cursor, a line in the
+  ;; bottom row with completions above it), the legend of the active
+  ;; layer's keys. Each is an overlay (prompt.sls), made afresh each frame;
+  ;; extensions' overlays go between the popup and the prompt.
 
-  (define (draw-box! g top left height width title)
-    (let ([border (UI 'ui.popup.border)] [bg (UI 'ui.popup)])
-      (do ([r 0 (+ r 1)]) ((= r height))
-        (fill-row! g (+ top r) left (+ left width) bg))
-      (put! g top left #\╭ border)
-      (put! g top (+ left width -1) #\╮ border)
-      (put! g (+ top height -1) left #\╰ border)
-      (put! g (+ top height -1) (+ left width -1) #\╯ border)
-      (do ([c 1 (+ c 1)]) ((>= c (- width 1)))
-        (put! g top (+ left c) #\─ border)
-        (put! g (+ top height -1) (+ left c) #\─ border))
-      (do ([r 1 (+ r 1)]) ((>= r (- height 1)))
-        (put! g (+ top r) left #\│ border)
-        (put! g (+ top r) (+ left width -1) #\│ border))
-      (when title
-        (put-string! g top (+ left 2) (string-append " " title " ") (UI 'ui.popup.title) (+ left width -2)))))
+  (define (now x) (if (procedure? x) (x) x))
+
+  ;; A popup: at the right between the panes' top and bottom, its last
+  ;; lines if it has more than fit.
+  (define (popup-overlay pop)
+    (make-overlay
+     'popup
+     (lambda (a)
+       (let* ([cols (area-cols a)]
+              [width (min (- cols 2) (max 50 (quotient cols 2)) 100)]
+              [lines (popup-text pop (- width 4))]
+              [height (min (- (area-bottom a) (area-top a)) (max 3 (+ 2 (length lines))))])
+         (and (>= height 3) (> width 4)
+              (list (area-top a) (- cols width 1) height width))))
+     (framed (lambda () (now (popup-title pop)))
+          (text-lines (lambda () ((popup-lines-of pop))) #t)
+          (list (cons 'footer (lambda () (let ([f (now (popup-footer pop))]) (and f (string-append " " f " ")))))))
+     #f))
+
+  ;; A popup's lines, (text . face) each, wrapped to width.
+  (define (popup-text pop width)
+    (apply append (map (lambda (l) (map (lambda (t) (cons t (cdr l))) (wrap-text (car l) width)))
+                       ((popup-lines-of pop)))))
+
+  (define (popup-lines-of pop)
+    (lambda ()
+      (map (lambda (l) (cons (car l) (face-merge (UI 'ui.popup) (F (cdr l))))) ((popup-lines pop)))))
+
+  ;; A picker: a centered window with the query and the filtered
+  ;; candidates. Its hint, if any, wraps above the query. It is as tall as
+  ;; its most candidates need, so a few choices make a small window, which
+  ;; keeps its size as the query filters them.
+  (define (picker-overlay p)
+    (let* ([geometry
+            (lambda (rows cols)
+              (let* ([width (min (- cols 4) 100)]
+                     [most-height (min (- rows 4) 24)]
+                     [hint (if (prompt-hint p) (wrap-text (prompt-hint p) (- width 4)) '())]
+                     [hint (if (> (length hint) (quotient most-height 3))
+                               (append (take hint (- (quotient most-height 3) 1)) (list "…"))
+                               hint)]
+                     [skip (if (null? hint) 0 (+ (length hint) 1))]
+                     [height (min most-height (+ 4 skip (max 1 (prompt-most p))))])
+                (values width height hint)))]
+           [hint-lines '()])
+      (make-overlay
+       'picker
+       (lambda (a)
+         (let-values ([(width height hint) (geometry (area-rows a) (area-cols a))])
+           (set! hint-lines hint)
+           (list (quotient (- (area-rows a) height) 2) (quotient (- (area-cols a) width) 2) height width)))
+       (framed (prompt-label p)
+            (make-widget
+             (lambda (cols) 0)
+             (lambda (g row col rows cols)
+               (let* ([face (UI 'ui.popup)] [hint (map (lambda (l) (cons l face)) hint-lines)])
+                 (widget-draw!
+                  (apply stack
+                         (append
+                          (if (null? hint) '() (list (cons (length hint) (text-lines hint)) (cons 1 (rule))))
+                          (list (cons 1 (input-line "❯ " (UI 'ui.prompt.label) (prompt-input p) (prompt-cursor p) face))
+                                (cons 1 (rule))
+                                (cons #f (item-list (prompt-items p) (prompt-index p) '((scroll . center)))))))
+                  g row col rows cols))))
+            (list (cons 'right (lambda ()
+                                 (let ([n (length (prompt-items p))])
+                                   (format " ~a/~a " (if (= n 0) 0 (+ (prompt-index p) 1)) n))))))
+       #f)))
+
+  ;; A dialog: a centered window, the input wrapping inside it, a little
+  ;; above the middle as a form's would be. The box grows with the text up
+  ;; to half the screen, then scrolls to keep the cursor in view.
+  (define (dialog-overlay p)
+    (let* ([face (UI 'ui.popup)]
+           [input (lambda () (if (eq? (prompt-style p) 'secret)
+                                 (make-string (string-length (prompt-input p)) #\x2022)
+                                 (prompt-input p)))]
+           [area-of (lambda (rows)
+                      (text-area input (lambda () (prompt-cursor p)) face (prompt-hint p)
+                                 (face-merge face (F 'ui.popup.info)) 3 (max 1 (- (quotient rows 2) 2))))]
+           [inside #f])
+      (make-overlay
+       'dialog
+       (lambda (a)
+         (let* ([rows (area-rows a)] [cols (area-cols a)]
+                [width (min (- cols 4) 80)]
+                [t (area-of rows)]
+                [height (+ 2 (widget-rows t (- width 2)))])
+           (set! inside t)
+           (list (max 0 (- (quotient (- rows height) 2) (quotient rows 8))) (quotient (- cols width) 2) height width)))
+       (framed (prompt-label p)
+            (make-widget (lambda (cols) 0) (lambda (g row col rows cols) (widget-draw! inside g row col rows cols)))
+            '((footer . " ⏎ send · esc cancel ")))
+       #f)))
+
+  ;; A menu: a prompt's candidates in a small window at the primary cursor,
+  ;; below it where there is room, as completions are shown. What is typed
+  ;; goes into the text (the prompt's on-change puts it there), so the
+  ;; cursor stays in the text.
+  (define (menu-overlay p)
+    (make-overlay
+     'menu
+     (lambda (a)
+       (let ([cursor (area-cursor a)])
+         (and cursor
+              (let* ([r (car cursor)] [c (cadr cursor)] [top (area-top a)] [bottom (area-bottom a)]
+                     [items (prompt-items p)] [n (length items)]
+                     [shown (max 1 (min 10 n (- bottom top 2)))]
+                     [widest (apply max 0 (map (lambda (i) (string-width (car (car i)))) (take items (min n 100))))]
+                     [width (max 16 (min (- (area-cols a) 2) 60 (+ widest 4)))]
+                     [height (+ shown 2)])
+                (list (if (<= (+ r 1 height) bottom) (+ r 1) (max top (- r height)))
+                      (max 0 (min (- c 2) (- (area-cols a) width)))
+                      height width)))))
+     (framed (prompt-label p)
+          (item-list (lambda () (prompt-items p)) (lambda () (prompt-index p)) '((scroll . follow) (empty . "no matches")))
+          (list (cons 'footer (lambda ()
+                                (let ([n (length (prompt-items p))])
+                                  (and (> n 1) (format " ~a/~a " (+ (prompt-index p) 1) n)))))))
+     #f))
+
+  ;; A line prompt: its label and input in the bottom row, its candidates
+  ;; listed above the panes' bottom.
+  (define (line-overlays p)
+    (list
+     (make-overlay
+      'completions
+      (lambda (a)
+        (let ([n (min 10 (length (prompt-items p)))])
+          (and (> n 0) (list (- (area-bottom a) n) 0 n (area-cols a)))))
+      (item-list (lambda () (prompt-items p)) (lambda () (prompt-index p)) '((scroll . follow) (style . plain)))
+      #f)
+     (make-overlay
+      'prompt
+      (lambda (a) (list (- (area-rows a) 1) 0 1 (area-cols a)))
+      (make-widget
+       (lambda (cols) 1)
+       (lambda (g row col rows cols)
+         (fill-row! g row col (+ col cols) (UI 'ui.prompt))
+         (let ([c (put-string! g row col (prompt-label p) (UI 'ui.prompt.label))])
+           (put-string! g row (+ c 1) (prompt-input p) (UI 'ui.prompt))
+           (list row (+ col (string-width (prompt-label p)) 1
+                        (string-width (substring (prompt-input p) 0 (prompt-cursor p))))
+                 'bar))))
+      #f)))
 
   ;; The keys of the active layer, which-key style, in the bottom right.
-  (define (draw-legend! g rows cols bottom)
+  (define (legend-overlay)
     (let* ([km (active-layer-keymap)]
            [entries (keymap-entries km)]
            [entries (if (keymap-on-tap km)
@@ -688,239 +764,125 @@
                                       (list 'tap (if (symbol? c) (symbol->string c) "tap"))))
                               entries)
                         entries)]
-           [cell (lambda (e)
-                   (let ([k (car e)]
-                         [label (if (and (pair? (cdr e)) (eq? (cadr e) 'tap))
-                                    (string-append "tap: " (caddr e))
-                                    (binding-label (cdr e)))])
-                     (cons (pretty-key k) label)))]
-           [cells (map cell entries)]
+           [cells (map (lambda (e)
+                         (cons (pretty-key (car e))
+                               (if (and (pair? (cdr e)) (eq? (cadr e) 'tap))
+                                   (string-append "tap: " (caddr e))
+                                   (binding-label (cdr e)))))
+                       entries)]
            [key-w (apply max 1 (map (lambda (c) (string-width (car c))) cells))]
            [label-w (apply max 1 (map (lambda (c) (string-width (cdr c))) cells))]
            [col-w (min 30 (+ key-w label-w 3))]
-           [max-cols (max 1 (quotient (- (min cols 120) 4) col-w))]
-           [ncols (min max-cols (max 1 (quotient (+ (length cells) 7) 8)))]
-           [nrows (quotient (+ (length cells) ncols -1) ncols)]
-           [height (min (- bottom 1) (+ nrows 2))]
-           [width (+ 4 (* ncols col-w))]
-           [top (- bottom height)]
-           [left (max 0 (- cols width 1))])
-      (when (> height 2)
-        (draw-box! g top left height width (keymap-title km))
-        (let loop ([cs cells] [i 0])
-          (unless (null? cs)
-            (let* ([r (+ top 1 (remainder i nrows))] [c (+ left 2 (* col-w (quotient i nrows)))])
-              (when (< r (+ top height -1))
-                (put-string! g r (+ c (- key-w (string-width (car (car cs))))) (car (car cs)) (UI 'ui.popup.key))
-                (put-string! g r (+ c key-w 2) (cdr (car cs)) (UI 'ui.popup.info) (+ c col-w))))
-            (loop (cdr cs) (+ i 1)))))))
+           [nrows-of (lambda (cols)
+                       (let* ([max-cols (max 1 (quotient (- (min cols 120) 4) col-w))]
+                              [ncols (min max-cols (max 1 (quotient (+ (length cells) 7) 8)))])
+                         (values ncols (quotient (+ (length cells) ncols -1) ncols))))]
+           [nrows 1])
+      (make-overlay
+       'legend
+       (lambda (a)
+         (let-values ([(ncols rows) (nrows-of (area-cols a))])
+           (set! nrows rows)
+           (let ([height (min (- (area-bottom a) 1) (+ rows 2))] [width (+ 4 (* ncols col-w))])
+             (and (> height 2)
+                  (list (- (area-bottom a) height) (max 0 (- (area-cols a) width 1)) height width)))))
+       (framed (keymap-title km)
+            (make-widget (lambda (cols) nrows)
+                         (lambda (g row col rows cols)
+                           (widget-draw! (key-grid cells nrows col-w (UI 'ui.popup.key) (UI 'ui.popup.info))
+                                         g row col rows cols))))
+       #f)))
 
-  (define (pretty-key k)
-    (cond [(string=? k "space") "␣"]
-          [(string=? k "enter") "⏎"]
-          [(string=? k "backspace") "⌫"]
-          [(string=? k "tab") "⇥"]
-          [(string=? k "esc") "⎋"]
-          [else k]))
+  ;; What client c shows over its panes, from the bottom up.
+  (define (editor-overlays c)
+    (let ([p (current-prompt)])
+      (append
+       (if (current-popup) (list (popup-overlay (current-popup))) '())
+       (client-overlays c)
+       (cond
+        [(not p) '()]
+        [(eq? (prompt-style p) 'picker) (list (picker-overlay p))]
+        [(memq (prompt-style p) '(dialog secret)) (list (dialog-overlay p))]
+        [(eq? (prompt-style p) 'menu) (list (menu-overlay p))]
+        [(eq? (prompt-style p) 'line) (line-overlays p)]
+        [else '()])
+       (if (and (layer-legend-visible?) (not p)) (list (legend-overlay)) '()))))
 
-  ;; A picker: a centered window with the query and the filtered candidates.
-  ;; Its hint, if any, wraps above the query. It is as tall as its most
-  ;; candidates need, so a few choices make a small window, which keeps its
-  ;; size as the query filters them.
-  (define (draw-picker! g rows cols p)
-    (let* ([width (min (- cols 4) 100)]
-           [most-height (min (- rows 4) 24)]
-           [hint (if (prompt-hint p) (wrap-text (prompt-hint p) (- width 4)) '())]
-           [hint (if (> (length hint) (quotient most-height 3))
-                     (append (take hint (- (quotient most-height 3) 1)) (list "…"))
-                     hint)]
-           [skip (if (null? hint) 0 (+ (length hint) 1))]
-           [height (min most-height (+ 4 skip (max 1 (prompt-most p))))]
-           [top (quotient (- rows height) 2)]
-           [left (quotient (- cols width) 2)]
-           [query (+ top 1 skip)]
-           [items (prompt-items p)]
-           [n (length items)]
-           [visible (max 0 (- height 4 skip))]
-           [index (prompt-index p)]
-           [first (max 0 (min (- index (quotient visible 2)) (- n visible)))]
-           [rule (lambda (r) (do ([c 1 (+ c 1)]) ((>= c (- width 1))) (put! g r (+ left c) #\─ (UI 'ui.popup.border))))])
-      (draw-box! g top left height width (prompt-label p))
-      (let ([count (format " ~a/~a " (if (= n 0) 0 (+ index 1)) n)])
-        (put-string! g top (- (+ left width) 2 (string-length count)) count (UI 'ui.popup.border)))
-      (let loop ([ls hint] [r (+ top 1)])
-        (unless (null? ls)
-          (put-string! g r (+ left 2) (car ls) (UI 'ui.popup) (+ left width -2))
-          (loop (cdr ls) (+ r 1))))
-      (when (pair? hint) (rule (- query 1)))
-      (let ([col (put-string! g query (+ left 2) "❯ " (UI 'ui.prompt.label))])
-        (put-string! g query col (prompt-input p) (UI 'ui.popup) (+ left width -2))
-        (rule (+ query 1))
-        (let loop ([items (drop items first)] [i first] [r (+ query 2)])
-          (when (and (pair? items) (< r (+ top height -1)))
-            (draw-candidate! g r left width (car items) (= i index))
-            (loop (cdr items) (+ i 1) (+ r 1))))
-        (list query (+ col (string-width (substring (prompt-input p) 0 (prompt-cursor p)))) 'bar))))
-
-  ;; A prompt's candidate, as a row of a window from column left, width
-  ;; wide: its text, with the characters the query matched marked.
-  (define (draw-candidate! g r left width item selected?)
-    (let ([face (UI (if selected? 'ui.menu.selected 'ui.menu))] [hits (cdr item)] [text (car (car item))])
-      (fill-row! g r (+ left 1) (+ left width -1) face)
-      (let ([ref (lambda (i) (string-ref text i))] [n (string-length text)])
-        (let chars ([j 0] [c (+ left 2)])
-          (when (and (< j n) (< c (+ left width -2)))
-            (let* ([k (grapheme-end ref j n)]
-                   [hit? (exists (lambda (h) (<= j h (- k 1))) hits)])
-              (put! g r c (if (= k (+ j 1)) (string-ref text j) (substring text j k))
-                    (if hit? (face-merge face (F 'ui.menu.match)) face))
-              (chars k (+ c (max 1 (grapheme-columns ref j k))))))))))
-
-  ;; A menu: a prompt's candidates in a small window at the primary cursor,
-  ;; below it where there is room, as completions are shown. What is typed
-  ;; goes into the text (the prompt's on-change puts it there), so the
-  ;; cursor stays in the text. Rows top to bottom are the text's.
-  (define (draw-menu! g cols p v gutter text-top bottom)
-    (let* ([b (view-buffer v)] [t (buffer-text b)]
-           [pos (head-position v (view-primary v))]
-           [r (+ text-top (- (text-line-of t pos) (view-top v)))]
-           [c (+ gutter (- (display-column b pos) (view-left v)))]
-           [items (prompt-items p)] [n (length items)] [index (prompt-index p)]
-           [shown (max 1 (min 10 n (- bottom text-top 2)))]
-           [widest (apply max 0 (map (lambda (i) (string-width (car (car i)))) (take items (min n 100))))]
-           [width (max 16 (min (- cols 2) 60 (+ widest 4)))]
-           [height (+ shown 2)]
-           [top (if (<= (+ r 1 height) bottom) (+ r 1) (max text-top (- r height)))]
-           [left (max 0 (min (- c 2) (- cols width)))]
-           [first (max 0 (min (- index (- shown 1)) (- n shown)))])
-      (draw-box! g top left height width (prompt-label p))
-      (when (> n 1)
-        (let ([count (format " ~a/~a " (+ index 1) n)])
-          (put-string! g (+ top height -1) (- (+ left width) 2 (string-length count)) count (UI 'ui.popup.border))))
-      (if (= n 0)
-          (put-string! g (+ top 1) (+ left 2) "no matches" (face-merge (UI 'ui.popup) (F 'ui.text.dim)) (+ left width -2))
-          (let loop ([items (drop items first)] [i first] [row (+ top 1)])
-            (when (and (pair? items) (< row (+ top height -1)))
-              (draw-candidate! g row left width (car items) (= i index))
-              (loop (cdr items) (+ i 1) (+ row 1)))))
-      (and (< (- text-top 1) r bottom) (< (- gutter 1) c cols) (list r c 'bar))))
-
-  ;; Split text into lines of at most width columns, at spaces where it can.
-  (define (wrap-text text width)
-    (apply append
-           (map (lambda (line)
-                  (let loop ([line line] [acc '()])
-                    (if (<= (string-width line) width)
-                        (reverse (cons line acc))
-                        (let* ([ref (lambda (i) (string-ref line i))]
-                               [n (string-length line)]
-                               [cut (let fit ([i 0] [w 0])
-                                      (if (= i n)
-                                          i
-                                          (let* ([j (grapheme-end ref i n)] [cw (grapheme-columns ref i j)])
-                                            (if (> (+ w cw) width) i (fit j (+ w cw))))))]
-                               [space (let back ([i cut])
-                                        (cond [(<= i 0) #f]
-                                              [(char=? (string-ref line i) #\space) i]
-                                              [else (back (- i 1))]))]
-                               [at (if (and space (> space 0)) space (max 1 cut))])
-                          (loop (string-trim-left (substring line at (string-length line)))
-                                (cons (substring line 0 at) acc))))))
-                (string-split text #\newline))))
-
-;; Where lines of at most width columns start in s, breaking after a space
-  ;; where it can and after a newline always; no character is dropped, so a
-  ;; cursor index falls in exactly one line.
-  (define (wrap-starts s width)
-    (let ([n (string-length s)] [ref (lambda (i) (string-ref s i))])
-      (let loop ([start 0] [acc '()])
-        (let fit ([i start] [w 0] [space #f])
-          (if (= i n)
-              (reverse (cons start acc))
-              (let* ([j (grapheme-end ref i n)] [cw (grapheme-columns ref i j)])
-                (cond
-                 [(char=? (string-ref s i) #\newline) (loop (+ i 1) (cons start acc))]
-                 [(and (> i start) (> (+ w cw) width))
-                  (loop (or space i) (cons start acc))]
-                 [else (fit j (+ w cw)
-                            (if (char=? (string-ref s i) #\space) (+ i 1) space))])))))))
-
-  ;; A dialog: a centered window, the input wrapping inside it, a little
-  ;; above the middle as a form's would be. The box grows with the text up
-  ;; to half the screen, then scrolls to keep the cursor in view.
-  (define (draw-dialog! g rows cols p)
-    (let* ([width (min (- cols 4) 80)]
-           [inner (- width 4)]
-           [input (if (eq? (prompt-style p) 'secret)
-                      (make-string (string-length (prompt-input p)) #\•)
-                      (prompt-input p))]
-           [cursor (prompt-cursor p)]
-           [starts (list->vector (wrap-starts input inner))]
-           [nlines (vector-length starts)]
-           [line-of (let loop ([i (- nlines 1)])
-                      (if (or (= i 0) (<= (vector-ref starts i) cursor)) i (loop (- i 1))))]
-           [visible (max 1 (min (max 3 nlines) (- (quotient rows 2) 2)))]
-           [first (max 0 (- line-of (- visible 1)))]
-           [height (+ visible 2)]
-           [top (max 0 (- (quotient (- rows height) 2) (quotient rows 8)))]
-           [left (quotient (- cols width) 2)]
-           [face (UI 'ui.popup)]
-           [line-text (lambda (i)
-                        (let* ([end (if (< (+ i 1) nlines) (vector-ref starts (+ i 1)) (string-length input))]
-                               [t (substring input (vector-ref starts i) end)])
-                          (if (and (> (string-length t) 0) (char=? (string-ref t (- (string-length t) 1)) #\newline))
-                              (substring t 0 (- (string-length t) 1))
-                              t)))])
-      (draw-box! g top left height width (prompt-label p))
-      (if (and (string=? input "") (prompt-hint p))
-          (put-string! g (+ top 1) (+ left 2) (prompt-hint p) (face-merge face (F 'ui.popup.info)) (+ left width -2))
-          (do ([i first (+ i 1)] [r (+ top 1) (+ r 1)]) ((or (= i nlines) (= r (+ top 1 visible))))
-            (put-string! g r (+ left 2) (line-text i) face (+ left width -1))))
-      (let ([f " ⏎ send · esc cancel "])
-        (put-string! g (+ top height -1) (max (+ left 1) (- (+ left width) 2 (string-width f))) f
-                     (UI 'ui.popup.border) (+ left width -1)))
-      (list (+ top 1 (- line-of first))
-            (+ left 2 (string-width (substring input (vector-ref starts line-of) cursor)))
-            'bar)))
-
-  ;; A popup, at the right between rows top and bottom: its last lines.
-  (define (draw-popup! g rows cols p top bottom)
-    (let* ([now (lambda (x) (if (procedure? x) (x) x))]
-           [title (now (popup-title p))]
-           [footer (now (popup-footer p))]
-           [width (min (- cols 2) (max 50 (quotient cols 2)) 100)]
-           [inner (- width 4)]
-           [left (- cols width 1)]
-           [lines (apply append
-                         (map (lambda (l) (map (lambda (t) (cons t (cdr l))) (wrap-text (car l) inner)))
-                              ((popup-lines p))))]
-           [height (min (- bottom top) (max 3 (+ 2 (length lines))))]
-           [shown (let ([n (- height 2)]) (if (> (length lines) n) (drop lines (- (length lines) n)) lines))])
-      (when (and (>= height 3) (> inner 0))
-        (draw-box! g top left height width title)
-        (let loop ([ls shown] [r (+ top 1)])
-          (unless (null? ls)
-            (put-string! g r (+ left 2) (car (car ls)) (face-merge (UI 'ui.popup) (F (cdr (car ls)))) (+ left width -2))
-            (loop (cdr ls) (+ r 1))))
-        (when footer
-          (let ([f (string-append " " footer " ")])
-            (put-string! g (+ top height -1) (max (+ left 1) (- (+ left width) 2 (string-width f))) f
-                         (UI 'ui.popup.border) (+ left width -1)))))))
-
-  ;; A line prompt's candidates, listed above the bottom row.
-  (define (draw-completions! g rows cols p bottom)
-    (let* ([items (prompt-items p)] [n (min 10 (length items))])
-      (when (> n 0)
-        (let* ([index (prompt-index p)] [first (max 0 (- index (- n 1)))])
-          (let loop ([items (drop items first)] [i first] [r (- bottom n)])
-            (when (and (pair? items) (< r bottom))
-              (let ([face (UI (if (= i index) 'ui.menu.selected 'ui.menu))])
-                (fill-row! g r 0 cols face)
-                (put-string! g r 1 (car (car (car items))) face))
-              (loop (cdr items) (+ i 1) (+ r 1))))))))
+  ;; Draw overlays in g, bottom first, each where it places itself in area
+  ;; a: the cursor of the last that has one, or #f.
+  (define (draw-overlays! g a overlays)
+    (fold-left (lambda (cursor o)
+                 (let ([rect (guard (e [#t #f]) ((overlay-place o) a))])
+                   (or (and rect
+                            (widget-draw! (overlay-widget o) g (car rect) (cadr rect) (caddr rect) (cadddr rect)))
+                       cursor)))
+               #f overlays))
 
   ;; ---------------------------------------------------------------------------
   ;; Frames
+
+  ;; Draw pane p of client c, focused there, in rows row.. and columns
+  ;; col.. of g: its view, then its status line. A pane as wide as g is
+  ;; drawn in it; another into a grid of its own, copied in, its geometry
+  ;; (the mouse's, the cursor's) moved to where it is.
+  (define (draw-pane! c g p row col rows cols focused?)
+    (pane-rect-set! p (list row col rows cols))
+    (let ([v (client-view c)] [comp (pane-component p)])
+      (if comp
+          (draw-component! c g p comp row col rows cols focused?)
+          (draw-view-pane! c g p v row col rows cols focused?))))
+
+  ;; A component's pane: drawn on a canvas, a grid the pane's size; where
+  ;; its cursor is, if it is focused, is kept for the frame.
+  (define (draw-component! c g p comp row col rows cols focused?)
+    (let* ([canvas (new-grid rows cols (UI 'ui.text))]
+           [cursor (guard (e [#t (put-string! canvas 0 0 (condition->string e) (UI 'error)) #f])
+                     ((component-draw comp) canvas focused?))])
+      (blit! g canvas row col)
+      ;; No text is under the pointer.
+      (view-geometry-set! #f)
+      (when (eq? p (client-focused-pane c))
+        (client-local-set! c 'component-cursor
+                           (and cursor (list (+ row (car cursor)) (+ col (cadr cursor)) (caddr cursor)))))))
+
+  (define (draw-view-pane! c g p v row col rows cols focused?)
+    (let ()
+      (when v
+        (if (and (= col 0) (= cols (grid-cols g)))
+            (begin
+              (draw-view! g v row (- rows 1) cols focused?)
+              (draw-status! g (+ row rows -1) v cols (eq? p (client-focused-pane c))))
+            (let ([sub (new-grid rows cols (F 'ui))])
+              (draw-view! sub v 0 (- rows 1) cols focused?)
+              (draw-status! sub (- rows 1) v cols (eq? p (client-focused-pane c)))
+              (blit! g sub row col)
+              (let ([geo (view-geometry)])
+                (when geo
+                  (view-geometry-set! (cons* (+ row (car geo)) (+ col (cadr geo)) (cddr geo))))))))))
+
+  ;; Draw client c's layout in rows row.. and columns col.. of g. Each pane
+  ;; is drawn with it focused, so that what draws a view draws its; the
+  ;; focus is the focused pane's again after. Panes side by side have a
+  ;; line between them; one above another, its status line.
+  (define (draw-layout! c g row col rows cols focusable?)
+    (let ([focused (client-focused-pane c)] [line (UI 'ui.window)])
+      (let walk ([n (client-layout c)] [r row] [k col] [h rows] [w cols])
+        (cond
+         [(split? n)
+          (if (eq? (split-dir n) 'right)
+              (let ([w1 (max 1 (min (- w 2) (exact (floor (* (- w 1) (split-ratio n))))))])
+                (walk (split-first n) r k h w1)
+                (do ([i 0 (+ i 1)]) ((= i h)) (put! g (+ r i) (+ k w1) #\x2502 line))
+                (walk (split-second n) r (+ k w1 1) h (- w w1 1)))
+              (let ([h1 (max 1 (min (- h 1) (exact (floor (* h (split-ratio n))))))])
+                (walk (split-first n) r k h1 w)
+                (walk (split-second n) (+ r h1) k (- h h1) w)))]
+         ;; Too small to show anything: not drawn, nor found by the mouse.
+         [(or (< h 2) (< w 4)) (pane-rect-set! n #f)]
+         [else
+          (focus-pane! c n)
+          (draw-pane! c g n r k h w (and focusable? (eq? n focused)))]))
+      (focus-pane! c focused)))
 
   ;; Draw client c's frame and send it what changed. The client's own
   ;; state (prompt, layer, message, view) is current while drawing.
@@ -936,32 +898,42 @@
                    [tabs? (> (length (buffers)) 1)]
                    [text-top (if tabs? 1 0)]
                    [status-row (- rows 2)]
-                   [height (- status-row text-top)]
-                   [p (current-prompt)])
+                   [p (current-prompt)]
+                   [single? (not (split? (client-layout c)))])
               (when tabs? (draw-bufferline! g b cols))
-              (let ([gutter (draw-view! g v text-top height cols (not p))])
-                (draw-status! g status-row v cols)
-                (when (current-popup) (draw-popup! g rows cols (current-popup) text-top status-row))
-                (let* ([bottom-cursor (draw-bottom! g (- rows 1) cols)]
-                       [cursor
-                        (cond
-                         [(and p (eq? (prompt-style p) 'picker)) (draw-picker! g rows cols p)]
-                         [(and p (memq (prompt-style p) '(dialog secret))) (draw-dialog! g rows cols p)]
-                         [(and p (eq? (prompt-style p) 'menu)) (draw-menu! g cols p v gutter text-top status-row)]
-                         [(and p (eq? (prompt-style p) 'line))
-                          (draw-completions! g rows cols p status-row)
-                          bottom-cursor]
-                         ;; In insert mode a bar between characters;
-                         ;; else the selection's head, which its face
-                         ;; shows, so drawn by no one: for screen readers.
-                         [else
-                          (let* ([insert? (eq? (view-input-mode v) 'insert)]
-                                 [pos (if insert? (sel-start (view-primary v)) (head-position v (view-primary v)))]
-                                 [r (+ text-top (- (text-line-of (buffer-text b) pos) (view-top v)))]
-                                 [col (+ gutter (- (display-column b pos) (view-left v)))])
-                            (and (< -1 r status-row) (< (- gutter 1) col cols)
-                                 (list r col (if insert? 'bar 'hidden))))])])
-                  (when (and (layer-legend-visible?) (not p))
-                    (draw-legend! g rows cols status-row))
-                  (send-frame! c g cursor (list text-top status-row b (view-top v)))
-                  (client-dirty?-set! c #f))))))))))
+              (draw-layout! c g text-top 0 (- rows 1 text-top) cols (not p))
+              (let* ([v (client-view c)] [b (view-buffer v)]
+                     ;; Where the focused pane's text is: (row col rows cols top left).
+                     [geo (view-geometry)]
+                     ;; The cursor in its text, where a menu goes: (row col), or #f.
+                     [at-head
+                      (and geo (not (focused-component c))
+                           (let* ([pos (head-position v (view-primary v))]
+                                  [r (+ (car geo) (- (text-line-of (buffer-text b) pos) (view-top v)))]
+                                  [col (+ (cadr geo) (- (display-column b pos) (view-left v)))])
+                             (and (<= (car geo) r (+ (car geo) (caddr geo) -1))
+                                  (<= (cadr geo) col (+ (cadr geo) (cadddr geo) -1))
+                                  (list r col))))]
+                     [_ (draw-bottom! g (- rows 1) cols)]
+                     [over (draw-overlays! g (make-area rows cols text-top status-row at-head) (editor-overlays c))]
+                     [cursor
+                      (cond
+                       [(and p (memq (prompt-style p) '(picker dialog secret line))) over]
+                       [(and p (eq? (prompt-style p) 'menu)) (and at-head (list (car at-head) (cadr at-head) 'bar))]
+                       [(key-overlay c) over]
+                       [(focused-component c) (client-local c 'component-cursor #f)]
+                       ;; In insert mode a bar between characters;
+                       ;; else the selection's head, which its face
+                       ;; shows, so drawn by no one: for screen readers.
+                       [(not geo) #f]
+                       [else
+                        (let* ([insert? (eq? (view-input-mode v) 'insert)]
+                               [pos (if insert? (sel-start (view-primary v)) (head-position v (view-primary v)))]
+                               [r (+ (car geo) (- (text-line-of (buffer-text b) pos) (view-top v)))]
+                               [col (+ (cadr geo) (- (display-column b pos) (view-left v)))])
+                          (and (<= (car geo) r (+ (car geo) (caddr geo) -1))
+                               (<= (cadr geo) col (+ (cadr geo) (cadddr geo) -1))
+                               (list r col (if insert? 'bar 'hidden))))])])
+                ;; A scroll is a whole row's: with panes side by side, none.
+                (send-frame! c g cursor (and single? (list text-top status-row b (view-top v))))
+                (client-dirty?-set! c #f)))))))))

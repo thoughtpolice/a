@@ -35,7 +35,8 @@
    ;; starting
    quad-version editor-init!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
-          (quad syntax) (quad buffer) (quad selection) (quad editor))
+          (quad syntax) (quad buffer) (quad selection) (quad editor)
+          (only (quad native) project-files))
 
   (define (cur) (current-buffer))
   (define (cv) (current-view))
@@ -755,30 +756,39 @@
                                 (make-sel (car r) (cdr r) (or (sel-anchor (primary)) (sel-range (primary))))
                                 (range->sel r))))))))
 
-  (define (search! pattern)
-    (let ([b (cur)])
-      (search-pattern-set! b pattern)
-      (buffer-local-set! b 'last-search pattern)
-      (push-selection-history! b)
-      (set-selection-mode! b 'search)
-      (let ([r (current-unit b (sel-range (primary)))])
-        (if r
-            (set-sels! b (list (range->sel r)))
-            (message-error "No match for ~s" pattern)))))
+  ;; Search for pattern, selecting the match nearest the cursor: literal
+  ;; text, or with regex? a regular expression.
+  (define search!
+    (case-lambda
+     [(pattern) (search! pattern #f)]
+     [(pattern regex?)
+      (let ([b (cur)])
+        (search-pattern-set! b pattern regex?)
+        (buffer-local-set! b 'last-search (cons pattern regex?))
+        (push-selection-history! b)
+        (set-selection-mode! b 'search)
+        (let ([r (current-unit b (sel-range (primary)))])
+          (cond
+           [r (set-sels! b (list (range->sel r)))]
+           [(search-error b) => (lambda (why) (message-error "Not a pattern: ~a" why))]
+           [else (message-error "No match for ~s" pattern)])))]))
 
-  (define (search-prompt!)
+  (define (search-prompt! regex?)
     (let* ([b (cur)] [origin (sels-of b)] [mode (view-selection-mode (cv))])
       (open-prompt!
-       (make-prompt "search:" "" #f
+       (make-prompt (if regex? "regex:" "search:") "" #f
                     (lambda (s) (if (string=? s "")
                                     (begin (set-sels! b origin) (set-selection-mode! b mode))
-                                    (search! s)))
-                    ;; Incremental: show the first match as you type.
+                                    (search! s regex?)))
+                    ;; Incremental: show the first match as you type, or
+                    ;; what is wrong with the pattern so far.
                     (lambda (s)
                       (when (> (string-length s) 0)
-                        (search-pattern-set! b s)
+                        (search-pattern-set! b s regex?)
                         (let ([r ((selection-mode-current (find-selection-mode 'search)) b (sel-range (car origin)))])
-                          (when r (set-sels! b (list (range->sel r)))))))
+                          (cond
+                           [r (clear-message!) (set-sels! b (list (range->sel r)))]
+                           [(search-error b) => (lambda (why) (message "Not a pattern yet: ~a" why))]))))
                     'line))))
 
   (define (goto-line! n)
@@ -803,25 +813,8 @@
   ;; ---------------------------------------------------------------------------
   ;; Files, buffers and pickers
 
-  (define ignored-dirs '(".git" ".jj" ".hg" "buck-out" "node_modules" "target" "_build" ".direnv" "zig-cache" ".zig-cache"))
-
-  ;; Files under dir, relative to it, breadth first, at most `limit`.
-  (define (project-files dir limit)
-    (let loop ([queue (list "")] [acc '()] [n 0])
-      (if (or (null? queue) (>= n limit))
-          (reverse acc)
-          (let* ([rel (car queue)]
-                 [abs (if (string=? rel "") dir (path-join dir rel))]
-                 [entries (guard (e [#t '()]) (sort-strings (directory-list abs)))])
-            (let scan ([es entries] [queue (cdr queue)] [acc acc] [n n])
-              (if (null? es)
-                  (loop queue acc n)
-                  (let* ([name (car es)] [r (if (string=? rel "") name (path-join rel name))]
-                         [full (path-join dir r)])
-                    (cond
-                     [(member name ignored-dirs) (scan (cdr es) queue acc n)]
-                     [(guard (e [#t #f]) (file-directory? full)) (scan (cdr es) (append queue (list r)) acc n)]
-                     [else (scan (cdr es) queue (cons r acc) (+ n 1))]))))))))
+  ;; The working directory's files are what its ignore files do not
+  ;; ignore (project-files, the kernel's: kernel/files/).
 
   (define (visit! path)
     (let ([b (open-file! path)])
@@ -847,6 +840,72 @@
       (pick (string-append "Explore " dir) items
             (lambda (path)
               (if (file-directory? path) (explorer! path) (visit! path))))))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Panes (client.sls)
+
+  ;; Split the focused pane: the new one, showing what it shows, dir
+  ;; ('right or 'below) of it.
+  (define (split! dir)
+    (split-pane! (current-client) dir))
+
+  (define (close-pane!*)
+    (unless (close-pane! (current-client)) (message "The only pane")))
+
+  ;; Close every pane but the focused one.
+  (define (only-pane!)
+    (let ([c (current-client)])
+      (let loop ()
+        (let ([others (remq (client-focused-pane c) (client-panes c))])
+          (when (pair? others)
+            (let ([keep (client-focused-pane c)])
+              (focus-pane! c (car others))
+              (close-pane! c)
+              (focus-pane! c keep)
+              (loop)))))))
+
+  ;; Focus the pane after (step 1) or before (-1) the focused one, around.
+  (define (cycle-pane! step)
+    (let* ([c (current-client)] [ps (client-panes c)] [n (length ps)]
+           [i (list-index (lambda (p) (eq? p (client-focused-pane c))) ps)])
+      (focus-pane! c (list-ref ps (mod (+ i step) n)))))
+
+  ;; Focus the nearest pane in direction dir (left, right, up, down) of
+  ;; the focused one, as last drawn.
+  (define (focus-toward! dir)
+    (let* ([c (current-client)] [here (pane-rect (client-focused-pane c))])
+      (when here
+        (let* ([center (lambda (r) (cons (+ (car r) (quotient (caddr r) 2)) (+ (cadr r) (quotient (cadddr r) 2))))]
+               [me (center here)]
+               [candidates
+                (filter-map
+                 (lambda (p)
+                   (let ([r (pane-rect p)])
+                     (and r (not (eq? p (client-focused-pane c)))
+                          (let ([them (center r)])
+                            (and (case dir
+                                   [(left) (< (cadr r) (cadr here))]
+                                   [(right) (> (cadr r) (cadr here))]
+                                   [(up) (< (car r) (car here))]
+                                   [(down) (> (car r) (car here))])
+                                 (cons (+ (abs (- (car them) (car me))) (abs (- (cdr them) (cdr me)))) p))))))
+                 (client-panes c))])
+          (if (null? candidates)
+              (message "No pane there")
+              (focus-pane! c (cdar (sort (lambda (a b) (< (car a) (car b))) candidates))))))))
+
+  ;; Give the focused pane more of its split (step > 0) or less.
+  (define (resize-pane! step)
+    (let* ([c (current-client)] [p (client-focused-pane c)]
+           [parent (let walk ([n (client-layout c)])
+                     (and (split? n)
+                          (if (or (eq? (split-first n) p) (eq? (split-second n) p))
+                              n
+                              (or (walk (split-first n)) (walk (split-second n))))))])
+      (if (not parent)
+          (message "The only pane")
+          (let ([delta (if (eq? (split-first parent) p) step (- step))])
+            (split-ratio-set! parent (max 1/10 (min 9/10 (+ (split-ratio parent) delta))))))))
 
   (define (buffer-picker!)
     (pick "Buffers"
@@ -1029,11 +1088,26 @@
   (define (unit-at b pos)
     (or (current-unit b (cons pos (min (buffer-length b) (+ pos 1)))) (cons pos pos)))
 
+  ;; A press focuses the pane under the pointer; the wheel scrolls that
+  ;; pane, focused or not.
   (define (on-mouse ev)
+    (let* ([c (current-client)]
+           [under (pane-at c (mouse-event-row ev) (mouse-event-col ev))]
+           [focused (client-focused-pane c)])
+      (case (mouse-event-kind ev)
+        [(scroll-up scroll-down)
+         (when under (focus-pane! c under))
+         (scroll! (if (eq? (mouse-event-kind ev) 'scroll-up) -3 3))
+         (focus-pane! c focused)]
+        [else
+         (when (and under (eq? (mouse-event-kind ev) 'press) (not (current-prompt)))
+           (focus-pane! c under))
+         (on-mouse-here ev)])))
+
+  ;; The mouse, over the focused pane.
+  (define (on-mouse-here ev)
     (let ([b (cur)] [pos (screen->position (mouse-event-row ev) (mouse-event-col ev))])
       (case (mouse-event-kind ev)
-        [(scroll-up) (scroll! -3)]
-        [(scroll-down) (scroll! 3)]
         [(press)
          (when (and pos (not (current-prompt)))
            (exit-layer!)
@@ -1194,10 +1268,11 @@
   (defcmd selection-back "Previous selection" (unless (selection-history-back! (cur)) (message "No older selection")))
   (defcmd selection-forward "Next selection" (unless (selection-history-forward! (cur)) (message "No newer selection")))
 
-  (defcmd search "Search, selecting matches" (search-prompt!))
+  (defcmd search "Search for text, selecting matches" (search-prompt! #f))
+  (defcmd search-regex "Search for a regular expression, selecting matches" (search-prompt! #t))
   (defcmd search-this "Search for the selected text" (search! (selection-text (cur) (primary))))
   (defcmd search-repeat "Search for the last pattern again"
-    (let ([p (buffer-local (cur) 'last-search #f)]) (if p (search! p) (message "No previous search"))))
+    (let ([p (buffer-local (cur) 'last-search #f)]) (if p (search! (car p) (cdr p)) (message "No previous search"))))
 
   (defcmd insert-before "Insert before the selections" (enter-insert! 'start))
   (defcmd insert-after "Insert after the selections" (enter-insert! 'end))
@@ -1292,6 +1367,18 @@
                         (lambda (d) (current-directory d) (message "Now in ~a" (current-directory)))))
   (defcmd open-file "Pick a file in the working directory" (file-picker! (current-directory)))
   (defcmd open-path "Open a file by path" (open-path-prompt!))
+  (defcmd split-right "Split the pane: another beside it, showing the same" (split! 'right))
+  (defcmd split-below "Split the pane: another under it, showing the same" (split! 'below))
+  (defcmd close-pane "Close the pane, unless it is the only one" (close-pane!*))
+  (defcmd only-pane "Close every pane but this one" (only-pane!))
+  (defcmd next-pane "Focus the next pane" (cycle-pane! 1))
+  (defcmd previous-pane "Focus the previous pane" (cycle-pane! -1))
+  (defcmd pane-left "Focus the pane to the left" (focus-toward! 'left))
+  (defcmd pane-right "Focus the pane to the right" (focus-toward! 'right))
+  (defcmd pane-up "Focus the pane above" (focus-toward! 'up))
+  (defcmd pane-down "Focus the pane below" (focus-toward! 'down))
+  (defcmd grow-pane "Give the pane more of its split" (resize-pane! 1/10))
+  (defcmd shrink-pane "Give the pane less of its split" (resize-pane! -1/10))
   (defcmd explore "Browse the file system" (explorer! (current-directory)))
   (defcmd switch-buffer "Pick a buffer" (buffer-picker!))
   (defcmd buffer-next "Next buffer" (cycle-buffer! 1))
@@ -1499,7 +1586,7 @@
   (define local-keymap
     (menu 'local "Local"
           "d" 'search "Search" "f" 'search-this "Search This" "r" 'search-repeat "Repeat Search"
-          "n" 'select-all-occurrences "All Occurrences"))
+          "e" 'search-regex "Search Regex" "n" 'select-all-occurrences "All Occurrences"))
 
   (define transform-keymap
     (menu 'transform "Transform"
@@ -1530,6 +1617,17 @@
           "k" 'kill-server "Stop Editor" "l" 'list-clients "Clients"
           "f" 'change-directory "Change Work Dir" "n" 'toggle-line-numbers "Line Numbers"
           "w" 'toggle-whitespace "Whitespace"))
+
+  ;; ctrl+w, as in Vim and Helix: panes. The directions are Ki's, and the
+  ;; arrows.
+  (define pane-menu
+    (menu 'pane "Pane"
+          "v" 'split-right "Split Right" "s" 'split-below "Split Below"
+          "q" 'close-pane "Close" "o" 'only-pane "Only This"
+          "w" 'next-pane "Next" "W" 'previous-pane "Previous"
+          "j" 'pane-left "←" "l" 'pane-right "→" "i" 'pane-up "↑" "k" 'pane-down "↓"
+          "left" 'pane-left "←" "right" 'pane-right "→" "up" 'pane-up "↑" "down" 'pane-down "↓"
+          "+" 'grow-pane "Grow" "-" 'shrink-pane "Shrink"))
 
   (define pick-menu
     (menu 'pick "Pick"
@@ -1567,7 +1665,7 @@
         "e" buffer-layer "Buffer" "q" history-layer "Selection History"
         "?" 'swap-anchor "⇋ Anchor" "/" 'swap-cursor "⇋ Cursor"
         "backspace" 'selection-back "← Select" "tab" 'selection-forward "Select →"
-        "space" space-keymap "Space" "esc" 'escape "Escape"
+        "space" space-keymap "Space" "ctrl+w" pane-menu "Pane" "esc" 'escape "Escape"
         "alt+k" 'scroll-down "Scroll ↓" "alt+i" 'scroll-up "Scroll ↑"
         "pagedown" 'scroll-down "Scroll ↓" "pageup" 'scroll-up "Scroll ↑"
         "alt+;" 'center "Align View" "ctrl+z" 'suspend "Suspend" "ctrl+q" 'quit "Quit"

@@ -89,7 +89,7 @@ The server's loop (`core/server.sls`) polls descriptors through the kernel
   socket; `--connect[=PATH]` is a terminal client over one; `--connect
   --eval EXPR` evaluates in a running editor;
 - **iroh**: `--mesh` (or the command `mesh-listen`) makes the editor an
-  `iroh-mesh` host. The kernel's Rust half (`kernel/mesh.rs`) runs its
+  `iroh-mesh` host. The kernel's Rust half (`kernel/mesh/`) runs its
   endpoint on threads of its own, as an `Object` Scheme holds, and bridges
   each QUIC stream a client opens to one end of a `socketpair`, handing the
   other end to Scheme (through a `Mailbox`, polled with `watch-fd!`) for
@@ -218,7 +218,7 @@ attaches in the editor's process (`core/gui.sls`), as the terminal does,
 or, as a client (`--connect`, or of a running daemon), opens onto an
 editor elsewhere (a socket, or iroh), as a terminal client does: either way
 it keeps a grid model and paints it at each `flush`, so it shows what a terminal would, cell for cell, in the same
-theme. The window keeps its screen a row at a time (`kernel/screen.rs`):
+theme. The window keeps its screen a row at a time (`kernel/gui/screen.rs`):
 a flush sends it only the rows that changed, and scrolls move the rest,
 so a frame costs about what changed; where the driver can
 (`VK_KHR_incremental_present`), the compositor is told which rows those
@@ -234,15 +234,15 @@ the rest of the renderer is safe code. Every window of a
 process runs on one thread, with one event loop, and draws with one Vulkan
 device; `new-window` (`space j w`) opens another onto the same editor, from
 a window or a terminal, each a client of its own (with its own size, and
-zoom). Its three Slang pipelines (`kernel/gui.slang`) read a frame's data
+zoom). Its three Slang pipelines (`kernel/render/gui.slang`) read a frame's data
 by buffer device address, with no descriptor sets: rectangles in cells
 (the cells' backgrounds, the cursor, underlines), images (scaled on the
-CPU, `kernel/image.rs`, to be read a pixel for each drawn; color glyphs
+CPU, `kernel/image/`, to be read a pixel for each drawn; color glyphs
 too), and glyphs.
 
 Text is drawn from the fonts' outlines on the GPU, at any size, with no
 rasterized atlas: Eric Lengyel's Slug algorithm, whose reference shader
-`kernel/gui.slang` ports. `kernel/font/` finds fonts with fontique
+`kernel/render/gui.slang` ports. `kernel/font/` finds fonts with fontique
 (fontconfig, or CoreText on macOS; `gui-font-family`, by default the
 built-in JetBrains Mono, else the system's monospace font, at
 `gui-font-size` points, with `gui-font-features`), with fallbacks for what
@@ -251,19 +251,24 @@ and makes up the styles a family lacks as fontique suggests (a variable
 font's weight axis, else outlines emboldened or slanted, as FreeType's
 synthetic styles are); takes emoji (those asked for with U+FE0F, and those
 two cells wide) from a color font, painted on the CPU
-(`kernel/color.rs`: `COLR` versions 0 and 1, with their gradients and
+(`kernel/font/color.rs`: `COLR` versions 0 and 1, with their gradients and
 compositing, or `CBDT`/`sbix` bitmaps) into pictures of their cells;
 shapes runs of cells in one style with HarfRust, so ligatures and marks
 work, and places each glyph at the cell its cluster starts in; and draws
 box drawing and blocks itself, to fill their cells exactly, as terminals
-do. `kernel/slug.rs` turns outlines (skrifa) into Slug's curve and band
+do. `kernel/font/slug.rs` turns outlines (skrifa) into Slug's curve and band
 data. The size is chosen so that capitals are a whole number of pixels
 tall, as Lengyel suggests for unhinted text. Text blends as ghostty's
 does by default on Linux ("linear-corrected"): in linear light, with its
 coverage corrected so that glyphs keep the weight they have when blended
 gamma-encoded, as most terminals blend. The grid sits 2 points in from
 the window's edges, ghostty's padding, and text is 12 points, its size on
-Linux (13 on macOS, below).
+Linux (13 on macOS, below). The padding takes the backgrounds of the
+cells along the grid's edges, as ghostty's `window-padding-color =
+extend` does, so a bar at the top or bottom reaches the window's corners,
+rounded or not: those at either end of a row reach left or right, and the
+top and bottom rows' reach up and down when none of their cells is in the
+default background (a row of text with a word highlighted is not).
 
 Nothing links against Vulkan or the window system: `libvulkan.so.1`,
 `libwayland-client` and `libX11` are loaded when a window opens. They
@@ -287,7 +292,7 @@ Pipelines take under a millisecond, drivers keeping their own shader
 caches, so quad keeps no pipeline cache.
 
 Screen readers read a window as they read a terminal: AccessKit
-(`kernel/access.rs`) gives the desktop's accessibility bus (AT-SPI) a
+(`kernel/gui/access.rs`) gives the desktop's accessibility bus (AT-SPI) a
 tree of the window's terminal, a line of text for each row of cells, laid
 out where the row is, with the text cursor as its selection (in normal mode, the selection's
 head, which the editor sends as a hidden cursor); each frame
@@ -346,7 +351,7 @@ AppKit runs a process's windows on its main thread alone, and quad does
 so everywhere, so that both platforms run alike: the kernel
 (`kernel/kernel.c`) runs Scheme on a thread of its own, with a main
 thread's stack and the signals the terminal sends (the main thread blocks
-them), and gives the main thread to the Rust half (`kernel/main_thread.rs`),
+them), and gives the main thread to the Rust half (`kernel/gui/main_thread.rs`),
 which runs the windows' event loop there once the first window opens, and
 ends the process from there once Scheme is done. Signals reach Scheme's
 waits through a pipe their handlers write to, whichever thread they land

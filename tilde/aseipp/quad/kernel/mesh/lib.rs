@@ -60,7 +60,7 @@ const LOOK_FOR: Duration = Duration::from_secs(10);
 /// How long an editor waits for its relay before making its ticket.
 const RELAY_WAIT: Duration = Duration::from_secs(3);
 
-pub(crate) fn runtime() -> &'static tokio::runtime::Runtime {
+pub fn runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()

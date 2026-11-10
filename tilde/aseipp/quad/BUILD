@@ -6,8 +6,9 @@
 #
 #   kernel/   the kernel: C (kernel.c) boots Chez Scheme from boot files
 #             appended to its own executable and does raw terminal and socket
-#             I/O; Rust (lib.rs) provides components through the chez crate,
-#             as the Scheme library (quad native)
+#             I/O; Rust provides components, a crate each (kernel/*/), which
+#             lib.rs makes the Scheme library (quad native) through the chez
+#             crate
 #   core/     the editor, in Scheme: the libraries (quad *)
 #   core/ext/ extensions built in by default: the libraries (quad ext *)
 #
@@ -31,6 +32,7 @@ EXTENSIONS = {
     "blake3": [":native"],
     "c": [],
     "codex": [":ext-project"],
+    "grep": [":native"],
     "image": [":native"],
     "link": [],
     "lisp": [],
@@ -61,6 +63,7 @@ EXTENSION_ORDER = [
     "markdown",
     "image",
     "blake3",
+    "grep",
     "project",
     "codex",
     "lsp",
@@ -73,153 +76,46 @@ EXTENSION_ORDER = [
 
 # MARK: Kernel
 
-KERNEL_RS_DEPS = [
-    "//aseipp/quad/kernel/chez-rs:chez",
-    "third-party//rust:accesskit",
-    "third-party//rust:accesskit_winit",
-    "root//src/crates/accept:accept",
-    "root//src/crates/iroh-dial:iroh-dial",
-    "root//src/crates/iroh-mesh:iroh-mesh",
-    "third-party//rust:blake3",
-    "third-party//rust:bytes",
-    "third-party//rust:fontique",
-    "third-party//rust:futures",
-    "third-party//rust:harfrust",
-    "third-party//rust:iroh",
-    "third-party//rust:libc",
-    "third-party//rust:png",
-    "third-party//rust:skrifa",
-    "third-party//rust:tokio",
-    "third-party//rust:unicode-width",
-    "third-party//rust:winit",
-    # Voice's codec (kernel/voice/opus.rs).
-    "third-party//by-name/op/opus:opus",
-] + shims.select({
-    # Vulkan, and Wayland's clipboard.
-    "config//os:linux": [
-        "third-party//rust:ash",
-        "third-party//rust:smithay-clipboard",
-    ],
-    # Metal 4, Core Animation's layer, and AppKit's pasteboard and menus.
-    "config//os:macos": [
-        "third-party//rust:objc2",
-        "third-party//rust:objc2-app-kit",
-        "third-party//rust:objc2-core-foundation",
-        "third-party//rust:objc2-core-graphics",
-        "third-party//rust:objc2-foundation",
-        "third-party//rust:objc2-metal",
-        "third-party//rust:objc2-quartz-core",
-    ],
-})
-
-# Every platform's, each compiled where its cfg says: render/vulkan.rs and
-# the rest of the Vulkan renderer, and voice/pulse.rs, on Linux; the Metal
-# renderer (render/metal.rs, render/macos.rs), gui/macos.rs, main_thread.rs
-# and voice/coreaudio.rs on macOS.
-KERNEL_RS_SRCS = [
-    "kernel/access.rs",
-    "kernel/color.rs",
-    "kernel/font/cells.rs",
-    "kernel/font/faces.rs",
-    "kernel/font/layout.rs",
-    "kernel/font/mod.rs",
-    "kernel/font/sprites.rs",
-    "kernel/gui/input.rs",
-    "kernel/gui/macos.rs",
-    "kernel/gui/mod.rs",
-    "kernel/gui/snapshots.rs",
-    "kernel/gui/window.rs",
-    "kernel/gui/windows.rs",
-    "kernel/image.rs",
-    "kernel/lib.rs",
-    "kernel/main_thread.rs",
-    "kernel/mesh.rs",
-    "kernel/render/gpu.rs",
-    "kernel/render/headless.rs",
-    "kernel/render/macos.rs",
-    "kernel/render/metal.rs",
-    "kernel/render/mod.rs",
-    "kernel/render/vulkan.rs",
-    "kernel/render/window.rs",
-    "kernel/screen.rs",
-    "kernel/slug.rs",
-    "kernel/timing.rs",
-    "kernel/voice/coreaudio.rs",
-    "kernel/voice/mix.rs",
-    "kernel/voice/mod.rs",
-    "kernel/voice/opus.rs",
-    "kernel/voice/pulse.rs",
-]
-
-# The GUI's shaders (kernel/gui.slang), beside kernel/render/mod.rs, which
-# includes them: for Vulkan, SPIR-V of a vertex and a fragment shader for
-# each of its pipelines; for Metal, the source of all of them, which Metal
-# compiles as the device is made.
-GUI_SHADERS = {
-    "gui.glyph.frag.spv": ("glyphFragment", "fragment"),
-    "gui.glyph.vert.spv": ("glyphVertex", "vertex"),
-    "gui.image.frag.spv": ("imageFragment", "fragment"),
-    "gui.image.vert.spv": ("imageVertex", "vertex"),
-    "gui.rect.frag.spv": ("rectFragment", "fragment"),
-    "gui.rect.vert.spv": ("rectVertex", "vertex"),
-}
-
-# The window's default font, built in, beside kernel/font/mod.rs, which
-# includes it.
-BUILT_IN_FONTS = {
-    "third-party//by-name/je/jetbrains-mono:" + style: "kernel/font/fonts/JetBrainsMono-{}.ttf".format(style)
-    for style in [
-        "Regular",
-        "Bold",
-        "Italic",
-        "BoldItalic",
+# The Rust half: a crate for each part, each built and tested on its own,
+# so that a change to one rebuilds it and what uses it, not the rest. The
+# kernel's own (kernel/lib.rs) is the procedures Scheme calls, (quad
+# native), over the others:
+#
+#   kernel/timing   startup's steps, timed
+#   kernel/text     buffer text (a rope) and searching it
+#   kernel/files    a project's files, and grep
+#   kernel/image    images: PNGs decoded and scaled
+#   kernel/mesh     editors and clients over iroh
+#   kernel/voice    voice over iroh
+#   kernel/font     fonts, shaping, Slug's curves, color emoji
+#   kernel/render   drawing frames: Vulkan, Metal
+#   kernel/gui      windows, screens, screen readers, the main thread
+KERNEL_CRATES = [
+    "//aseipp/quad/kernel/" + crate + ":" + crate
+    for crate in [
+        "files",
+        "font",
+        "gui",
+        "image",
+        "mesh",
+        "render",
+        "text",
+        "timing",
+        "voice",
     ]
-}
-
-KERNEL_RS_MAPPED_SRCS = shims.select({
-    "config//os:linux": {
-        ":" + out: "kernel/render/" + out
-        for out in GUI_SHADERS
-    } | BUILT_IN_FONTS,
-    "config//os:macos": {
-        ":gui.metal": "kernel/render/gui.metal",
-    } | BUILT_IN_FONTS,
-})
-
-[
-    slang_shader(
-        name = out,
-        src = "kernel/gui.slang",
-        entry = entry,
-        stage = stage,
-    )
-    for out, (entry, stage) in GUI_SHADERS.items()
 ]
-
-slang_metal(
-    name = "gui.metal",
-    src = "kernel/gui.slang",
-    entries = sorted(GUI_SHADERS.values()),
-)
 
 shims.rust_library(
     name = "kernel-rs",
-    srcs = KERNEL_RS_SRCS,
+    srcs = ["kernel/lib.rs"],
     crate = "quad_kernel",
     crate_root = "kernel/lib.rs",
-    mapped_srcs = KERNEL_RS_MAPPED_SRCS,
-    tests = [":kernel-rs-test"],
-    deps = KERNEL_RS_DEPS,
-)
-
-shims.rust_test(
-    name = "kernel-rs-test",
-    srcs = KERNEL_RS_SRCS,
-    crate = "quad_kernel",
-    crate_root = "kernel/lib.rs",
-    mapped_srcs = KERNEL_RS_MAPPED_SRCS,
-    # Properties, checked over generated cases (hegel).
-    deps = KERNEL_RS_DEPS + ["third-party//rust:hegeltest"],
+    deps = KERNEL_CRATES + [
+        "third-party//rust:blake3",
+        "third-party//rust:libc",
+        "third-party//rust:png",
+        "//aseipp/quad/kernel/chez-rs:chez",
+    ],
 )
 
 # The macOS frameworks the Rust half's crates use: they name them in their
@@ -488,6 +384,10 @@ shims.filegroup(
         "link",
         "image",
         "loop",
+        "files",
+        "regions",
+        "panes",
+        "widgets",
     ]
 ]
 

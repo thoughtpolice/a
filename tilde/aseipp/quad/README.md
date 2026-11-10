@@ -189,7 +189,7 @@ style: lessons, each with lines to practise on.
 | `w` `W` | SUBWORD (`fooBar_baz`), CHAR |
 | `d` | NODE: s-expressions in Lisps, bracket structure elsewhere |
 | `E` | PARAGRAPH |
-| `n` | local menu: `n d` search, `n f` search the selection, `n n` all occurrences; with a language server, `n x` definition, `n v` references, `n a` diagnostics (below) |
+| `n` | local menu: `n d` search for text, `n e` for a regular expression (Rust's `regex` syntax; smart case), `n f` search the selection, `n n` all occurrences; with a language server, `n x` definition, `n v` references, `n a` diagnostics (below) |
 | `f` | extend: following movements grow the selection; `f f` selects all |
 | `h` `;` | insert before/after |
 | `g` | change (layer: `g k`/`g i` open a line, `g l`/`g j` open a gap) |
@@ -205,7 +205,8 @@ style: lessons, each with lines to practise on.
 | `,` | surround: `, s m` wraps in `()`, `, r m` unwraps, `, d m` selects inside |
 | `e` | buffers (layer) |
 | `enter` | save |
-| `space` | menu: `space space` command palette, `space e` eval, `space k d` files, `space k f` buffers, `space ;` explorer, `space /` every key, `space j v` quit, `space a` the agent (below) |
+| `space` | menu: `space space` command palette, `space e` eval, `space k d` files, `space k f` buffers, `space k g` grep the files, `space ;` explorer, `space /` every key, `space j v` quit, `space a` the agent (below) |
+| `ctrl+w` | panes, as Vim and Helix have them: `v` split right, `s` split below, `q` close, `o` only this one, `w` next, `j` `l` `i` `k` (or the arrows) the pane that way, `+` `-` grow and shrink; a click focuses a pane |
 
 Layers are momentary: hold `r` and press `l` to delete rightwards (again
 and again while `r` is held); tap `r` alone to delete the selection. Hold a
@@ -234,6 +235,70 @@ The init file is `$QUAD_INIT`, else `$XDG_CONFIG_HOME/quad/init.ss`, else
 `space e` evaluates an expression; in a Scheme buffer, select a form with
 `d` and press `space l e`. `quad --repl` is a Chez REPL with quad loaded.
 `docs/examples/init.ss` shows more.
+
+### Buffers that show things
+
+An extension can show a list, a report or a tree as a buffer whose text it
+renders, with regions over it that carry properties: a face to draw the
+text in, keys that act on what is under the cursor, and the thing itself.
+
+```scheme
+(define file-keys (make-keymap 'file "File"))
+(define-key file-keys "enter" 'open-it "Open")   ; (data-at-point): the file
+(define b (rendered-buffer! "*files*" 'text))    ; read-only, made once
+(buffer-render! b
+  (span '((face . ui.text.focus)) "Files\n")
+  (map (lambda (f) (span `((item . #t) (data . ,f) (keymap . ,file-keys)) f "\n"))
+       (project-files (current-directory) 100)))
+(switch-to-buffer! b)
+(set-selection-mode! b 'item)                    ; movements step item to item
+```
+
+Rendering again keeps each cursor on the item it was on. Regions work in
+any buffer (`buffer-add-region!`, `regions-at`, `region-property`), and
+move with its edits.
+
+What is not text -- a chart, a form, a game -- is a component: shown in a
+pane of its own, it draws itself on a canvas the pane's size and takes the
+keys it wants while focused (the others still reach `space` and `ctrl+w`).
+
+```scheme
+(define count 0)
+(show-component! (current-client)
+  (make-component 'counter
+    (lambda (canvas focused?)           ; draw; return a cursor, or #f
+      (put-string! canvas 0 0 (format "count: ~a" count) (ui-face 'ui.text))
+      #f)
+    (lambda (key text)                  ; a key (and what it types): taken?
+      (and (string=? key "+") (begin (set! count (+ count 1)) #t))))
+  'right)                               ; beside the focused pane
+```
+
+### Widgets, overlays and forms
+
+What the editor draws over its panes -- pickers, dialogs, menus, popups,
+the key legend -- is drawn from widgets (`core/widget.sls`), and an
+extension draws from the same ones, in a component or in an overlay of its
+own over the panes (`show-overlay!`, `make-overlay`: where it goes, its
+widget, the keys it takes):
+
+| | |
+| --- | --- |
+| layout | `framed` (a border and titles), `stack`, `beside`, `rule`, `vrule`, `padded`, `centered` |
+| text | `text-lines`, `input-line`, `text-area` |
+| data | `item-list`, `table`, `tree` (with `tree-rows`), `tabs`, `key-grid` |
+| state | `progress`, `spinner`, `scrollbar` |
+| controls | `checkbox`, `choice`, `button`, `text-field` |
+
+A form (`core/form.sls`) is fields that take keys, shown as an overlay:
+
+```scheme
+(show-form! "New Branch"
+            (list (text-input 'name "Name" "")
+                  (toggle 'push "Push it" #f)
+                  (choose 'from "From" '("main" "here") 0))
+            (lambda (values) (message "~s" values)))  ; ((name . "...") (push . #t) (from . "here"))
+```
 
 ### Testing your configuration
 
@@ -369,10 +434,25 @@ executable (`toolchains//chez:embed`) and registers the primitives Scheme
 can't express itself: raw terminal I/O, `poll`, Unix sockets.
 `core/kernel.sls` binds them.
 
-The Rust half, `kernel/lib.rs`, is written with the `chez` crate
-(`kernel/chez-rs/`). Each `#[chez::procedure]` is an ordinary Rust function
-that becomes a Scheme procedure in `(quad native)`, which the build generates
-from the Rust:
+The Rust half is a crate for each part, each built and tested on its own,
+so that a change to one rebuilds it and the few above it:
+
+| Crate | Holds | Over |
+| --- | --- | --- |
+| `kernel/timing` | startup's steps, timed (`QUAD_TIMING=1`) | |
+| `kernel/text` | buffer text (a rope), and searching it | |
+| `kernel/files` | a project's files, and grep | |
+| `kernel/image` | PNGs, decoded and scaled | |
+| `kernel/mesh` | editors and clients over iroh | |
+| `kernel/voice` | voice over iroh | mesh |
+| `kernel/font` | fonts, shaping, Slug's curves, color emoji | image, timing |
+| `kernel/render` | drawing frames: Vulkan, Metal 4 | font, image, timing |
+| `kernel/gui` | windows, their screens, screen readers, the main thread | render, font, image |
+| `kernel/lib.rs` | `(quad native)`: the procedures Scheme calls | all of them |
+
+It is written with the `chez` crate (`kernel/chez-rs/`). Each
+`#[chez::procedure]` is an ordinary Rust function that becomes a Scheme
+procedure in `(quad native)`, which the build generates from the Rust:
 
 ```rust
 /// The BLAKE3 hash of a bytevector: a 32-byte bytevector.
@@ -418,9 +498,11 @@ in `BUILD` gives an extension files to include as it compiles).
 | File | |
 | --- | --- |
 | `kernel/kernel.c` | boots Chez from the appended boot files; termios, poll, SIGWINCH |
-| `kernel/lib.rs` | the Rust half: `(quad native)`'s procedures, subprocesses |
+| `kernel/lib.rs`, `kernel/*/` | the Rust half: `(quad native)`'s procedures, subprocesses, and a crate for each part (above) |
 | `core/kernel.sls` | the kernel's primitives, bound for Scheme |
-| `core/text.sls` | gap buffer with an incremental line index |
+| `core/text.sls`, `kernel/text/` | buffer text: a rope (ropey) in the kernel, read through a window here |
+| `kernel/text/search.rs` | searches of a buffer's text: regular expressions or literal text, over the rope (`regex-cursor`) |
+| `kernel/files/`, `core/ext/grep.sls` | a project's files (what its ignore files leave: `ignore`), and searching them as you type (`space k g`) |
 | `core/buffer.sls` | buffers, the views of them (selections, modes, scroll), undo, files |
 | `core/syntax.sls` | the highlighting lexer and the node tree |
 | `core/selection.sls` | selection modes and movements |
@@ -428,6 +510,8 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/editor.sls` | the core and extension API, gathered from `client.sls` (clients, messages, variables, hooks), `keymap.sls` (commands, keymaps) and `prompt.sls` (prompts, popups, layers): buffers, selections, events |
 | `core/commands.sls` | the standard commands and Ki's keymaps |
 | `core/display.sls` | drawing each client's frame, sent as changed cells |
+| `core/canvas.sls`, `core/widget.sls` | grids of cells to draw on, and the widgets frames, overlays and components are drawn from |
+| `core/form.sls` | forms: fields that take keys, shown as overlays |
 | `core/protocol.sls` | the client protocol: MessagePack frames, events as messages |
 | `core/server.sls` | the event loop over descriptors, sockets, client messages |
 | `core/grid.sls` | a client's model of its screen |
@@ -435,7 +519,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
 | `core/frontend.sls` | what clients share: extensions' messages and capabilities, diverting a client's input |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
-| `core/ext/mesh.sls`, `kernel/mesh.rs` | editors and clients over iroh (`iroh-mesh`), a transport for `server.sls` |
+| `core/ext/mesh.sls`, `kernel/mesh/` | editors and clients over iroh (`iroh-mesh`), a transport for `server.sls` |
 | `core/ext/project.sls` | projects: `.quad/` configuration, trust, review |
 | `core/main.sls` | the command line, `--build-exe` |
 | `core/testing.sls` | headless clients for tests and `--batch` scripts |
@@ -460,7 +544,7 @@ compares them with the images in `tests/golden` (on lavapipe, or Metal).
 ## Credits
 
 The window (`--gui`) draws text with the [Slug] algorithm, by Eric Lengyel:
-its shader (`kernel/gui.slang`) is his reference shader, ported to Slang.
+its shader (`kernel/render/gui.slang`) is his reference shader, ported to Slang.
 Slug shader code Copyright 2017 by Eric Lengyel, MIT OR Apache-2.0. Its
 default font, built in, is [JetBrains Mono](https://www.jetbrains.com/lp/mono/),
 Copyright 2020 The JetBrains Mono Project Authors, under the SIL Open Font

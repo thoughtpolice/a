@@ -6,7 +6,7 @@
 //! with Vulkan, on a GPU or on a software renderer (Mesa's lavapipe); on
 //! macOS with Metal 4.
 //!
-//! The same three pipelines (kernel/gui.slang) draw either way, with no
+//! The same three pipelines (kernel/render/gui.slang) draw either way, with no
 //! vertex buffers or descriptor sets: what they are given ([`Params`])
 //! points at a frame's data by address, a buffer device address in Vulkan
 //! and a GPU address in Metal. A frame ([`DrawList`]) is rectangles
@@ -48,14 +48,14 @@ use std::thread::JoinHandle;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
-use crate::font::{GLYPH_BYTES, RECT_BYTES};
-use crate::image::PICTURE_BYTES;
-use crate::slug::Atlas;
+use quad_font::slug::Atlas;
+use quad_font::{GLYPH_BYTES, RECT_BYTES};
+use quad_image::PICTURE_BYTES;
 
 #[cfg(target_os = "linux")]
-use crate::timing;
-#[cfg(target_os = "linux")]
 use ash::vk;
+#[cfg(target_os = "linux")]
+use quad_timing as timing;
 #[cfg(target_os = "linux")]
 use std::ffi::CStr;
 #[cfg(target_os = "linux")]
@@ -114,7 +114,7 @@ const FRAMES_IN_FLIGHT: usize = 2;
 const ACQUIRE_TIMEOUT_NS: u64 = 50_000_000;
 
 /// The color format frames are drawn in, without a window: sRGB, so that
-/// they blend in linear light (see kernel/gui.slang).
+/// they blend in linear light (see kernel/render/gui.slang).
 #[cfg(target_os = "linux")]
 const HEADLESS_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 
@@ -138,7 +138,7 @@ pub struct DrawList<'a> {
     pub origin: [f32; 2],
 }
 
-/// What the shaders are given for each draw: `Params` in kernel/gui.slang,
+/// What the shaders are given for each draw: `Params` in kernel/render/gui.slang,
 /// Vulkan's push constants and Metal's buffer 0.
 struct Params {
     rects: u64,
@@ -239,7 +239,7 @@ struct Buffers {
     pixels_generation: Option<u64>,
 }
 
-/// The pipelines a frame draws with (kernel/gui.slang).
+/// The pipelines a frame draws with (kernel/render/gui.slang).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Pipeline {
     Rect,
