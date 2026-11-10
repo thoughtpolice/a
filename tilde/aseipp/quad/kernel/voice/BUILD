@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Voice over iroh: Opus, a jitter buffer and a mixer, and the sound server
-# (PulseAudio's simple API on Linux, Core Audio on macOS).
+# (PulseAudio's simple API on Linux, Core Audio on macOS, WASAPI on
+# Windows).
 
 load("@root//buck/shims:shims.bzl", "shims")
 
@@ -14,7 +15,10 @@ DEPS = [
     "third-party//rust:iroh",
     "third-party//rust:libc",
     "third-party//rust:tokio",
-]
+] + shims.select({
+    "config//os:windows": ["third-party//rust:windows"],
+    "DEFAULT": [],
+})
 
 shims.rust_library(
     name = "voice",

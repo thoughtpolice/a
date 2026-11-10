@@ -106,7 +106,7 @@
   ;; $QUAD_USER, else user@host.
   (define (default-user-name)
     (or (getenv "QUAD_USER")
-        (let ([user (or (getenv "USER") "someone")]
+        (let ([user (or (user-name) "someone")]
               [host (or (getenv "HOSTNAME")
                         (guard (e [#t #f])
                           (let ([h (kernel-hostname)])

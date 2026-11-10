@@ -182,7 +182,7 @@
           (lambda (t) (unless (keymap? t) (run-command t)))))
 
   (define (open-path-prompt!)
-    (read-string-prompt "open:" (path-join (current-directory) "")
+    (read-string-prompt "open:" (path-join (working-directory) "")
                         (lambda (p) (unless (string=? p "") (visit! p)))))
 
   (define (save! force?)
@@ -194,7 +194,7 @@
 
   (define (save-as!)
     (let ([b (cur)])
-      (read-string-prompt "save as:" (or (buffer-path b) (path-join (current-directory) ""))
+      (read-string-prompt "save as:" (or (buffer-path b) (path-join (working-directory) ""))
                           (lambda (p) (unless (string=? p "")
                                         (save-buffer! b (absolute-path p))
                                         (buffer-name-set! b (path-basename p)))))))
@@ -267,15 +267,34 @@
                           (unless (string=? cmd "")
                             (replace-with! (map (lambda (txt) (run-shell cmd txt)) (sels-texts (cur))))))))
 
+  ;; cmd's output, run by the shell with input as its input: /bin/sh -c on
+  ;; Unix; on Windows, as Chez Scheme's open-process-ports runs it there,
+  ;; %COMSPEC% /c (cmd.exe), whose programs end lines with CRLF: those
+  ;; come back as LF, the editor's line ending. cmd is quoted for /c,
+  ;; which then takes off that one pair of quotes, and runs what is
+  ;; between as it was typed, quotes of its own and all.
   (define (run-shell cmd input)
-    (let-values ([(to from err pid) (open-process-ports cmd (buffer-mode block)
+    (let-values ([(to from err pid) (open-process-ports (if windows? (string-append "\"" cmd "\"") cmd) (buffer-mode block)
                                                         (make-transcoder (utf-8-codec) (eol-style none)))])
       (put-string to input)
       (close-port to)
       (let ([out (get-string-all from)])
         (close-port from)
         (close-port err)
-        (if (eof-object? out) "" out))))
+        (cond
+         [(eof-object? out) ""]
+         [windows? (crlf->lf out)]
+         [else out]))))
+
+  (define (crlf->lf s)
+    (let ([n (string-length s)])
+      (let-values ([(o get) (open-string-output-port)])
+        (let loop ([i 0])
+          (cond
+           [(= i n) (get)]
+           [(and (char=? (string-ref s i) #\return) (< (+ i 1) n) (char=? (string-ref s (+ i 1)) #\newline))
+            (loop (+ i 1))]
+           [else (write-char (string-ref s i) o) (loop (+ i 1))])))))
 
   ;; Suspending is the client's to do: a terminal stops its process.
   (define (suspend!) (client-send! (current-client) '("suspend")))
@@ -420,9 +439,9 @@
   (defcmd reload "Reload the buffer from its file" (reload-buffer! (cur)) (message "Reloaded"))
   (defcmd reload-all "Reload every buffer from its file" (for-each reload-buffer! (buffers)))
   (defcmd change-directory "Change the working directory"
-    (read-string-prompt "cd:" (path-join (current-directory) "")
-                        (lambda (d) (current-directory d) (message "Now in ~a" (current-directory)))))
-  (defcmd open-file "Pick a file in the working directory" (file-picker! (current-directory)))
+    (read-string-prompt "cd:" (path-join (working-directory) "")
+                        (lambda (d) (current-directory d) (message "Now in ~a" (working-directory)))))
+  (defcmd open-file "Pick a file in the working directory" (file-picker! (working-directory)))
   (defcmd open-path "Open a file by path" (open-path-prompt!))
   (defcmd pick-key-scheme "Pick the way to edit: Ki's keys, Vim's, Helix's"
     (pick "Key Scheme"
@@ -445,7 +464,7 @@
   (defcmd pane-down "Focus the pane below" (focus-toward! 'down))
   (defcmd grow-pane "Give the pane more of its split" (resize-pane! 1/10))
   (defcmd shrink-pane "Give the pane less of its split" (resize-pane! -1/10))
-  (defcmd explore "Browse the file system" (explorer! (current-directory)))
+  (defcmd explore "Browse the file system" (explorer! (working-directory)))
   (defcmd switch-buffer "Pick a buffer" (buffer-picker!))
   (defcmd buffer-next "Next buffer" (cycle-buffer! 1))
   (defcmd buffer-previous "Previous buffer" (cycle-buffer! -1))
@@ -531,7 +550,7 @@
   (defcmd prompt-delete-word "Delete the word before the cursor"
     (prompt-edit! (lambda (in c)
                     (let* ([i (let loop ([i c]) (if (and (> i 0) (char=? (string-ref in (- i 1)) #\space)) (loop (- i 1)) i))]
-                           [i (let loop ([i i]) (if (and (> i 0) (not (memv (string-ref in (- i 1)) '(#\space #\/)))) (loop (- i 1)) i))]
+                           [i (let loop ([i i]) (if (and (> i 0) (not (let ([c (string-ref in (- i 1))]) (or (char=? c #\space) (path-separator? c))))) (loop (- i 1)) i))]
                            [i (if (= i c) (max 0 (- c 1)) i)])
                       (values (string-splice in i c "") i)))))
   (defcmd prompt-kill "Clear the input" (prompt-edit! (lambda (in c) (values "" 0))))
@@ -702,11 +721,14 @@
   ;; ---------------------------------------------------------------------------
   ;; Init files
 
+  ;; $QUAD_INIT, else quad/init.ss in $XDG_CONFIG_HOME, else on Windows in
+  ;; %APPDATA%, else in ~/.config; #f if there is none of these.
   (define (init-file-path)
-    (let ([xdg (getenv "XDG_CONFIG_HOME")] [home (getenv "HOME")])
+    (let ([xdg (getenv-path "XDG_CONFIG_HOME")] [home (home-directory)])
       (cond
-       [(getenv "QUAD_INIT") (getenv "QUAD_INIT")]
+       [(getenv-path "QUAD_INIT") => values]
        [xdg (path-join xdg "quad/init.ss")]
+       [(and windows? (getenv-path "APPDATA")) => (lambda (d) (path-join d "quad/init.ss"))]
        [home (path-join home ".config/quad/init.ss")]
        [else #f])))
 

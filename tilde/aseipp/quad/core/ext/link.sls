@@ -77,9 +77,11 @@
   (define finders (make-eq-hashtable))
   (define (define-link-finder! mode-name finder) (hashtable-set! finders mode-name finder))
 
+  ;; Under Windows's path rules a letter and a colon are a drive ("C:/x"),
+  ;; and no URL scheme is a letter alone.
   (define (has-scheme? target)
     (let ([k (string-contains target ":")])
-      (and k (> k 0)
+      (and k (> k (if (eq? (path-style) 'windows) 1 0))
            (let loop ([i 0]) (or (= i k) (and (scheme-char? (string-ref target i)) (loop (+ i 1))))))))
 
   ;; target as a URL, for buffer b: a path becomes a file: URL.
@@ -89,9 +91,8 @@
      [(has-scheme? target) target]
      [(char=? (string-ref target 0) #\#) #f]
      [else
-      (let* ([dir (let ([p (buffer-path b)]) (if p (path-dirname p) (current-directory)))]
-             [path (expand-home target)])
-        (string-append "file://" (if (string-prefix? "/" path) path (path-join dir path))))]))
+      (let ([dir (let ([p (buffer-path b)]) (if p (path-dirname p) (working-directory)))])
+        (string-append "file://" (path->uri-path (absolute-path (expand-home target) dir))))]))
 
   ;; Link faces, made once for each link and face under it, so that cells
   ;; compare with eq?. Every link ever drawn would stay (each prefix of
@@ -214,10 +215,10 @@
          (let* ([rest (substring url 7 (string-length url))]
                 [rest (if (string-prefix? "localhost/" rest) (substring rest 9 (string-length rest)) rest)]
                 [hash (string-index rest #\#)]
-                [path (percent-decode (if hash (substring rest 0 hash) rest))]
+                [path (uri-path->path (if hash (substring rest 0 hash) rest))]
                 [frag (and hash (substring rest (+ hash 1) (string-length rest)))]
                 [line (and frag (string->number (if (string-prefix? "L" frag) (substring frag 1 (string-length frag)) frag)))])
-           (and (string-prefix? "/" path)
+           (and (absolute-path? path)
                 (cons path (and line (integer? line) (exact? line) (> line 0) line))))))
 
   ;; Follow url for the current client.
@@ -240,13 +241,29 @@
 
   ;; Whether this process can open a URL for its user: it runs in their
   ;; desktop session, where xdg-open (macOS's open, in a session with the
-  ;; window server) hands it to the browser, say.
+  ;; window server; Windows' shell, in one not reached over ssh) hands it
+  ;; to the browser, say.
   (define (can-open-urls?)
-    (if macos? (gui-display?) (and (getenv "WAYLAND_DISPLAY") #t)))
+    (cond
+     [macos? (gui-display?)]
+     [windows? (not (getenv "SSH_CONNECTION"))]
+     [else (and (getenv "WAYLAND_DISPLAY") #t)]))
+
+  ;; The command that opens url. On Windows, the shell's handler for URLs
+  ;; (rundll32 url.dll,FileProtocolHandler, which does not parse it as
+  ;; cmd's start would, & and all), and only a web or mail URL: the shell
+  ;; runs what a file URL names if it is a program.
+  (define (open-url-command url)
+    (cond
+     [macos? (list "open" url)]
+     [windows? (and (exists (lambda (s) (string-prefix? s (string-downcase url))) '("http://" "https://" "mailto:"))
+                    (list "rundll32" "url.dll,FileProtocolHandler" url))]
+     [else (list "xdg-open" url)]))
 
   (define (open-url-here! url)
-    (when (can-open-urls?)
-      (guard (e [#t (void)]) (launch-process (list (if macos? "open" "xdg-open") url)))))
+    (let ([argv (and (can-open-urls?) (open-url-command url))])
+      (when argv
+        (guard (e [#t (void)]) (launch-process (program-argv argv))))))
 
   ;; A client in this process opens what the editor asks it to, where it
   ;; can.

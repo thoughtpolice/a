@@ -42,8 +42,14 @@ fn walker(dir: &str) -> WalkBuilder {
 
 /// `path` under `dir`, relative to it, with "/" between its parts.
 fn relative(dir: &Path, path: &Path) -> Option<String> {
-    // As both Linux and macOS have them.
-    path.strip_prefix(dir).ok()?.to_str().map(String::from)
+    let rel = path.strip_prefix(dir).ok()?.to_str()?;
+    // Linux and macOS separate with "/" already. Windows's "\", which no
+    // file name there contains, becomes the "/" quad's paths use.
+    Some(if cfg!(windows) {
+        rel.replace('\\', "/")
+    } else {
+        rel.to_owned()
+    })
 }
 
 /// The lines of `bytes` that `re` matches in or from, with their numbers:

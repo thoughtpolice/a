@@ -177,7 +177,7 @@
   (define test-dirs '())
   (define (test-temp-dir name)
     (let* ([t (current-time)]
-           [dir (format "~a/quad-~a-~a-~a" (or (getenv "TMPDIR") "/tmp") name
+           [dir (format "~a/quad-~a-~a-~a" (temp-directory) name
                         (time-second t) (time-nanosecond t))])
       (mkdir dir)
       (set! test-dirs (cons dir test-dirs))

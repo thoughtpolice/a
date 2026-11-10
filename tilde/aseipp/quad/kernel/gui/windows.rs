@@ -59,6 +59,8 @@ fn start(ready: mpsc::Sender<Result<System, String>>) -> Result<(), String> {
 }
 
 pub(super) fn run(ready: mpsc::Sender<Result<System, String>>) {
+    // Windows has nothing to set on it.
+    #[cfg_attr(windows, allow(unused_mut))]
     let mut builder = EventLoop::<Request>::with_user_event();
     #[cfg(target_os = "linux")]
     {
@@ -150,6 +152,8 @@ impl Clipboard {
 
 #[cfg(target_os = "macos")]
 use super::macos::Clipboard;
+#[cfg(windows)]
+use super::win32::Clipboard;
 
 // Fields drop in order: the windows (and their renderers) before the device
 // they share, and the clipboard before the display.
@@ -192,6 +196,13 @@ impl Windows {
         // compositor match to etc/quad.desktop.
         #[cfg(target_os = "linux")]
         let attributes = attributes.with_name("quad", "quad");
+        // The window class, which winit registers: what tools that find
+        // windows (AutoHotkey, say) match.
+        #[cfg(windows)]
+        let attributes = {
+            use winit::platform::windows::WindowAttributesExtWindows as _;
+            attributes.with_class_name("quad")
+        };
         let window = Arc::new(
             event_loop
                 .create_window(attributes)

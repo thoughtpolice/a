@@ -5,7 +5,8 @@
 //! its host and clients as its members, speaking [`PROTOCOL`].
 //!
 //! The editor's protocol (core/protocol.sls) runs over any byte stream, so
-//! the network ends at a socketpair: each QUIC stream a client opens is
+//! the network ends at a socket pair (a loopback one on Windows, where
+//! the kernel waits on sockets alone): each QUIC stream a client opens is
 //! pumped to and from one end, and the editor's event loop serves the
 //! other end's descriptor as it serves a Unix socket's. A client does the
 //! same the other way round. The endpoints run on a Tokio runtime of their
@@ -20,7 +21,6 @@
 //! each time too.
 
 use std::collections::HashMap;
-use std::os::fd::{AsRawFd as _, IntoRawFd as _, OwnedFd};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -125,9 +125,7 @@ pub extern "C" fn quad_mesh_settle() {
         return;
     }
     for fd in fds {
-        // SAFETY: shutting down a descriptor touches no memory; Scheme,
-        // whose these are, is done.
-        unsafe { libc::shutdown(fd, libc::SHUT_WR) };
+        shutdown_write(fd);
     }
     runtime().block_on(async move {
         let _ = tokio::time::timeout(SETTLE, futures::future::join_all(bridges)).await;
@@ -142,20 +140,19 @@ pub fn link(fd: i32) -> Option<Connection> {
     conn.close_reason().is_none().then_some(conn)
 }
 
-/// Pump `stream` to and from one end of a new socketpair, until either
+/// Pump `stream` to and from one end of a new socket pair, until either
 /// side ends; the other end, which stands for `conn` (see [`link`]) until
 /// then.
-fn bridge<S>(stream: S, conn: Connection) -> std::io::Result<OwnedFd>
+fn bridge<S>(stream: S, conn: Connection) -> std::io::Result<Descriptor>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let (ours, theirs) = std::os::unix::net::UnixStream::pair()?;
-    ours.set_nonblocking(true)?;
-    let fd = theirs.as_raw_fd();
+    let (ours, theirs) = Descriptor::pair()?;
+    let fd = theirs.raw();
     LINKS.lock().unwrap().insert(fd, conn.clone());
     let mut stream = stream;
     let pump = runtime().spawn(async move {
-        if let Ok(mut ours) = tokio::net::UnixStream::from_std(ours) {
+        if let Ok(mut ours) = into_tokio(ours) {
             let _ = tokio::io::copy_bidirectional(&mut ours, &mut stream).await;
         }
         // Scheme may have closed the descriptor, and its number gone to
@@ -171,7 +168,107 @@ where
     let mut bridges = BRIDGES.lock().unwrap();
     bridges.retain(|b| !b.is_finished());
     bridges.push(pump);
-    Ok(theirs.into())
+    Ok(theirs)
+}
+
+/// Scheme's end of a stream's socket pair: on Unix a Unix socket's
+/// descriptor; on Windows a loopback TCP socket, its `SOCKET` the
+/// descriptor (chez::socket), as the kernel waits on sockets alone there.
+/// Blocking, as Scheme polls, then reads or writes. Closed when dropped,
+/// until Scheme owns it ([`Descriptor::into_raw`]).
+#[cfg(unix)]
+struct Descriptor(std::os::unix::net::UnixStream);
+#[cfg(windows)]
+struct Descriptor(std::net::TcpStream);
+
+/// The Rust end of a stream's socket pair.
+#[cfg(unix)]
+type Ours = std::os::unix::net::UnixStream;
+#[cfg(windows)]
+type Ours = std::net::TcpStream;
+
+impl Descriptor {
+    /// A connected pair: the end the runtime pumps, and Scheme's.
+    fn pair() -> std::io::Result<(Ours, Descriptor)> {
+        #[cfg(unix)]
+        let (ours, theirs) = std::os::unix::net::UnixStream::pair()?;
+        #[cfg(windows)]
+        let (ours, theirs) = chez::socket::pair()?;
+        ours.set_nonblocking(true)?;
+        Ok((ours, Descriptor(theirs)))
+    }
+
+    fn raw(&self) -> i32 {
+        #[cfg(unix)]
+        {
+            use std::os::fd::AsRawFd as _;
+            self.0.as_raw_fd()
+        }
+        #[cfg(windows)]
+        {
+            chez::socket::descriptor(&self.0)
+        }
+    }
+
+    /// The descriptor, which whoever takes it closes.
+    fn into_raw(self) -> i32 {
+        #[cfg(unix)]
+        {
+            use std::os::fd::IntoRawFd as _;
+            self.0.into_raw_fd()
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::IntoRawSocket as _;
+            self.0.into_raw_socket() as u32 as i32
+        }
+    }
+}
+
+/// The Rust end, for the runtime: on it, where Tokio registers it.
+fn into_tokio(
+    ours: Ours,
+) -> std::io::Result<impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send> {
+    #[cfg(unix)]
+    return tokio::net::UnixStream::from_std(ours);
+    #[cfg(windows)]
+    return tokio::net::TcpStream::from_std(ours);
+}
+
+/// Ends the stream Scheme has as `fd` after what was written to it: its
+/// peer reads end of file.
+fn shutdown_write(fd: i32) {
+    #[cfg(unix)]
+    {
+        // SAFETY: shutting down a descriptor touches no memory; Scheme,
+        // whose these are, is done.
+        unsafe { libc::shutdown(fd, libc::SHUT_WR) };
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::FromRawSocket as _;
+        // SAFETY: Scheme's socket, borrowed for the call and never closed
+        // here (ManuallyDrop): Scheme, whose it is, is done.
+        let s = std::mem::ManuallyDrop::new(unsafe {
+            std::net::TcpStream::from_raw_socket(chez::socket::raw_socket(fd))
+        });
+        let _ = s.shutdown(std::net::Shutdown::Write);
+    }
+}
+
+/// Closes the descriptor `fd`, which is ours alone.
+fn close_descriptor(fd: i32) {
+    #[cfg(unix)]
+    {
+        // SAFETY: the caller's to give up, never handed on.
+        unsafe { libc::close(fd) };
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::FromRawSocket as _;
+        // SAFETY: as for Unix's; dropping the stream closes the socket.
+        drop(unsafe { std::net::TcpStream::from_raw_socket(chez::socket::raw_socket(fd)) });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -309,12 +406,12 @@ async fn serve(mut streams: accept::Handover<iroh_mesh::Stream>, tx: Sender<i32>
         // which the client sees as a closed connection.
         let conn = stream.connection().clone();
         if let Ok(fd) = bridge(stream, conn) {
-            if tx.send(fd.as_raw_fd()).is_err() {
+            if tx.send(fd.raw()).is_err() {
                 // The editor stopped listening; the descriptor closes.
                 return;
             }
             // Scheme owns it now.
-            let _ = fd.into_raw_fd();
+            let _ = fd.into_raw();
         }
     }
 }
@@ -374,8 +471,8 @@ struct Outcome {
 /// Scheme would otherwise have closed, and then (dropped) its endpoint.
 fn abandon(made: Option<Result<Session, String>>) {
     if let Some(Ok(session)) = made {
-        // SAFETY: the descriptor is the session's alone, never handed on.
-        unsafe { libc::close(session.fd) };
+        // The descriptor is the session's alone, never handed on.
+        close_descriptor(session.fd);
     }
 }
 
@@ -453,7 +550,7 @@ async fn reach(endpoint: &Endpoint, target: &str) -> Result<(i32, String), Strin
             let (send, recv) = conn.open_bi().await.map_err(|e| e.to_string())?;
             let fd = bridge(tokio::io::join(recv, send), conn.clone())
                 .map_err(|e| e.to_string())?
-                .into_raw_fd();
+                .into_raw();
             Ok::<_, String>((fd, conn.remote_id().to_string()))
         }
     };

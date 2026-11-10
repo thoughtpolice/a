@@ -28,6 +28,10 @@ DEPS = [
         "third-party//rust:objc2-core-graphics",
         "third-party//rust:objc2-foundation",
     ],
+    # The clipboard, and whether the desktop is seen (win32.rs).
+    "config//os:windows": [
+        "third-party//rust:windows",
+    ],
 })
 
 shims.rust_library(

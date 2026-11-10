@@ -181,9 +181,11 @@
 
 ;; A device (or a FIFO) is not read at a request: only this process's own
 ;; command line opens one, as reading it might never end.
-(check "a device is refused" (guard (e [#t #t]) (open-file! "/dev/zero") #f))
-(check "unless this process's command line names it"
-       (buffer? (parameterize ([open-special-files? #t]) (open-file! "/dev/null"))))
+;; (Unix's: Windows's devices are no files in a directory, to open by path.)
+(unless windows?
+  (check "a device is refused" (guard (e [#t #t]) (open-file! "/dev/zero") #f))
+  (check "unless this process's command line names it"
+         (buffer? (parameterize ([open-special-files? #t]) (open-file! "/dev/null")))))
 
 ;; Evaluating Scheme: eval-string runs in the quad environment.
 (expect-equal "eval" (eval-string "(+ 1 2)") 3)

@@ -199,7 +199,7 @@
   (define (buffer-display-name b)
     (let ([p (buffer-path b)])
       (if p
-          (let ([cwd (path-join (current-directory) "")])
+          (let ([cwd (path-join (working-directory) "")])
             (if (string-prefix? cwd p) (substring p (string-length cwd) (string-length p)) p))
           (buffer-name b))))
 

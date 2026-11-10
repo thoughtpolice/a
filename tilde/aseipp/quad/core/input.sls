@@ -165,7 +165,7 @@
                         (replace-with! (make-list (length (sels-of b)) text))))))))
     (add-hook! 'client-attach-hook
               (lambda (c)
-                (client-send! c (list "cwd" (current-directory)))
+                (client-send! c (list "cwd" (working-directory)))
                 (let ([v (client-view c)]) (when v (send-title! c (view-buffer v))))))
    (add-hook! 'buffer-switch-hook (lambda (b) (send-title! (current-client) b)))
     (add-hook! 'focus-in-hook

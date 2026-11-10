@@ -5,7 +5,10 @@
 
 load("@root//buck/shims:shims.bzl", "shims")
 
-DEPS = ["third-party//rust:libc"]
+DEPS = ["third-party//rust:libc"] + shims.select({
+    "config//os:windows": ["third-party//rust:windows"],
+    "DEFAULT": [],
+})
 
 shims.rust_library(
     name = "timing",

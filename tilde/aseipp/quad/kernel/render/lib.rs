@@ -3,8 +3,8 @@
 
 //! Drawing the GUI's frames: in a window ([`Renderer`]), or into an image
 //! with no window at all ([`Headless`]), for tests and snapshots. On Linux
-//! with Vulkan, on a GPU or on a software renderer (Mesa's lavapipe); on
-//! macOS with Metal 4.
+//! and Windows with Vulkan, on a GPU or on a software renderer (Mesa's
+//! lavapipe); on macOS with Metal 4.
 //!
 //! The same three pipelines (kernel/render/gui.slang) draw either way, with no
 //! vertex buffers or descriptor sets: what they are given ([`Params`])
@@ -14,11 +14,12 @@
 //! lays them out; slug.rs makes their curves), then more rectangles
 //! (underlines).
 //!
-//! On Linux: Vulkan 1.3 with no render passes: dynamic rendering, and the
-//! pipelines' push constants are the [`Params`]. Nothing links against
-//! Vulkan: ash loads the host's `libvulkan.so.1` when a renderer is made
-//! ([`ash::Entry::load`]). The host's driver loads into this process, so
-//! the executable must run on the host's C library (`:quad`).
+//! On Linux and Windows: Vulkan 1.3 with no render passes: dynamic
+//! rendering, and the pipelines' push constants are the [`Params`].
+//! Nothing links against Vulkan: ash loads the host's `libvulkan.so.1`
+//! (Windows' `vulkan-1.dll`, which GPU drivers install) when a renderer is
+//! made ([`ash::Entry::load`]). The host's driver loads into this process,
+//! so on Linux the executable must run on the host's C library (`:quad`).
 //! `QUAD_GUI_DEVICE=NAME` picks the device whose name has NAME in it
 //! (`llvmpipe` for lavapipe); `QUAD_VULKAN_VALIDATION=1` turns on the
 //! Khronos validation layer, where it is installed.
@@ -52,53 +53,53 @@ use quad_font::slug::Atlas;
 use quad_font::{GLYPH_BYTES, RECT_BYTES};
 use quad_image::PICTURE_BYTES;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use ash::vk;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use quad_timing as timing;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use std::ffi::CStr;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 mod gpu;
 mod headless;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
 mod metal;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 mod vulkan;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 mod window;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 pub use gpu::Gpu;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use gpu::*;
 pub use headless::Headless;
 #[cfg(target_os = "macos")]
 pub use macos::{Gpu, Renderer, prepare};
 #[cfg(target_os = "macos")]
 use metal::*;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use vulkan::*;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 pub use window::{Renderer, prepare};
 
 /// The shaders, compiled by slangc (BUILD: `:gui.*.spv`).
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const RECT_VERTEX: &[u8] = include_bytes!("gui.rect.vert.spv");
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const RECT_FRAGMENT: &[u8] = include_bytes!("gui.rect.frag.spv");
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const GLYPH_VERTEX: &[u8] = include_bytes!("gui.glyph.vert.spv");
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const GLYPH_FRAGMENT: &[u8] = include_bytes!("gui.glyph.frag.spv");
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const IMAGE_VERTEX: &[u8] = include_bytes!("gui.image.vert.spv");
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const IMAGE_FRAGMENT: &[u8] = include_bytes!("gui.image.frag.spv");
 
 /// The shaders, all six entry points of them, as Metal source written by
@@ -110,12 +111,12 @@ const SHADERS: &str = include_str!("gui.metal");
 const FRAMES_IN_FLIGHT: usize = 2;
 
 /// How long to wait for a swapchain image before trying again later.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const ACQUIRE_TIMEOUT_NS: u64 = 50_000_000;
 
 /// The color format frames are drawn in, without a window: sRGB, so that
 /// they blend in linear light (see kernel/render/gui.slang).
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 const HEADLESS_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 
 /// What a frame draws, in order: `rects`, then `pictures` (images, from
@@ -401,7 +402,7 @@ impl Buffers {
 
 /// Whether frames drawn in `format` blend in linear light: whether it
 /// encodes sRGB itself.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 fn is_srgb(format: vk::Format) -> bool {
     matches!(
         format,
@@ -428,16 +429,17 @@ fn clear_color(rgb: u32, linear: bool) -> [f32; 3] {
     })
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 fn vk_error(what: &str) -> impl Fn(vk::Result) -> String + '_ {
     move |e| format!("vulkan: {what}: {e}")
 }
 
 // MARK: Made ahead
 
-/// What a device was made ahead for: on Linux, windows on one kind of
-/// display, whose surfaces this extension makes; on macOS, any window.
-#[cfg(target_os = "linux")]
+/// What a device was made ahead for: on Linux and Windows, windows on one
+/// kind of display, whose surfaces this extension makes; on macOS, any
+/// window.
+#[cfg(any(target_os = "linux", windows))]
 type MadeFor = &'static CStr;
 #[cfg(target_os = "macos")]
 type MadeFor = ();

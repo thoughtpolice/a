@@ -576,7 +576,13 @@
          #t]
         [(images) (when (tty-graphics? t) (place-pictures! t (out) (cadr msg))) #t]
         [(title) (osc t (string-append "2;" (cadr msg))) #t]
-        [(cwd) (osc t (string-append "7;file://" (or (getenv "HOSTNAME") "") (cadr msg))) #t]
+        [(cwd)
+         (osc t (string-append "7;file://" (or (getenv "HOSTNAME") "") (path->uri-path (cadr msg))))
+         ;; Windows Terminal (and ConEmu) take the directory as ConEmu's
+         ;; OSC 9;9 says it, a path of their own system's.
+         (when (and windows? (absolute-path? (cadr msg)))
+           (osc t (string-append "9;9;\"" (path->native (cadr msg)) "\"")))
+         #t]
         [(pointer) (osc t (string-append "22;" (cadr msg))) #t]
         ;; OSC 52 reaches the system clipboard (target "c") or the primary
         ;; selection ("p") through the terminal, over ssh too.

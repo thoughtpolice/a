@@ -16,7 +16,7 @@
 (library (quad server)
   (export make-source source? add-source! remove-source! sources watch-fd! run-program!
           server-connect! client-receive! server-render! server-run!
-          serve-stream! server-listen! server-unlisten! server-listening-paths default-socket-path
+          serve-stream! server-listen! server-unlisten! server-listening-paths default-socket-path socket-exists?
           socket-dir-safe? define-pointer-handler!
           make-transport transport? transport-name transport-label transport-target?
           transport-connect transport-connect-later transport-self? transport-listen
@@ -55,7 +55,7 @@
   ;; errors) from the loop, status -1000 if it could not start. Returns a
   ;; thunk that forgets it, so that done is not called.
   (define (run-program! argv cwd env done)
-    (let* ([r (command-start argv cwd env)] [src #f])
+    (let* ([r (command-start (program-argv argv) (and cwd (path->native cwd)) env)] [src #f])
       (set! src (watch-fd! (command-fd r)
                            (lambda ()
                              (let ([got (command-take! r)])
@@ -406,12 +406,15 @@
   ;; Unix sockets
 
   ;; $QUAD_SOCKET, else quad.sock in $XDG_RUNTIME_DIR/quad, else in
-  ;; /tmp/quad-$USER.
+  ;; /tmp/quad-$USER; on Windows, else in %LOCALAPPDATA%/quad, else in
+  ;; %TEMP%/quad-%USERNAME%. (A socket's path is at most 107 bytes.)
   (define (default-socket-path)
-    (or (getenv "QUAD_SOCKET")
-        (path-join (if (getenv "XDG_RUNTIME_DIR")
-                       (path-join (getenv "XDG_RUNTIME_DIR") "quad")
-                       (format "/tmp/quad-~a" (or (getenv "USER") "user")))
+    (or (getenv-path "QUAD_SOCKET")
+        (path-join (cond
+                    [(getenv-path "XDG_RUNTIME_DIR") => (lambda (d) (path-join d "quad"))]
+                    [(and windows? (getenv-path "LOCALAPPDATA")) => (lambda (d) (path-join d "quad"))]
+                    [windows? (path-join (temp-directory) (format "quad-~a" (or (user-name) "user")))]
+                    [else (format "/tmp/quad-~a" (or (user-name) "user"))])
                    "quad.sock")))
 
   (define listening '())
@@ -429,6 +432,12 @@
   ;; The socket paths this editor listens at.
   (define (server-listening-paths) (map car listening))
 
+  ;; Whether there is a file at path, a socket left there say. On Windows
+  ;; a Unix socket is a reparse point that stat, and so file-exists?,
+  ;; cannot follow; the kernel's file-key opens it as it is.
+  (define (socket-exists? path)
+    (or (file-exists? path) (and windows? (kernel-file-key path) #t)))
+
   ;; Accept clients on a Unix socket at path. A socket left by a server
   ;; that is gone is replaced; a live one is an error.
   (define (server-listen! path)
@@ -436,7 +445,8 @@
       ;; Another's daemon may have made it in the meantime.
       (unless (file-exists? dir) (guard (e [#t (void)]) (mkdir dir #o700)))
       (unless (socket-dir-safe? path)
-        (errorf 'server-listen! "~a is not this user's alone (it must be a directory of yours, mode 700): not listening there" dir)))
+        (errorf 'server-listen! "~a is not this user's alone (it must be a directory of yours, ~a): not listening there"
+                dir (if windows? "that only you, SYSTEM and Administrators may open" "mode 700"))))
     ;; Whether a server listens there, and if not making the socket, as one
     ;; step: two editors starting at once would otherwise both find a
     ;; socket left by one that is gone, and the second would delete the
@@ -447,7 +457,7 @@
            [fd (dynamic-wind
                  void
                  (lambda ()
-                   (when (file-exists? path)
+                   (when (socket-exists? path)
                      (let ([fd (kernel-unix-connect path)])
                        (if (>= fd 0)
                            (begin (kernel-close fd) (errorf 'server-listen! "a server is already listening at ~a" path))

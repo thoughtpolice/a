@@ -65,6 +65,24 @@ fn process_age() -> Option<Duration> {
     std::time::SystemTime::now().duration_since(started).ok()
 }
 
+/// How long ago the process started, from the kernel's record of it
+/// (GetProcessTimes): to its clock's tick (about 16 ms).
+#[cfg(windows)]
+fn process_age() -> Option<Duration> {
+    use windows::Win32::Foundation::FILETIME;
+    use windows::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
+    let mut times = [FILETIME::default(); 4];
+    let [created, exited, kernel, user] = &mut times;
+    // SAFETY: the current process's pseudo-handle, and room for each time.
+    unsafe { GetProcessTimes(GetCurrentProcess(), created, exited, kernel, user) }.ok()?;
+    // 100-nanosecond intervals since 1601, of which there were this many
+    // before 1970.
+    let since_1601 = (u64::from(created.dwHighDateTime) << 32) | u64::from(created.dwLowDateTime);
+    let since_1970 = since_1601.checked_sub(116_444_736_000_000_000)?;
+    let started = std::time::UNIX_EPOCH + Duration::from_nanos(since_1970 * 100);
+    std::time::SystemTime::now().duration_since(started).ok()
+}
+
 /// Notes that `step` is done, when timing.
 pub fn mark(step: &str) {
     if let Some((at, age)) = origin() {

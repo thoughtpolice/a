@@ -39,7 +39,7 @@
   (define-variable project-config #t
     "Whether projects' .quad/ configuration loads, once trusted (quad -q turns it off)")
   (define-variable project-trust-file #f
-    "The file keeping trusted projects, or #f for $XDG_STATE_HOME/quad/trusted")
+    "The file keeping trusted projects, or #f for quad/trusted in $XDG_STATE_HOME (or %LOCALAPPDATA%)")
 
   ;; ---------------------------------------------------------------------------
   ;; Projects
@@ -80,7 +80,7 @@
   ;; else the working directory) is in, or #f.
   (define project-of
     (case-lambda
-     [() (project-of (or (and (current-buffer) (buffer-path (current-buffer))) (current-directory)))]
+     [() (project-of (or (and (current-buffer) (buffer-path (current-buffer))) (working-directory)))]
      [(path) (let ([l (loaded-for path)]) (and (pair? l) (car (last-pair l))))]))
 
   ;; This project's directory: the one loading, else the current buffer's.
@@ -148,7 +148,7 @@
           (filter-map (lambda (line)
                         (let ([rel (string-trim line)])
                           (and (not (string=? rel "")) (not (string-prefix? "#" rel))
-                               (if (or (string-prefix? "/" rel) (member ".." (string-split rel #\/)))
+                               (if (or (not (string=? (path-anchor rel) "")) (member ".." (path-parts rel)))
                                    (cons rel "[not read: .quad/files names only paths inside the project]")
                                    (cons rel (let ([f (path-join root rel)])
                                                (if (file-exists? f) (guard (e [#t ""]) (read-file-string f)) "[missing]")))))))
@@ -179,8 +179,16 @@
 
   (define (trust-file)
     (or (get-var 'project-trust-file #f)
-        (path-join (or (getenv "XDG_STATE_HOME") (path-join (or (getenv "HOME") "/tmp") ".local/state"))
-                   "quad/trusted")))
+        (path-join (state-directory) "quad/trusted")))
+
+  ;; Where state goes: $XDG_STATE_HOME, else ~/.local/state (on Windows,
+  ;; %LOCALAPPDATA%), else in the temporary directory.
+  (define (state-directory)
+    (cond
+     [(getenv-path "XDG_STATE_HOME") => values]
+     [(and windows? (getenv-path "LOCALAPPDATA")) => values]
+     [windows? (path-join (or (home-directory) (temp-directory)) ".local/state")]
+     [else (path-join (or (getenv "HOME") "/tmp") ".local/state")]))
 
   ;; Lines of "HASH ROOT".
   (define (read-trust)
@@ -367,7 +375,7 @@ untrusted text. Its verdict is advice: code can be written to mislead a reviewer
   ;; Commands
 
   (define (here-root)
-    (let* ([path (or (and (current-buffer) (buffer-path (current-buffer))) (current-directory))]
+    (let* ([path (or (and (current-buffer) (buffer-path (current-buffer))) (working-directory))]
            [roots (project-roots path)])
       (and (pair? roots) (car (last-pair roots)))))
 

@@ -49,7 +49,7 @@
       (jsonrpc-start argv cwd stderr on-notification on-request on-exit 'lines)]
      [(argv cwd stderr on-notification on-request on-exit framing)
       (unless (memq framing '(lines headers)) (errorf 'jsonrpc-start "unknown framing ~s" framing))
-      (let* ([proc (spawn-process argv cwd stderr)]
+      (let* ([proc (spawn-process (program-argv argv) (and cwd (path->native cwd)) stderr)]
              [rpc (make-jsonrpc proc #f 1 (make-eqv-hashtable)
                                 on-notification on-request on-exit
                                 (make-incoming (make-bytevector 4096) 0 0) framing)])

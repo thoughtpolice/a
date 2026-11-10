@@ -339,7 +339,7 @@
   (define (codex-directory)
     (or (get-var 'codex-directory)
         (let ([init (init-file-path)]) (and init (path-dirname init)))
-        (current-directory)))
+        (working-directory)))
 
   (define (codex-instructions)
     (format "You are the assistant built into quad, an Emacs-like editor written in Chez Scheme \
@@ -1101,7 +1101,7 @@ The files are in the message before this one.\n"))
   (define (review-directory)
     (unless (and the-review-directory (file-directory? the-review-directory))
       (set! the-review-directory
-            (path-join (or (getenv "TMPDIR") "/tmp") (format "quad-review-~a" (substring (nonce) 0 12))))
+            (path-join (temp-directory) (format "quad-review-~a" (substring (nonce) 0 12))))
       (make-directories! the-review-directory))
     the-review-directory)
 

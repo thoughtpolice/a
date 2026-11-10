@@ -32,7 +32,7 @@
           lsp-position lsp-offset path->uri uri->path)
   (import (chezscheme) (quad util) (quad text) (quad syntax) (quad json) (quad jsonrpc)
           (quad buffer) (quad selection) (quad editor) (quad commands) (quad display)
-          (quad ext project) (only (quad main) quad-version))
+          (quad ext project) (only (quad main) quad-version) (only (quad kernel) kernel-rename!))
 
   (define-variable lsp-enabled #t "Whether opening a file starts its language server")
   (define-variable lsp-log-file #f "A file for language servers' standard error, or #f")
@@ -158,23 +158,9 @@
   ;; ---------------------------------------------------------------------------
   ;; URIs
 
-  (define (unreserved? c)
-    (or (char<=? #\a c #\z) (char<=? #\A c #\Z) (char<=? #\0 c #\9) (memv c '(#\- #\. #\_ #\~ #\/))))
-
-  (define (path->uri path)
-    (string-append
-     "file://"
-     (apply string-append
-            (map (lambda (c)
-                   (if (unreserved? c)
-                       (string c)
-                       (apply string-append
-                              (map (lambda (b) (string-append "%" (if (< b 16) "0" "") (string-upcase (number->string b 16))))
-                                   (bytevector->u8-list (string->utf8 (string c)))))))
-                 (string->list path)))))
-
-  (define (uri->path uri)
-    (percent-decode (if (string-prefix? "file://" uri) (substring uri 7 (string-length uri)) uri)))
+  ;; (util.sls has the rules, Windows' drives among them.)
+  (define (path->uri path) (path->file-uri path))
+  (define (uri->path uri) (file-uri->path uri))
 
   ;; ---------------------------------------------------------------------------
   ;; Positions: LSP's (line, character), the character counted in the
@@ -275,7 +261,7 @@
          (conn-rpc c) "initialize"
          `((processId . null)
            (clientInfo . ((name . "quad") (version . ,quad-version)))
-           (rootUri . ,(path->uri root)) (rootPath . ,root)
+           (rootUri . ,(path->uri root)) (rootPath . ,(path->native root))
            (workspaceFolders . #(((uri . ,(path->uri root)) (name . ,(path-basename root)))))
            (capabilities . ,(lsp-client-capabilities))
            ,@(let ([init (or (spec-init-options sp) (spec-config sp))])
@@ -493,7 +479,7 @@
   ;; else the working directory, when it is under one.
   (define (relative path)
     (let ([under (lambda (dir) (let ([d (path-join dir "")]) (and (string-prefix? d path) d)))])
-      (let ([base (or (exists (lambda (c) (under (conn-root c))) conns) (under (current-directory)))])
+      (let ([base (or (exists (lambda (c) (under (conn-root c))) conns) (under (working-directory)))])
         (if base (substring path (string-length base) (string-length path)) path))))
 
   ;; "file:line: the line's text", files' lines found in `files` (path ->
@@ -573,7 +559,7 @@
                       (unless (file-exists? p) (write-file-string p "")))]
                    [(equal? kind "rename")
                     (let ([old (uri->path (json-ref dc 'oldUri))] [new (uri->path (json-ref dc 'newUri))])
-                      (rename-file old new)
+                      (kernel-rename! old new)
                       (let ([b (find (lambda (b) (equal? (buffer-path b) old)) (buffers))])
                         (when b (buffer-path-set! b new) (buffer-name-set! b (path-basename new)))))]
                    [(equal? kind "delete")
@@ -1050,7 +1036,7 @@
                      (filter-map (lambda (w)
                                    (let ([g (json-ref w 'globPattern)])
                                      (cond
-                                      [(string? g) (glob-matcher (if (or (string-prefix? "/" g) (string-prefix? "**" g)) g (string-append "**/" g)))]
+                                      [(string? g) (glob-matcher (if (or (absolute-path? g) (string-prefix? "**" g)) g (string-append "**/" g)))]
                                       [(json-ref g 'pattern)
                                        => (lambda (pat)
                                             (let ([base (let ([b (json-ref g 'baseUri)]) (if (string? b) b (json-ref b 'uri)))])

@@ -144,14 +144,27 @@ chez.rust_library(
 
 shims.cxx_binary(
     name = "kernel",
-    srcs = ["kernel/kernel.c"],
-    compiler_flags = [
-        "-std=gnu11",
-        "-Wall",
-        "-Wextra",
-        "-Wno-unused-parameter",
-        "-O2",
-    ],
+    srcs = ["kernel/kernel.c"] + shims.select({
+        "config//os:windows": ["kernel/os-windows.c"],
+        "DEFAULT": ["kernel/os-unix.c"],
+    }),
+    compiler_flags = shims.select({
+        # clang-cl, whose -Wall is every warning there is (-Weverything).
+        "config//os:windows": [
+            "/std:c17",
+            "/W4",
+            "-Wno-unused-parameter",
+            "/O2",
+        ],
+        "DEFAULT": [
+            "-std=gnu11",
+            "-Wall",
+            "-Wextra",
+            "-Wno-unused-parameter",
+            "-O2",
+        ],
+    }),
+    headers = ["kernel/os.h"],
     # Everything is linked in, position-independently: the Rust archive too,
     # which Buck builds non-PIC for plain static linking.
     link_style = "static_pic",
@@ -166,6 +179,13 @@ shims.cxx_binary(
         "config//os:linux": [
             "-Wl,--version-script=$(location :kernel-exports)",
             "-Wl,--gc-sections",
+        ],
+        # A console program, which a window detaches from (os-windows.c).
+        # lld-link keeps every section with /debug unless told otherwise.
+        "config//os:windows": [
+            "/subsystem:console",
+            "/opt:ref",
+            "ws2_32.lib",
         ],
         "config//os:macos": [
             "-Wl,-dead_strip",
@@ -182,12 +202,16 @@ shims.cxx_binary(
         ],
     }),
     deps = [
-        ":kernel-rs",
         "toolchains//chez:embed",
         "toolchains//chez:kernel",
+        ":kernel-rs",
+    ] + shims.select({
+        # On Windows, the C runtime's heap (see mimalloc-override), which
+        # Rust's system allocator uses too.
+        "config//os:windows": [],
         # malloc and free, for C, Chez Scheme and Rust alike.
-        "third-party//by-name/mi/mimalloc:mimalloc-override",
-    ],
+        "DEFAULT": ["third-party//by-name/mi/mimalloc:mimalloc-override"],
+    }),
 )
 
 shims.export_file(
@@ -277,11 +301,15 @@ chez.standalone(
 #   buck2 install -m release depot-tilde//aseipp/quad:quad
 installable(
     name = "quad",
-    files = {
-        "bin/quad": ":quad-exe",
-        "share/applications/quad.desktop": "etc/quad.desktop",
-        "share/icons/hicolor/scalable/apps/quad.svg": "etc/quad.svg",
-    },
+    files = shims.select({
+        # Windows has no desktop entries; the executable is all there is.
+        "config//os:windows": {"bin/quad.exe": ":quad-exe"},
+        "DEFAULT": {
+            "bin/quad": ":quad-exe",
+            "share/applications/quad.desktop": "etc/quad.desktop",
+            "share/icons/hicolor/scalable/apps/quad.svg": "etc/quad.svg",
+        },
+    }),
     installer = "root//buck/installers/prefix:prefix",
     main = ":quad-exe",
 )
@@ -358,9 +386,15 @@ shims.filegroup(
 )
 
 [
+    # One command, run as is rather than through a shell: on Windows too.
     shims.command_test(
         name = "test-" + t,
-        script = "$(exe :quad) -q --batch $(location :tests)/tests/{}.ss".format(t),
+        cmd = [
+            "$(exe :quad)",
+            "-q",
+            "--batch",
+            "$(location :tests)/tests/{}.ss".format(t),
+        ],
     )
     for t in [
         "text",
@@ -391,6 +425,7 @@ shims.filegroup(
         "widgets",
         "vim",
         "helix",
+        "paths",
     ]
 ]
 

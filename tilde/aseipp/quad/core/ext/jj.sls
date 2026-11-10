@@ -80,8 +80,8 @@
     (let ([r (path-join root ".jj/repo")])
       (if (file-directory? r)
           r
-          (let ([p (guard (e [#t #f]) (string-trim (read-file-string r)))])
-            (and p (if (string-prefix? "/" p) p (path-join (path-join root ".jj") p)))))))
+          (let ([p (guard (e [#t #f]) (path-normalize (string-trim (read-file-string r))))])
+            (and p (if (absolute-path? p) p (path-join (path-join root ".jj") p)))))))
 
   (define (heads-stamp heads)
     (guard (e [#t #f])

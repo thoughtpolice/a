@@ -44,8 +44,14 @@
                 ("/img/x.png" "file:///img/x.png")
                 ("empty" "file:///work/notes/empty")))
 
-(expect-equal "a file link's path and line" (file-link-path "file:///a/b%20c.md#L12") '("/a/b c.md" . 12))
-(expect-equal "and without a line" (file-link-path "file://localhost/a/b") '("/a/b" . #f))
+;; A path without a drive is no absolute one on Windows.
+(if (eq? (path-style) 'windows)
+    (begin
+      (expect-equal "a file link's path and line" (file-link-path "file:///C:/a/b%20c.md#L12") '("C:/a/b c.md" . 12))
+      (expect-equal "and without a line" (file-link-path "file://localhost/C:/a/b") '("C:/a/b" . #f)))
+    (begin
+      (expect-equal "a file link's path and line" (file-link-path "file:///a/b%20c.md#L12") '("/a/b c.md" . 12))
+      (expect-equal "and without a line" (file-link-path "file://localhost/a/b") '("/a/b" . #f))))
 (expect-equal "another URL is no file's" (file-link-path "https://x") #f)
 
 ;; ---------------------------------------------------------------------------

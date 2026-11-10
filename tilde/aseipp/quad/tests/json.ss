@@ -101,5 +101,7 @@
   (jsonrpc-start '("sleep" "60") #f #f void void (lambda (s) (set! status s))))
 (jsonrpc-request! sleeper "nothing" #f void (lambda (e) (set! failed (jsonrpc-error-message e))))
 (jsonrpc-stop! sleeper 50)
-(expect-equal "killed" status -9)
+;; Killed by SIGKILL on Unix; on Windows, which has no signals, ended by
+;; TerminateProcess, whose status the kernel gives it is 1.
+(expect-equal "killed" status (if windows? 1 -9))
 (expect-equal "pending request failed" failed "the server exited")

@@ -21,7 +21,6 @@
 //! from mimalloc, as Chez Scheme and the C kernel do.
 
 use std::fs::File;
-use std::os::fd::AsRawFd;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -92,8 +91,75 @@ fn ticker_take(t: Ref<Ticker>) -> Vec<u64> {
 /// nothing waits on a pipe nobody reads.
 pub struct Process {
     child: Child,
-    stdin: Option<ChildStdin>,
-    stdout: ChildStdout,
+    stdin: Option<ProcessInput>,
+    stdout: ProcessOutput,
+}
+
+// What Scheme writes the process's input to and reads its output from. On
+// Unix, the pipes themselves. On Windows, where the kernel waits on sockets
+// alone (os-windows.c), a socket each, of a pair whose other end a thread
+// pumps to or from the pipe: the input's ends when Scheme's socket closes,
+// and the output's socket ends after what the process wrote.
+#[cfg(unix)]
+type ProcessInput = ChildStdin;
+#[cfg(unix)]
+type ProcessOutput = ChildStdout;
+#[cfg(windows)]
+type ProcessInput = std::net::TcpStream;
+#[cfg(windows)]
+type ProcessOutput = std::net::TcpStream;
+
+#[cfg(unix)]
+fn process_input(stdin: ChildStdin) -> std::io::Result<ProcessInput> {
+    Ok(stdin)
+}
+
+#[cfg(unix)]
+fn process_output(stdout: ChildStdout) -> std::io::Result<ProcessOutput> {
+    Ok(stdout)
+}
+
+/// The descriptor Scheme has for one of a process's streams.
+#[cfg(unix)]
+fn descriptor(s: &impl std::os::fd::AsRawFd) -> i32 {
+    s.as_raw_fd()
+}
+
+#[cfg(windows)]
+fn descriptor(s: &std::net::TcpStream) -> i32 {
+    chez::socket::descriptor(s)
+}
+
+/// A pump's thread: it only copies, so it needs little stack.
+#[cfg(windows)]
+fn pump(name: &str, f: impl FnOnce() + Send + 'static) -> std::io::Result<()> {
+    std::thread::Builder::new()
+        .name(name.into())
+        .stack_size(64 << 10)
+        .spawn(f)
+        .map(drop)
+}
+
+#[cfg(windows)]
+fn process_input(mut stdin: ChildStdin) -> std::io::Result<ProcessInput> {
+    let (mut ours, theirs) = chez::socket::pair()?;
+    pump("quad-process-in", move || {
+        // Until Scheme's socket closes (end of file), or the process stops
+        // reading; then the pipe closes, and the process reads end of file.
+        let _ = std::io::copy(&mut ours, &mut stdin);
+    })?;
+    Ok(theirs)
+}
+
+#[cfg(windows)]
+fn process_output(mut stdout: ChildStdout) -> std::io::Result<ProcessOutput> {
+    let (mut ours, theirs) = chez::socket::pair()?;
+    pump("quad-process-out", move || {
+        let _ = std::io::copy(&mut stdout, &mut ours);
+        // Scheme reads end of file after the last of it.
+        let _ = ours.shutdown(std::net::Shutdown::Write);
+    })?;
+    Ok(theirs)
 }
 
 impl Process {
@@ -128,7 +194,19 @@ fn command(who: &str, argv: &[String], cwd: Option<String>) -> Result<Command, S
     let (program, args) = argv
         .split_first()
         .ok_or_else(|| format!("{who}: an empty command"))?;
-    let mut cmd = Command::new(program);
+    let script = if cfg!(windows) {
+        script_in_path(
+            program,
+            &std::env::var_os("PATH").unwrap_or_default(),
+            &std::env::var("PATHEXT").unwrap_or_default(),
+        )
+    } else {
+        None
+    };
+    let mut cmd = match script {
+        Some(script) => Command::new(script),
+        None => Command::new(program),
+    };
     cmd.args(args);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
@@ -136,13 +214,56 @@ fn command(who: &str, argv: &[String], cwd: Option<String>) -> Result<Command, S
     Ok(cmd)
 }
 
+/// Where `program`, a bare name, is a batch file in `path` (as `PATH`)
+/// that Windows' shell would run for it, trying `pathext`'s extensions
+/// (`PATHEXT`'s, else the shell's own) in each directory in turn: npm's
+/// shims for language servers and agents are such (`NAME.cmd`). Rust's
+/// Command looks for `NAME.exe` alone, so the batch file is named by its
+/// path, which Command runs through cmd.exe, quoting its arguments for it.
+/// None where the shell would run a program (which Command finds itself),
+/// or nothing.
+fn script_in_path(
+    program: &str,
+    path: &std::ffi::OsStr,
+    pathext: &str,
+) -> Option<std::path::PathBuf> {
+    let name = std::path::Path::new(program);
+    if name.extension().is_some() || name.components().count() != 1 {
+        return None;
+    }
+    let pathext = if pathext.is_empty() {
+        ".COM;.EXE;.BAT;.CMD"
+    } else {
+        pathext
+    };
+    for dir in std::env::split_paths(path) {
+        for ext in pathext.split(';').filter(|e| !e.is_empty()) {
+            let candidate = dir.join(format!("{program}{ext}"));
+            if candidate.is_file() {
+                let ext = ext.to_ascii_lowercase();
+                return (ext == ".bat" || ext == ".cmd").then_some(candidate);
+            }
+        }
+    }
+    None
+}
+
 /// An exit status as Scheme has it: the code, or a signal's number,
 /// negated, if one killed it.
 fn status_number(status: std::process::ExitStatus) -> i32 {
-    use std::os::unix::process::ExitStatusExt;
-    status
-        .code()
-        .unwrap_or_else(|| -status.signal().unwrap_or(0))
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        status
+            .code()
+            .unwrap_or_else(|| -status.signal().unwrap_or(0))
+    }
+    // Windows has no signals: a process ends with a code, which a kill
+    // (TerminateProcess) gives too.
+    #[cfg(windows)]
+    {
+        status.code().unwrap_or(-1)
+    }
 }
 
 /// Run `argv` (the program, then its arguments, searched for in PATH) in
@@ -168,6 +289,18 @@ fn spawn_process(
     let mut child = cmd.spawn().map_err(|e| format!("{}: {e}", argv[0]))?;
     let stdin = child.stdin.take();
     let stdout = child.stdout.take().expect("stdout is piped");
+    let streams = stdin
+        .map(process_input)
+        .transpose()
+        .and_then(|stdin| Ok((stdin, process_output(stdout)?)));
+    let (stdin, stdout) = match streams {
+        Ok(streams) => streams,
+        Err(e) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!("{}: {e}", argv[0]));
+        }
+    };
     Ok(Object(Process {
         child,
         stdin,
@@ -313,14 +446,14 @@ fn command_take(r: Ref<Run>) -> Vec<RunDone> {
 /// The descriptor to write the process's input to, or -1 once closed.
 #[chez::procedure]
 fn process_input_fd(p: Ref<Process>) -> i32 {
-    p.stdin.as_ref().map_or(-1, |i| i.as_raw_fd())
+    p.stdin.as_ref().map_or(-1, descriptor)
 }
 
 /// The descriptor to read the process's output from, which polls readable
 /// at its end, too.
 #[chez::procedure]
 fn process_output_fd(p: Ref<Process>) -> i32 {
-    p.stdout.as_raw_fd()
+    descriptor(&p.stdout)
 }
 
 /// Close the process's input: it reads end of file.

@@ -62,8 +62,9 @@
   -h, --help           this message
 
 PATH defaults to $QUAD_SOCKET, or quad.sock in $XDG_RUNTIME_DIR/quad, or
-in /tmp/quad-$USER. The init file is $QUAD_INIT, or
-$XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
+in /tmp/quad-$USER (on Windows, %LOCALAPPDATA%\\quad). The init file is
+$QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss
+(on Windows, %APPDATA%\\quad\\init.ss).
 ")
 
   ;; ---------------------------------------------------------------------------
@@ -180,7 +181,7 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
   (define (configure! init?)
     (lambda ()
       (if init?
-          (begin (load-init-file! (init-file-path)) (run-hooks 'startup-directory-hook (current-directory)))
+          (begin (load-init-file! (init-file-path)) (run-hooks 'startup-directory-hook (working-directory)))
           (run-hooks 'skip-configuration-hook))))
 
   ;; The editor with this terminal or a window attached (as ui asks, see
@@ -245,7 +246,7 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
   ;; A connection to the editor listening at the default socket, or #f.
   (define (local-editor-fd)
     (let ([path (default-socket-path)])
-      (and (file-exists? path)
+      (and (socket-exists? path)
            (or (socket-dir-safe? path)
                (begin
                  (fprintf (current-error-port) "quad: not connecting to ~a: its directory is not yours alone\n" path)

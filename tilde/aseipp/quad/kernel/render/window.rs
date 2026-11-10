@@ -46,7 +46,8 @@ impl Renderer {
         let surface_extension = match display {
             RawDisplayHandle::Wayland(_) => ash::khr::wayland_surface::NAME,
             RawDisplayHandle::Xlib(_) => ash::khr::xlib_surface::NAME,
-            _ => return Err("only Wayland and X11 (Xlib) windows are supported".into()),
+            RawDisplayHandle::Windows(_) => ash::khr::win32_surface::NAME,
+            _ => return Err("only Wayland, X11 (Xlib) and Win32 windows are supported".into()),
         };
         let (gpu, surface, format) = match take_prepared_for(surface_extension, window) {
             Some(prepared) => prepared,
@@ -189,15 +190,10 @@ const PREPARED_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 
 /// Starts making the device the first window will draw with, on another
 /// thread, unless one is made or being made: for the display the
-/// environment names (Wayland's, else X11's), as winit chooses it.
+/// environment names (Wayland's, else X11's), as winit chooses it; on
+/// Windows, for its windows.
 pub fn prepare() {
-    let nonempty = |v: &str| std::env::var_os(v).is_some_and(|s| !s.is_empty());
-    let x11 = std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1");
-    let surface_extension = if nonempty("WAYLAND_DISPLAY") && !x11 {
-        ash::khr::wayland_surface::NAME
-    } else if nonempty("DISPLAY") {
-        ash::khr::xlib_surface::NAME
-    } else {
+    let Some(surface_extension) = surface_extension() else {
         return;
     };
     make_ahead(surface_extension, move || {
@@ -205,6 +201,25 @@ pub fn prepare() {
         let (physical, family) = pick_device(&instance, None)?;
         Gpu::new(physical, family, PREPARED_FORMAT, true)
     });
+}
+
+/// The surface extension windows here take, if there is a display.
+#[cfg(target_os = "linux")]
+fn surface_extension() -> Option<&'static CStr> {
+    let nonempty = |v: &str| std::env::var_os(v).is_some_and(|s| !s.is_empty());
+    let x11 = std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1");
+    if nonempty("WAYLAND_DISPLAY") && !x11 {
+        Some(ash::khr::wayland_surface::NAME)
+    } else if nonempty("DISPLAY") {
+        Some(ash::khr::xlib_surface::NAME)
+    } else {
+        None
+    }
+}
+
+#[cfg(windows)]
+fn surface_extension() -> Option<&'static CStr> {
+    Some(ash::khr::win32_surface::NAME)
 }
 
 /// The device made ahead, waited for, if it suits `window`: made for its

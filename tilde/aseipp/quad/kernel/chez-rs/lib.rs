@@ -35,7 +35,8 @@
 //! [`Scope`] are values with lifetimes that keep them from outliving what
 //! makes them valid; [`FromScheme`] and [`IntoScheme`] convert; [`Object`]
 //! hands Rust values to Scheme; [`Mailbox`] brings values from other
-//! threads to Scheme's event loop.
+//! threads to Scheme's event loop; [`socket`] makes the socket pairs that
+//! stand for descriptors on Windows.
 
 // What #[chez::procedure] expands to names ::chez, here too.
 extern crate self as chez;
@@ -46,6 +47,7 @@ mod convert;
 mod library;
 mod mailbox;
 mod object;
+pub mod socket;
 mod value;
 
 pub use chez_macros::{library, procedure};

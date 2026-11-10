@@ -70,5 +70,5 @@
 
   (at-load
    (define-command 'grep "Search the working directory's files, as you type"
-     (lambda () (grep-picker! (current-directory))))
+     (lambda () (grep-picker! (working-directory))))
    (define-key (keymap-lookup-target space-keymap "k") "g" 'grep "Grep")))

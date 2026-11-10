@@ -13,10 +13,10 @@
           kernel-read-some kernel-write kernel-take-winch kernel-stop-requested? kernel-suspend
           kernel-poll kernel-unix-listen kernel-unix-connect kernel-accept kernel-close
           kernel-private-dir? kernel-same-file? kernel-poll-rw kernel-write-some
-          kernel-lock kernel-file-key
+          kernel-lock kernel-file-key kernel-rename!
           kernel-fork-detached
           quad-self-path kernel-hostname kernel-launched-as-app)
-  (import (chezscheme))
+  (import (chezscheme) (only (quad util) windows?))
 
   (define-syntax define-kernel
     (lambda (x)
@@ -88,6 +88,16 @@
   (define (kernel-file-key path)
     (let* ([out (make-bytevector 64 0)] [n (k-file-key path out 64)])
       (and (>= n 0) (utf8->string (bytevector-truncate! out n)))))
+  ;; Renames file from to to, replacing to if it is there, as one step
+  ;; where the system can: rename(2), which is Chez Scheme's rename-file
+  ;; on Unix. On Windows rename-file (_wrename) refuses a to that is
+  ;; there, so the kernel's quad_rename does it (MoveFileExW, replacing).
+  (define-kernel k-rename "quad_rename" (string string) int)
+  (define (kernel-rename! from to)
+    (if windows?
+        (unless (= 0 (k-rename from to))
+          (errorf 'rename-file "cannot rename ~a to ~a" from to))
+        (rename-file from to)))
   (define-kernel k-fork-detached "quad_fork_detached" (u8*) int)
 
   ;; Fork a process that goes on without the terminal (kernel.c): in the

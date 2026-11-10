@@ -10,9 +10,12 @@
           string-graphemes string-grapheme-before string-grapheme-after fuzzy-score
           list-index take drop filter-map
           bytevector-append bytevector->hex percent-decode
-          path-join path-basename path-dirname ancestor-dirs expand-home absolute-path
-          make-directories! find-executable
-          sort-strings sort-symbols macos?)
+          path-style path-separator? path-anchor absolute-path? path-normalize path->native
+          path-join path-parts path-basename path-dirname ancestor-dirs expand-home absolute-path
+          getenv-path working-directory home-directory temp-directory user-name
+          make-directories! find-executable program-argv
+          path->uri-path uri-path->path path->file-uri file-uri->path
+          sort-strings sort-symbols macos? windows?)
   (import (chezscheme))
 
   ;; Chez Scheme allows no definitions after an expression in a library
@@ -62,6 +65,10 @@
   ;; Whether this is macOS: Chez Scheme's machine types for it end so
   ;; (tarm64osx, ta6osx).
   (define macos? (string-suffix? "osx" (symbol->string (machine-type))))
+
+  ;; Whether this is Windows: Chez Scheme's machine types for it end so
+  ;; (ta6nt, tarm64nt).
+  (define windows? (string-suffix? "nt" (symbol->string (machine-type))))
 
   (define string-index
     (case-lambda
@@ -309,23 +316,140 @@
           '()
           (let ([v (f (car l))]) (if v (cons v (loop (cdr l))) (loop (cdr l)))))))
 
+  ;; ---------------------------------------------------------------------------
+  ;; Paths
+  ;;
+  ;; A path is a string, as Chez Scheme's file procedures take it. On Unix,
+  ;; / separates its parts, and it is absolute when it starts with one. On
+  ;; Windows, / or \ separates them, and its root is a drive's ("C:/"), a
+  ;; share's ("//server/share/"), the current drive's ("/"), or a drive's
+  ;; working directory ("C:"). There, the paths quad makes are spelled with
+  ;; /, as Emacs spells them (path-normalize): every Windows file procedure
+  ;; takes them, and one spelling of each path is what lets paths be
+  ;; compared as strings (a buffer's, a project's, a server's root). Only
+  ;; what other programs are given is spelled with \ (path->native).
+  ;;
+  ;; Which of these rules apply is (path-style): 'windows on Windows, else
+  ;; 'unix. Tests set it, to check the other's rules on any host.
+
+  (define path-style
+    (make-parameter (if windows? 'windows 'unix)
+                    (lambda (s)
+                      (unless (memq s '(unix windows)) (errorf 'path-style "unknown path style ~s" s))
+                      s)))
+
+  (define (windows-paths?) (eq? (path-style) 'windows))
+
+  (define (path-separator? c)
+    (or (char=? c #\/) (and (char=? c #\\) (windows-paths?))))
+
+  (define (drive-letter? c) (or (char<=? #\a c #\z) (char<=? #\A c #\Z)))
+
+  ;; Whether p starts with a drive ("C:").
+  (define (drive? p)
+    (and (>= (string-length p) 2) (drive-letter? (string-ref p 0)) (char=? (string-ref p 1) #\:)))
+
+  ;; How many of p's characters are its root (0 for a relative path): on
+  ;; Unix, its leading /; on Windows, a drive and the separator after it, a
+  ;; share's //server/share and the separator after that, or a lone
+  ;; separator.
+  (define (path-root-length p)
+    (let* ([n (string-length p)]
+           [sep? (lambda (i) (and (< i n) (path-separator? (string-ref p i))))])
+      (cond
+       [(not (windows-paths?)) (if (sep? 0) 1 0)]
+       [(drive? p) (if (sep? 2) 3 2)]
+       [(and (sep? 0) (sep? 1))
+        (let* ([server-end (or (string-index p path-separator? 2) n)]
+               [share-end (if (< server-end n) (or (string-index p path-separator? (+ server-end 1)) n) n)])
+          (min n (+ share-end 1)))]
+       [(sep? 0) 1]
+       [else 0])))
+
+  ;; p's root, as path-root-length has it: "" for a relative path.
+  (define (path-anchor p) (substring p 0 (path-root-length p)))
+
+  ;; Whether p names the same file from any working directory: on Unix, it
+  ;; starts with /; on Windows, it starts with a drive and a separator, or
+  ;; names a share. ("/x" is on the current drive, and "C:x" in drive C's
+  ;; working directory, so neither is.)
+  (define (absolute-path? p)
+    (if (windows-paths?)
+        (let ([n (string-length p)])
+          (or (and (drive? p) (> n 2) (path-separator? (string-ref p 2)))
+              (and (>= n 2) (path-separator? (string-ref p 0)) (path-separator? (string-ref p 1)))))
+        (string-prefix? "/" p)))
+
+  ;; p in quad's spelling: on Windows, with / for \ and its drive's letter
+  ;; in capitals; elsewhere, p.
+  (define (path-normalize p)
+    (if (windows-paths?)
+        (let ([s (list->string (map (lambda (c) (if (char=? c #\\) #\/ c)) (string->list p)))])
+          (when (drive? s) (string-set! s 0 (char-upcase (string-ref s 0))))
+          s)
+        p))
+
+  ;; p spelled as the system's own programs expect it: on Windows, with \.
+  (define (path->native p)
+    (if (windows-paths?)
+        (list->string (map (lambda (c) (if (char=? c #\/) #\\ c)) (string->list p)))
+        p))
+
+  ;; Environment variable var's path, in quad's spelling, or #f.
+  (define (getenv-path var)
+    (let ([v (getenv var)]) (and v (path-normalize v))))
+
+  ;; The working directory, in quad's spelling.
+  (define (working-directory) (path-normalize (current-directory)))
+
+  ;; The user's home directory, or #f: $HOME, else on Windows %USERPROFILE%.
+  (define (home-directory)
+    (or (getenv-path "HOME") (and (windows-paths?) (getenv-path "USERPROFILE"))))
+
+  ;; Where temporary files go: $TMPDIR, else /tmp; on Windows %TEMP%, else
+  ;; %TMP%, else the system's.
+  (define (temp-directory)
+    (if (windows-paths?)
+        (or (getenv-path "TEMP") (getenv-path "TMP")
+            (let ([root (getenv-path "SystemRoot")]) (and root (path-join root "Temp")))
+            "C:/Windows/Temp")
+        (or (getenv "TMPDIR") "/tmp")))
+
+  ;; The user's login name, or #f: $USER, else on Windows %USERNAME%.
+  (define (user-name)
+    (or (getenv "USER") (and (windows-paths?) (getenv "USERNAME"))))
+
   (define (path-join a b)
     (cond
      [(string=? a "") b]
-     [(string-suffix? "/" a) (string-append a b)]
+     [(path-separator? (string-ref a (- (string-length a) 1))) (string-append a b)]
      [else (string-append a "/" b)]))
 
-  (define (path-basename p)
-    (let loop ([i (string-length p)])
-      (cond [(= i 0) p]
-            [(char=? (string-ref p (- i 1)) #\/) (substring p i (string-length p))]
-            [else (loop (- i 1))])))
+  ;; p's parts, between its separators.
+  (define (path-parts p)
+    (let ([n (string-length p)])
+      (let loop ([i n] [end n] [acc '()])
+        (cond
+         [(= i 0) (cons (substring p 0 end) acc)]
+         [(path-separator? (string-ref p (- i 1))) (loop (- i 1) (- i 1) (cons (substring p i end) acc))]
+         [else (loop (- i 1) end acc)]))))
 
+  ;; What follows p's last separator, past its root.
+  (define (path-basename p)
+    (let ([root (path-root-length p)])
+      (let loop ([i (string-length p)])
+        (cond [(<= i root) (substring p root (string-length p))]
+              [(path-separator? (string-ref p (- i 1))) (substring p i (string-length p))]
+              [else (loop (- i 1))]))))
+
+  ;; What is before p's last separator, or its root: "." if it has
+  ;; neither. A root is its own (so walking up stops there).
   (define (path-dirname p)
-    (let loop ([i (string-length p)])
-      (cond [(= i 0) "."]
-            [(char=? (string-ref p (- i 1)) #\/) (if (= i 1) "/" (substring p 0 (- i 1)))]
-            [else (loop (- i 1))])))
+    (let ([root (path-root-length p)])
+      (let loop ([i (string-length p)])
+        (cond [(<= i root) (if (= root 0) "." (substring p 0 root))]
+              [(path-separator? (string-ref p (- i 1))) (substring p 0 (- i 1))]
+              [else (loop (- i 1))]))))
 
   ;; dir, then the directories it is in, out to the last.
   (define (ancestor-dirs dir)
@@ -333,14 +457,39 @@
       (let ([up (path-dirname d)])
         (if (string=? up d) (reverse (cons d acc)) (loop up (cons d acc))))))
 
+  ;; ~/x as x in the home directory (~\x too, on Windows).
   (define (expand-home p)
-    (if (and (string-prefix? "~/" p) (getenv "HOME"))
-        (path-join (getenv "HOME") (substring p 2 (string-length p)))
-        p))
+    (let ([home (and (>= (string-length p) 2) (char=? (string-ref p 0) #\~) (path-separator? (string-ref p 1))
+                     (home-directory))])
+      (if home (path-join home (substring p 2 (string-length p))) p)))
 
-  ;; p, from the current directory if it is relative.
-  (define (absolute-path p)
-    (if (string-prefix? "/" p) p (path-join (current-directory) p)))
+  ;; p, from directory dir (default: the working directory) if it is
+  ;; relative. On Windows the result is in quad's spelling; a path on the
+  ;; current drive ("/x") is on dir's, and one in a drive's working
+  ;; directory ("D:x") in dir if dir is on that drive, else at the drive's
+  ;; root (which working directory Windows keeps for another drive, Chez
+  ;; Scheme does not say).
+  (define absolute-path
+    (case-lambda
+     [(p) (absolute-path* p #f)]
+     [(p dir) (absolute-path* p dir)]))
+
+  (define (absolute-path* p dir)
+    (let ([dir (lambda () (if dir (path-normalize dir) (working-directory)))])
+      (if (windows-paths?)
+          (let ([p (path-normalize p)])
+            (cond
+             [(absolute-path? p) p]
+             [(drive? p)
+              (let ([d (dir)] [rest (substring p 2 (string-length p))])
+                (if (and (drive? d) (char-ci=? (string-ref d 0) (string-ref p 0)))
+                    (path-join d rest)
+                    (string-append (substring p 0 2) "/" rest)))]
+             [(string-prefix? "/" p)
+              (let ([root (path-anchor (dir))])
+                (string-append (if (string-suffix? "/" root) (substring root 0 (- (string-length root) 1)) root) p))]
+             [else (path-join (dir) p)]))
+          (if (string-prefix? "/" p) p (path-join (dir) p)))))
 
   ;; Makes directory dir, and those it is in, unless they exist.
   (define (make-directories! dir)
@@ -350,13 +499,104 @@
 
   ;; Where program is: itself, if it names a directory, else the first
   ;; file of that name in a directory of PATH; or #f.
+  ;;
+  ;; On Windows, as its shell finds programs: PATH's directories are
+  ;; separated by ;, and a program is a file with an extension of PATHEXT's
+  ;; (.exe, .cmd, ...), which program may leave off (npm's shims, "codex"
+  ;; among them, are codex.cmd).
   (define (find-executable program)
-    (if (string-index program #\/)
-        (and (file-exists? program) program)
-        (exists (lambda (dir)
-                  (let ([f (path-join (if (string=? dir "") "." dir) program)])
-                    (and (file-exists? f) (not (file-directory? f)) f)))
-                (string-split (or (getenv "PATH") "") #\:))))
+    (if (windows-paths?)
+        (let* ([exts (map string-downcase
+                          (filter (lambda (e) (not (string=? e "")))
+                                  (string-split (or (getenv "PATHEXT") ".COM;.EXE;.BAT;.CMD") #\;)))]
+               [names (if (exists (lambda (e) (string-suffix? e (string-downcase program))) exts)
+                          (list program)
+                          (map (lambda (e) (string-append program e)) exts))]
+               [file (lambda (f) (and (file-exists? f) (not (file-directory? f)) (path-normalize f)))])
+          (if (or (string-index program path-separator?) (drive? program))
+              (exists file names)
+              (exists (lambda (dir) (exists (lambda (n) (file (path-join dir n))) names))
+                      (filter-map (lambda (dir)
+                                    (let ([dir (string-trim dir)])
+                                      (cond
+                                       [(string=? dir "") #f]
+                                       [(and (>= (string-length dir) 2) (string-prefix? "\"" dir) (string-suffix? "\"" dir))
+                                        (substring dir 1 (- (string-length dir) 1))]
+                                       [else dir])))
+                                  (string-split (or (getenv "PATH") "") #\;)))))
+        (if (string-index program #\/)
+            (and (file-exists? program) program)
+            (exists (lambda (dir)
+                      (let ([f (path-join (if (string=? dir "") "." dir) program)])
+                        (and (file-exists? f) (not (file-directory? f)) f)))
+                    (string-split (or (getenv "PATH") "") #\:)))))
+
+  ;; argv, to run (with spawn-process and its kin, the Rust half's), with
+  ;; its program found as find-executable finds it: on Windows, the Rust
+  ;; half finds only .exe files in PATH by itself, and runs a .cmd or .bat
+  ;; file (through cmd.exe, its arguments escaped for it) only when given
+  ;; its path. Elsewhere, argv.
+  (define (program-argv argv)
+    (if (and (windows-paths?) (pair? argv))
+        (let ([found (find-executable (car argv))])
+          (if found (cons (path->native found) (cdr argv)) argv))
+        argv))
+
+  ;; ---------------------------------------------------------------------------
+  ;; file: URIs
+
+  ;; What follows "file://" in the URI for absolute path p, before
+  ;; percent-encoding: on Unix, p; on Windows, "/C:/dir/file" for a drive's
+  ;; path, "server/share/file" for a share's.
+  (define (path->uri-path p)
+    (if (windows-paths?)
+        (let ([p (path-normalize p)])
+          (cond
+           [(string-prefix? "//" p) (substring p 2 (string-length p))]
+           [(drive? p) (string-append "/" p)]
+           [else p]))
+        p))
+
+  ;; The path that what follows "file://" in a URI (percent-encoded) names:
+  ;; on Unix, its path; on Windows, a drive's path without the / before it
+  ;; ("/c:/x", "/C%3A/x": "C:/x"), and another host's a share ("//host/x").
+  (define (uri-path->path s)
+    (let ([s (percent-decode s)])
+      (if (windows-paths?)
+          (let ([s (if (string-prefix? "localhost/" s) (substring s 9 (string-length s)) s)])
+            (cond
+             [(and (string-prefix? "/" s) (drive? (substring s 1 (string-length s))))
+              (path-normalize (substring s 1 (string-length s)))]
+             [(string-prefix? "/" s) (path-normalize s)]
+             [else (path-normalize (string-append "//" s))]))
+          s)))
+
+  (define (uri-unreserved? c)
+    (or (char<=? #\a c #\z) (char<=? #\A c #\Z) (char<=? #\0 c #\9) (memv c '(#\- #\. #\_ #\~ #\/))))
+
+  (define (percent-encode s)
+    (apply string-append
+           (map (lambda (c)
+                  (if (uri-unreserved? c)
+                      (string c)
+                      (apply string-append
+                             (map (lambda (b) (string-append "%" (if (< b 16) "0" "") (string-upcase (number->string b 16))))
+                                  (bytevector->u8-list (string->utf8 (string c)))))))
+                (string->list s))))
+
+  ;; Absolute path p as a file: URI, percent-encoded but for a drive's
+  ;; colon ("file:///C:/a%20b").
+  (define (path->file-uri p)
+    (let ([u (path->uri-path p)])
+      (string-append
+       "file://"
+       (if (and (windows-paths?) (string-prefix? "/" u) (drive? (substring u 1 (string-length u))))
+           (string-append (substring u 0 3) (percent-encode (substring u 3 (string-length u))))
+           (percent-encode u)))))
+
+  ;; The path a file: URI names (anything else is percent-decoded as it is).
+  (define (file-uri->path uri)
+    (uri-path->path (if (string-prefix? "file://" uri) (substring uri 7 (string-length uri)) uri)))
 
   (define (sort-strings l) (sort string<? l))
   (define (sort-symbols l) (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b))) l)))

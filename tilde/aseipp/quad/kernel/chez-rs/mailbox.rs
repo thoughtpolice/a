@@ -18,17 +18,7 @@ struct Inner<T> {
     queue: Mutex<VecDeque<T>>,
     // The Mailbox is gone: nobody will read.
     closed: AtomicBool,
-    read_fd: i32,
-    write_fd: i32,
-}
-
-impl<T> Drop for Inner<T> {
-    fn drop(&mut self) {
-        unsafe {
-            libc::close(self.read_fd);
-            libc::close(self.write_fd);
-        }
-    }
+    wake: Wake,
 }
 
 /// The receiving end, for Scheme: usually wrapped in an
@@ -50,42 +40,12 @@ impl<T> Clone for Sender<T> {
     }
 }
 
-/// A pipe whose ends are non-blocking and close-on-exec: made so at once
-/// where the system can (Linux's pipe2), else just after (macOS).
-fn pipe() -> std::io::Result<[i32; 2]> {
-    let mut fds = [0i32; 2];
-    // SAFETY: room for the two descriptors.
-    #[cfg(target_os = "linux")]
-    let made = unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) };
-    // SAFETY: as for pipe2.
-    #[cfg(not(target_os = "linux"))]
-    let made = unsafe { libc::pipe(fds.as_mut_ptr()) };
-    if made != 0 {
-        return Err(std::io::Error::last_os_error());
-    }
-    #[cfg(not(target_os = "linux"))]
-    for fd in fds {
-        // SAFETY: the descriptors just made, which are ours alone.
-        unsafe {
-            libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
-            libc::fcntl(
-                fd,
-                libc::F_SETFL,
-                libc::fcntl(fd, libc::F_GETFL) | libc::O_NONBLOCK,
-            );
-        }
-    }
-    Ok(fds)
-}
-
 impl<T> Mailbox<T> {
     pub fn new() -> std::io::Result<(Sender<T>, Mailbox<T>)> {
-        let fds = pipe()?;
         let inner = Arc::new(Inner {
             queue: Mutex::new(VecDeque::new()),
             closed: AtomicBool::new(false),
-            read_fd: fds[0],
-            write_fd: fds[1],
+            wake: Wake::new()?,
         });
         Ok((
             Sender {
@@ -97,13 +57,12 @@ impl<T> Mailbox<T> {
 
     /// Readable while values wait.
     pub fn fd(&self) -> i32 {
-        self.inner.read_fd
+        self.inner.wake.fd()
     }
 
     /// Every value waiting, oldest first.
     pub fn take(&self) -> Vec<T> {
-        let mut buf = [0u8; 256];
-        while unsafe { libc::read(self.inner.read_fd, buf.as_mut_ptr().cast(), buf.len()) } > 0 {}
+        self.inner.wake.drain();
         self.inner.queue.lock().unwrap().drain(..).collect()
     }
 }
@@ -128,10 +87,110 @@ impl<T> Sender<T> {
         // taken with it. The reader empties the pipe before the queue, so
         // a wake can come with nothing to take, but never be missed.
         if first {
-            let b = 1u8;
-            // A full pipe already says there is something to read.
-            unsafe { libc::write(self.inner.write_fd, (&b as *const u8).cast(), 1) };
+            self.inner.wake.wake();
         }
         Ok(())
+    }
+}
+
+/// What wakes the reader: a pipe on Unix, which Scheme polls; a socket
+/// pair on Windows, where Scheme waits on sockets alone (socket.rs). Both
+/// ends are non-blocking: the reader drains what is there, and a full
+/// buffer already says there is something to read.
+#[cfg(unix)]
+struct Wake {
+    read_fd: i32,
+    write_fd: i32,
+}
+
+#[cfg(unix)]
+impl Wake {
+    /// A pipe whose ends are non-blocking and close-on-exec: made so at
+    /// once where the system can (Linux's pipe2), else just after (macOS).
+    fn new() -> std::io::Result<Wake> {
+        let mut fds = [0i32; 2];
+        // SAFETY: room for the two descriptors.
+        #[cfg(target_os = "linux")]
+        let made = unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) };
+        // SAFETY: as for pipe2.
+        #[cfg(not(target_os = "linux"))]
+        let made = unsafe { libc::pipe(fds.as_mut_ptr()) };
+        if made != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        #[cfg(not(target_os = "linux"))]
+        for fd in fds {
+            // SAFETY: the descriptors just made, which are ours alone.
+            unsafe {
+                libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
+                libc::fcntl(
+                    fd,
+                    libc::F_SETFL,
+                    libc::fcntl(fd, libc::F_GETFL) | libc::O_NONBLOCK,
+                );
+            }
+        }
+        Ok(Wake {
+            read_fd: fds[0],
+            write_fd: fds[1],
+        })
+    }
+
+    fn fd(&self) -> i32 {
+        self.read_fd
+    }
+
+    fn drain(&self) {
+        let mut buf = [0u8; 256];
+        // SAFETY: reads into `buf`, from the pipe's own read end.
+        while unsafe { libc::read(self.read_fd, buf.as_mut_ptr().cast(), buf.len()) } > 0 {}
+    }
+
+    fn wake(&self) {
+        let b = 1u8;
+        // SAFETY: one byte, from `b`, to the pipe's own write end.
+        unsafe { libc::write(self.write_fd, (&b as *const u8).cast(), 1) };
+    }
+}
+
+#[cfg(unix)]
+impl Drop for Wake {
+    fn drop(&mut self) {
+        // SAFETY: the pipe's ends, ours alone, closed once.
+        unsafe {
+            libc::close(self.read_fd);
+            libc::close(self.write_fd);
+        }
+    }
+}
+
+#[cfg(windows)]
+struct Wake {
+    read: std::net::TcpStream,
+    write: std::net::TcpStream,
+}
+
+#[cfg(windows)]
+impl Wake {
+    fn new() -> std::io::Result<Wake> {
+        let (read, write) = crate::socket::pair()?;
+        read.set_nonblocking(true)?;
+        write.set_nonblocking(true)?;
+        Ok(Wake { read, write })
+    }
+
+    fn fd(&self) -> i32 {
+        crate::socket::descriptor(&self.read)
+    }
+
+    fn drain(&self) {
+        use std::io::Read as _;
+        let mut buf = [0u8; 256];
+        while (&self.read).read(&mut buf).is_ok_and(|n| n > 0) {}
+    }
+
+    fn wake(&self) {
+        use std::io::Write as _;
+        let _ = (&self.write).write(&[1]);
     }
 }

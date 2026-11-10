@@ -10,10 +10,11 @@ pkg.info(
     copyright = [
         "2024-2026 Austin Seipp",
     ],
-    # Linux, with Vulkan, Wayland and X11; and macOS, with Metal 4 and
-    # AppKit.
+    # Linux, with Vulkan, Wayland and X11; macOS, with Metal 4 and AppKit;
+    # and Windows, with Vulkan and Win32.
     compatible_with = [
         "config//os:linux",
         "config//os:macos",
+        "config//os:windows",
     ],
 )

@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Standalone quad executables with Scheme code compiled in, and the GUI's
-shaders: SPIR-V for Vulkan (Linux), Metal source for Metal (macOS).
+shaders: SPIR-V for Vulkan (Linux and Windows), Metal source for Metal
+(macOS).
 
 quad is a kernel with boot files appended to it (kernel/kernel.c, and
 embed.sls in the Chez toolchain). `quad --build-exe OUT FILE...` writes a copy of itself
@@ -26,6 +27,11 @@ def quad_executable(name: str, srcs: list[str], quad: str = "depot-tilde//aseipp
         executable = True,
         **kwargs
     )
+
+# The shader genrules run under bash, or cmd.exe on a Windows host, so their
+# commands keep to what both read alike: programs and their arguments, $OUT
+# and $SRCDIR (which the genrule spells %OUT% and %SRCDIR% for cmd.exe), and
+# `&&`. Buck writes the paths of $(exe) with the host's separators.
 
 def slang_metal(name: str, src: str, entries: list[(str, str)]):
     """`:<name>`, Metal Shading Language source of the entry points

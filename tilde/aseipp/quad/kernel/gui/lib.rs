@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! The GUI's window: winit's, on Wayland or X11 drawn with Vulkan, and on
-//! macOS drawn with Metal 4.
+//! The GUI's window: winit's, on Wayland, X11 or Windows drawn with
+//! Vulkan, and on macOS drawn with Metal 4.
 //!
 //! The GUI is a client of the editor like the terminal is (core/gui.sls):
 //! the server draws its frames as cells, and this draws the cells. Windows
@@ -62,6 +62,8 @@ mod macos;
 mod main_thread;
 pub mod screen;
 mod snapshots;
+#[cfg(windows)]
+mod win32;
 mod window;
 mod windows;
 
@@ -73,7 +75,9 @@ use windows::*;
 /// Whether a window could open here: a display to show it on. On Linux, a
 /// Wayland or X11 display, as the environment names them; on macOS, the
 /// window server, which a login session at the Mac reaches and one over ssh
-/// does not. `QUAD_NO_DISPLAY=1` says there is none, wherever there is.
+/// does not; on Windows, the desktop, which a desktop session shows and a
+/// service or a session over ssh does not. `QUAD_NO_DISPLAY=1` says there
+/// is none, wherever there is.
 pub fn display_available() -> bool {
     if told_no_display() {
         return false;
@@ -87,6 +91,10 @@ pub fn display_available() -> bool {
     #[cfg(target_os = "macos")]
     {
         macos::window_server()
+    }
+    #[cfg(windows)]
+    {
+        win32::interactive()
     }
 }
 
@@ -106,11 +114,12 @@ fn told_no_display() -> bool {
 }
 
 /// Whether no window can open here, known before trying: on macOS, where
-/// AppKit cannot reach a window server without a session with it; and
-/// wherever this process is told so. On Linux winit finds out otherwise
-/// (a Wayland display passed as WAYLAND_SOCKET, say).
+/// AppKit cannot reach a window server without a session with it; on
+/// Windows, where a window made off the interactive desktop is made, and
+/// never seen; and wherever this process is told so. On Linux winit finds
+/// out otherwise (a Wayland display passed as WAYLAND_SOCKET, say).
 fn no_display() -> bool {
-    if cfg!(target_os = "macos") {
+    if cfg!(any(target_os = "macos", windows)) {
         !display_available()
     } else {
         told_no_display()

@@ -57,10 +57,10 @@ editor in its place; leaving it (`space j v`) comes back to this one, which
 kept running meanwhile.
 
 The socket is `$QUAD_SOCKET`, else `quad.sock` in `$XDG_RUNTIME_DIR/quad`,
-or, where that is unset (macOS), in `/tmp/quad-$USER`; `--listen=PATH` and
-`--connect=PATH` name another. Quitting (`space j v`) detaches a client;
-the editor stops with its last client, unless it is a daemon (`space j k`
-stops it for everyone).
+or, where that is unset (macOS), in `/tmp/quad-$USER`; on Windows, in
+`%LOCALAPPDATA%\quad`. `--listen=PATH` and `--connect=PATH` name another.
+Quitting (`space j v`) detaches a client; the editor stops with its last
+client, unless it is a daemon (`space j k` stops it for everyone).
 
 ### Working together
 
@@ -290,7 +290,8 @@ fields, and buttons.
 ## Extending
 
 The init file is `$QUAD_INIT`, else `$XDG_CONFIG_HOME/quad/init.ss`, else
-`~/.config/quad/init.ss`. It runs with all of quad in scope:
+(on Windows) `%APPDATA%\quad\init.ss`, else `~/.config/quad/init.ss`. It
+runs with all of quad in scope:
 
 ```scheme
 (define-command 'shout "Upcase the selections"
@@ -512,11 +513,12 @@ first: Codex reads `.quad/` without any tools, as a single model sample
 it cannot forge, in a thread started outside the repository and deleted
 after. The verdict is advice, shown with the question; the code could be
 written to mislead its reader. Trust is kept by a hash of `.quad/`, in
-`$XDG_STATE_HOME/quad/trusted`, so any change asks again. `project-trust`,
-`project-reload`, `project-forget` and `project-info` are commands; `quad
--q` loads no project. This repository's own `.quad/init.ss` runs the
-language servers through Buck, from the same file Claude Code's plugin
-uses, and trims whitespace on save as `.helix/` has it.
+`$XDG_STATE_HOME/quad/trusted` (on Windows, `%LOCALAPPDATA%\quad\trusted`),
+so any change asks again. `project-trust`, `project-reload`,
+`project-forget` and `project-info` are commands; `quad -q` loads no
+project. This repository's own `.quad/init.ss` runs the language servers
+through Buck, from the same file Claude Code's plugin uses, and trims
+whitespace on save as `.helix/` has it.
 
 `trim-trailing-whitespace` and `trim-final-newlines` are variables of
 their own, for any buffer.

@@ -46,7 +46,7 @@
    buffer-set-text!
    add-change-listener! remove-change-listener!
    read-file-string write-file-string)
-  (import (chezscheme) (quad util) (quad text) (quad syntax))
+  (import (chezscheme) (quad util) (quad text) (quad syntax) (only (quad kernel) kernel-rename!))
 
   ;; A selection: the range [start, end), and when it is being extended, the
   ;; range it was extended from. The selected text is the hull of the two.
@@ -424,4 +424,4 @@
       (call-with-port (open-file-output-port tmp (file-options no-fail) (buffer-mode block) (utf8-transcoder))
         (lambda (p) (put-string p s)))
       (when (file-exists? path) (chmod tmp (get-mode path)))
-      (rename-file tmp path))))
+      (kernel-rename! tmp path))))

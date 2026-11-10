@@ -28,7 +28,11 @@ DEPS = [
     ":shim",
     "//aseipp/quad/kernel/chez-rs/macros:chez-macros",
     "third-party//rust:libc",
-]
+] + depot.select({
+    # SetHandleInformation, for socket.rs.
+    "config//os:windows": ["third-party//rust:windows"],
+    "DEFAULT": [],
+})
 
 depot.rust_library(
     name = "chez",

@@ -44,17 +44,26 @@ pub(super) struct Instance {
 }
 
 impl Instance {
-    /// Loads Vulkan (the host's `libvulkan.so.1`) and makes an instance
-    /// with `extensions`.
+    /// Loads Vulkan (the host's `libvulkan.so.1`, or `vulkan-1.dll`) and
+    /// makes an instance with `extensions`.
     pub(super) fn load(extensions: &[&CStr]) -> Result<Arc<Instance>, String> {
         // SAFETY: loading the Vulkan loader runs its initializers, as it is
         // meant to; the library stays loaded while `entry` lives, which is
         // as long as the instance does.
-        let entry = unsafe { ash::Entry::load() }.map_err(|e| {
+        #[cfg(not(windows))]
+        let missing = |e: ash::LoadingError| {
             format!(
                 "cannot load Vulkan (libvulkan.so.1): {e}; is this the host-linked quad (:quad)?"
             )
-        })?;
+        };
+        #[cfg(windows)]
+        let missing = |e: ash::LoadingError| {
+            format!(
+                "cannot load Vulkan (vulkan-1.dll): {e}; a GPU driver installs it, as does \
+                 the Vulkan Runtime"
+            )
+        };
+        let entry = unsafe { ash::Entry::load() }.map_err(missing)?;
         let extensions: Vec<*const c_char> = extensions.iter().map(|e| e.as_ptr()).collect();
         let validation = c"VK_LAYER_KHRONOS_validation";
         let layers: Vec<*const c_char> =
@@ -1078,7 +1087,19 @@ impl Surface {
                     )
                 }
             }
-            _ => return Err("only Wayland and X11 (Xlib) windows are supported".into()),
+            (RawDisplayHandle::Windows(_), RawWindowHandle::Win32(w)) => {
+                // SAFETY: as for Wayland's.
+                unsafe {
+                    ash::khr::win32_surface::Instance::new(entry, raw_instance)
+                        .create_win32_surface(
+                            &vk::Win32SurfaceCreateInfoKHR::default()
+                                .hinstance(w.hinstance.map_or(0, |h| h.get()))
+                                .hwnd(w.hwnd.get()),
+                            None,
+                        )
+                }
+            }
+            _ => return Err("only Wayland, X11 (Xlib) and Win32 windows are supported".into()),
         };
         Ok(Surface {
             instance: instance.clone(),

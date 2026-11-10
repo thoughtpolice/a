@@ -19,7 +19,8 @@
 //!
 //! The microphone is open only while this process's person is in voice
 //! and not muted. Sound goes through the desktop's sound server on Linux
-//! (pulse.rs), and Core Audio on macOS (coreaudio.rs);
+//! (pulse.rs), Core Audio on macOS (coreaudio.rs), and WASAPI on Windows
+//! (wasapi.rs);
 //! `QUAD_VOICE_INPUT=FILE` and `QUAD_VOICE_OUTPUT=FILE` read and write raw
 //! samples (16-bit, little-endian, mono, 48 kHz) instead, in real time, for
 //! tests.
@@ -30,12 +31,16 @@ mod mix;
 mod opus;
 #[cfg(target_os = "linux")]
 mod pulse;
+#[cfg(windows)]
+mod wasapi;
 
 // The system's microphone and speakers.
 #[cfg(target_os = "macos")]
 use coreaudio as sound;
 #[cfg(target_os = "linux")]
 use pulse as sound;
+#[cfg(windows)]
+use wasapi as sound;
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write as _;

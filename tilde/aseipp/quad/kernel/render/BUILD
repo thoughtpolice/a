@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Drawing the GUI's frames: Vulkan on Linux, Metal 4 on macOS, in a window
-# or into an image.
+# Drawing the GUI's frames: Vulkan on Linux and Windows, Metal 4 on macOS,
+# in a window or into an image.
 
 load("@root//buck/shims:shims.bzl", "shims")
 load("//aseipp/quad:defs.bzl", "slang_metal", "slang_shader")
@@ -15,6 +15,7 @@ DEPS = [
     "third-party//rust:winit",
 ] + shims.select({
     "config//os:linux": ["third-party//rust:ash"],
+    "config//os:windows": ["third-party//rust:ash"],
     "config//os:macos": [
         "third-party//rust:objc2",
         "third-party//rust:objc2-app-kit",
@@ -57,6 +58,7 @@ slang_metal(
 
 SHADERS = shims.select({
     "config//os:linux": {":" + out: out for out in GUI_SHADERS},
+    "config//os:windows": {":" + out: out for out in GUI_SHADERS},
     "config//os:macos": {":gui.metal": "gui.metal"},
 })
 
