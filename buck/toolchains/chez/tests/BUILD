@@ -59,22 +59,21 @@ chez.standalone(
     runtime = "petite",
 )
 
+shims.export_file(
+    name = "test-standalone.ss",
+    visibility = [],
+)
+
 shims.command_test(
     name = "test-standalone",
-    script = """
-        out=`$(exe :demo-bin) a b`
-        echo "$out"
-        test "$out" = 'HELLO, CHEZ HELLO, CHEZ ("a" "b")'
-        # Found through PATH, from elsewhere, its argv[0] names no file: it
-        # finds its boot files by asking the system where it is.
-        exe=$(location :demo-bin)
-        dir=`dirname $exe`
-        name=`basename $exe`
-        test "`cd / && PATH=$dir:$PATH $name a b`" = "$out"
-        # The boot file loads (demo greet name), (demo greet), (demo shout),
-        # each after what it imports.
-        test "`cat $(location :greet[manifest])`" = '(((demo greet name) "demo/greet/name.so") ((demo greet) "demo/greet.so"))'
-    """,
+    cmd = [
+        "$(location third-party//by-name/ch/chez-scheme:install[scheme])",
+        "-q",
+        "--script",
+        "$(location :test-standalone.ss)",
+        "$(location :demo-bin)",
+        "$(location :greet[manifest])",
+    ],
 )
 
 # What makes it the host's: its interpreter, and no search path of the

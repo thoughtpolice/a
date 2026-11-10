@@ -4,10 +4,12 @@
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
 ;;   scheme -q --script boot.ss out=FILE requires=scheme,petite
-;;          lib=OBJDIR:MANIFEST ... [program=OBJ ...] [strip=yes]
+;;          lib=OBJDIR manifest=MANIFEST ... [program=OBJ ...] [strip=yes]
 ;;
-;; lib= arguments come dependencies first; each manifest lists its
-;; directory's libraries in load order. A library appears once, at its first
+;; lib= arguments come dependencies first, each followed by its manifest=,
+;; which lists that directory's libraries in load order. (Two arguments,
+;; not one with a separator: a Windows path may hold any of the likely
+;; ones.) A library appears once, at its first
 ;; mention. Programs load last, in order: they run as the boot file loads.
 (import (chezscheme))
 
@@ -28,13 +30,22 @@
 
 (reset-handler (lambda () (exit 1)))
 
+(define libs
+  (let loop ([args args])
+    (cond
+     [(null? args) '()]
+     [(eq? (caar args) 'lib)
+      (unless (and (pair? (cdr args)) (eq? (caadr args) 'manifest))
+        (errorf 'boot "lib=~a is not followed by its manifest=" (cdar args)))
+      (cons (cons (cdar args) (cdadr args)) (loop (cddr args)))]
+     [else (loop (cdr args))])))
+
 (define objects
-  (let loop ([libs (args-of 'lib)] [seen '()] [acc '()])
+  (let loop ([libs libs] [seen '()] [acc '()])
     (if (null? libs)
         (reverse acc)
-        (let* ([parts (split (car libs) #\:)]
-               [dir (car parts)]
-               [manifest (call-with-input-file (cadr parts) read)]
+        (let* ([dir (caar libs)]
+               [manifest (call-with-input-file (cdar libs) read)]
                [fresh (filter (lambda (e) (not (member (car e) seen))) manifest)])
           (loop (cdr libs)
                 (append (map car fresh) seen)

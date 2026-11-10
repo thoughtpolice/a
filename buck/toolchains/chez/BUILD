@@ -34,12 +34,20 @@ shims.alias(
 shims.cxx_library(
     name = "embed",
     srcs = ["embed.c"],
-    compiler_flags = [
-        "-std=gnu11",
-        "-Wall",
-        "-Wextra",
-        "-O2",
-    ],
+    # clang-cl reads -Wall as -Weverything, and takes no -std=gnu11.
+    compiler_flags = shims.select({
+        "config//os:windows": [
+            "/std:c11",
+            "/W3",
+            "-O2",
+        ],
+        "DEFAULT": [
+            "-std=gnu11",
+            "-Wall",
+            "-Wextra",
+            "-O2",
+        ],
+    }),
     exported_headers = {"chez_embed.h": "chez_embed.h"},
     header_namespace = "",
     preferred_linkage = "static",

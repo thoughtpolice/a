@@ -30,7 +30,10 @@ chez.rust_library(name = "native", crate = ":native-rs", library = "native")
   kernel: one executable that needs no files beside it. The kernel is
   stripped first (`strip = False` keeps it whole): its symbols and debug
   info go into the `[debug]` sub-target, a file beside the executable that
-  it names (`.gnu_debuglink`), so that debuggers and profilers find it.
+  it names (`.gnu_debuglink`), so that debuggers and profilers find it. On
+  Windows, where the linker puts them in a PDB file already, `[debug]` is
+  that file (when the build writes one), and the executable is named
+  `.exe`.
   With `host = True`, it runs on the host's dynamic linker and libraries in
   place of the toolchain's, as an executable that loads the host's
   libraries at run time (a Vulkan loader and GPU driver, say) must.
