@@ -10238,6 +10238,7 @@ dependencies = [
  "wasmprinter",
  "wat",
  "watchman_client",
+ "windows 0.62.2",
  "winit",
  "wit-bindgen-c",
  "wit-bindgen-core",

@@ -242,6 +242,38 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "accesskit_windows-0.35.2.crate",
+    sha256 = "498668b90da9995302a0055aaecad4756932333da2ddef6baee1c00844c430fc",
+    strip_prefix = "accesskit_windows-0.35.2",
+    urls = ["https://static.crates.io/crates/accesskit_windows/0.35.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "accesskit_windows-0.35",
+    srcs = [":accesskit_windows-0.35.2.crate"],
+    crate = "accesskit_windows",
+    crate_root = "accesskit_windows-0.35.2.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "accesskit_windows",
+            "version": "0.35.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":accesskit-0.25",
+        ":accesskit_consumer-0.39",
+        ":hashbrown-0.17",
+        ":static_assertions-1",
+        ":windows-0.62",
+        ":windows-core-0.62",
+    ],
+)
+
 shims.alias(
     name = "accesskit_winit",
     actual = ":accesskit_winit-0.34",
@@ -293,6 +325,12 @@ third_party_rust.rust_library(
         ),
         "macos-x86_64": dict(
             deps = [":accesskit_macos-0.27"],
+        ),
+        "windows-gnu": dict(
+            deps = [":accesskit_windows-0.35"],
+        ),
+        "windows-msvc": dict(
+            deps = [":accesskit_windows-0.35"],
         ),
     },
     visibility = [],
@@ -11041,6 +11079,18 @@ third_party_rust.rust_library(
                 ":objc2-foundation-0.3",
             ],
         ),
+        "windows-gnu": dict(
+            deps = [
+                ":windows-0.62",
+                ":windows-core-0.62",
+            ],
+        ),
+        "windows-msvc": dict(
+            deps = [
+                ":windows-0.62",
+                ":windows-core-0.62",
+            ],
+        ),
     },
     visibility = [],
     deps = [
@@ -19586,8 +19636,21 @@ third_party_rust.rust_library(
             "licenses": ["ISC"],
         },
     },
+    platform = {
+        "linux-arm64": dict(
+            deps = [":cfg-if-1"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":cfg-if-1"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-link-0.2"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-link-0.2"],
+        ),
+    },
     visibility = [],
-    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -40128,6 +40191,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "windows",
+    actual = ":windows-0.62",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "windows-0.62.2.crate",
     sha256 = "527fadee13e0c05939a6a05d5bd6eec6cd2e3dbd648b9f8e447c6518133d8580",
@@ -40145,6 +40214,12 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
+        "Win32_Globalization",
+        "Win32_Graphics",
+        "Win32_Graphics_DirectWrite",
+        "Win32_Graphics_Gdi",
+        "Win32_Media",
+        "Win32_Media_Audio",
         "Win32_NetworkManagement",
         "Win32_NetworkManagement_IpHelper",
         "Win32_NetworkManagement_Ndis",
@@ -40155,13 +40230,26 @@ third_party_rust.rust_library(
         "Win32_Storage_FileSystem",
         "Win32_System",
         "Win32_System_Com",
+        "Win32_System_Com_StructuredStorage",
+        "Win32_System_DataExchange",
         "Win32_System_IO",
         "Win32_System_Ioctl",
+        "Win32_System_LibraryLoader",
+        "Win32_System_Memory",
         "Win32_System_Ole",
         "Win32_System_Rpc",
+        "Win32_System_StationsAndDesktops",
         "Win32_System_SystemServices",
+        "Win32_System_Threading",
         "Win32_System_Variant",
         "Win32_System_Wmi",
+        "Win32_UI",
+        "Win32_UI_Accessibility",
+        "Win32_UI_Input",
+        "Win32_UI_Input_KeyboardAndMouse",
+        "Win32_UI_Shell",
+        "Win32_UI_Shell_PropertiesSystem",
+        "Win32_UI_WindowsAndMessaging",
         "default",
         "std",
     ],
@@ -40679,14 +40767,37 @@ third_party_rust.rust_library(
     edition = "2021",
     features = [
         "Win32",
+        "Win32_Devices",
+        "Win32_Devices_HumanInterfaceDevice",
         "Win32_Foundation",
+        "Win32_Globalization",
+        "Win32_Graphics",
+        "Win32_Graphics_Dwm",
+        "Win32_Graphics_Gdi",
+        "Win32_Media",
         "Win32_Security",
         "Win32_System",
+        "Win32_System_Com",
+        "Win32_System_Com_StructuredStorage",
         "Win32_System_Console",
+        "Win32_System_LibraryLoader",
+        "Win32_System_Ole",
+        "Win32_System_SystemInformation",
+        "Win32_System_SystemServices",
         "Win32_System_Threading",
+        "Win32_System_WindowsProgramming",
         "Win32_UI",
+        "Win32_UI_Accessibility",
+        "Win32_UI_Controls",
+        "Win32_UI_HiDpi",
         "Win32_UI_Input",
+        "Win32_UI_Input_Ime",
         "Win32_UI_Input_KeyboardAndMouse",
+        "Win32_UI_Input_Pointer",
+        "Win32_UI_Input_Touch",
+        "Win32_UI_Shell",
+        "Win32_UI_TextServices",
+        "Win32_UI_WindowsAndMessaging",
         "default",
     ],
     metadata = {
@@ -41008,6 +41119,18 @@ third_party_rust.rust_library(
                 ":objc2-0.5",
                 ":objc2-app-kit-0.2",
                 ":objc2-foundation-0.2",
+            ],
+        ),
+        "windows-gnu": dict(
+            deps = [
+                ":unicode-segmentation-1",
+                ":windows-sys-0.52",
+            ],
+        ),
+        "windows-msvc": dict(
+            deps = [
+                ":unicode-segmentation-1",
+                ":windows-sys-0.52",
             ],
         ),
     },
