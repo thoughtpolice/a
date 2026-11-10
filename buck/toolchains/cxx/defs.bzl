@@ -135,6 +135,10 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
             # argfiles on every host.
             archiver_supports_argfiles = True
 
+    # Windows has no GNU binutils; LLVM's, which ship with clang-cl, read
+    # COFF and PDB as well.
+    binutil = (lambda name: "llvm-" + name) if os == Os("windows") else (lambda name: name)
+
     if cxx_tools_info.compiler_type == "clang":
         llvm_link = RunInfo(args = ["llvm-link"])
     else:
@@ -170,17 +174,19 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
             shared_library_versioned_name_format = shared_library_versioned_name_format,
             static_library_extension = static_library_extension,
             force_full_hybrid_if_capable = False,
-            is_pdb_generated = is_pdb_generated(linker_type, ctx.attrs.link_flags),
+            # The prelude looks for /DEBUG among flags as a target's
+            # linker_flags render, quoted; these are plain strings.
+            is_pdb_generated = is_pdb_generated(linker_type, ['"{}"'.format(f) for f in ctx.attrs.link_flags]),
             link_ordering = ctx.attrs.link_ordering,
         ),
         bolt_enabled = False,
         runtime_dependency_handling = RuntimeDependencyHandling("no_symlink"),
         binary_utilities_info = BinaryUtilitiesInfo(
-            nm = RunInfo(args = ["nm"]),
-            objcopy = RunInfo(args = ["objcopy"]),
-            objdump = RunInfo(args = ["objdump"]),
-            ranlib = RunInfo(args = ["ranlib"]),
-            strip = RunInfo(args = ["strip"]),
+            nm = RunInfo(args = [binutil("nm")]),
+            objcopy = RunInfo(args = [binutil("objcopy")]),
+            objdump = RunInfo(args = [binutil("objdump")]),
+            ranlib = RunInfo(args = [binutil("ranlib")]),
+            strip = RunInfo(args = [binutil("strip")]),
             dwp = RunInfo(args = [ctx.attrs.dwp]) if ctx.attrs.dwp else None,
             bolt = None,
         ),
@@ -199,10 +205,12 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
         as_compiler_info = CCompilerInfo(
             compiler = _compiler_run_info(ctx, cxx_tools_info.compiler),
             compiler_type = cxx_tools_info.compiler_type,
+            compiler_flags = ctx.attrs.as_flags,
         ),
         asm_compiler_info = CCompilerInfo(
             compiler = _compiler_run_info(ctx, cxx_tools_info.asm_compiler),
             compiler_type = cxx_tools_info.asm_compiler_type,
+            compiler_flags = ctx.attrs.asm_flags,
         ),
         cvtres_compiler_info = CvtresCompilerInfo(
             compiler = _run_info(cxx_tools_info.cvtres_compiler),
@@ -269,6 +277,16 @@ system_cxx_toolchain = rule(
     impl = _system_cxx_toolchain_impl,
     attrs = {
         "archiver": attrs.option(attrs.string(), default = None),
+        "as_flags": attrs.list(
+            attrs.string(),
+            default = [],
+            doc = "Flags for the C compiler where it assembles .S sources.",
+        ),
+        "asm_flags": attrs.list(
+            attrs.string(),
+            default = [],
+            doc = "Flags for the assembler of .asm sources (llvm-ml, on Windows).",
+        ),
         "c_flags": attrs.list(attrs.string(), default = []),
         "compiler": attrs.option(attrs.string(), default = None),
         "compiler_type": attrs.option(attrs.string(), default = None),  # one of CxxToolProviderType
@@ -302,7 +320,12 @@ system_cxx_toolchain = rule(
         ),
         "_cxx_tools_info": attrs.exec_dep(
             providers = [CxxToolsInfo],
-            default = "prelude//toolchains/msvc:msvc_tools" if host_info().os.is_windows else "toolchains//cxx/clang:path_clang_tools",
+            # By the target's os, not the host's: clang-cl and lld-link for
+            # Windows, whatever builds it.
+            default = select({
+                "DEFAULT": "toolchains//cxx/clang:path_clang_tools",
+                "config//os:windows": "toolchains//cxx/clang:windows_clang_tools",
+            }),
         ),
         "_internal_tools": attrs.default_only(attrs.exec_dep(providers = [CxxInternalTools], default = "prelude//cxx/tools:internal_tools")),
         "_target_os_type": buck.target_os_type_arg(),
@@ -331,6 +354,8 @@ def _path_clang_tools_impl(_ctx) -> list[Provider]:
 cxx_tools_info_toolchain = rule(
     impl = _cxx_tools_info_toolchain_impl,
     attrs = {
+        "as_flags": attrs.list(attrs.string(), default = []),
+        "asm_flags": attrs.list(attrs.string(), default = []),
         "c_flags": attrs.list(attrs.string(), default = []),
         "compiler_wrapper": attrs.option(attrs.source(), default = None),
         "cpp_dep_tracking_mode": attrs.string(default = "makefile"),
@@ -361,4 +386,38 @@ cxx_tools_info_toolchain = rule(
 path_clang_tools = rule(
     impl = _path_clang_tools_impl,
     attrs = {},
+)
+
+def _windows_clang_tools_impl(ctx: AnalysisContext) -> list[Provider]:
+    # LLVM's MSVC-compatible drivers, from PATH. clang-cl and lld-link find
+    # the Visual Studio installation and the Windows SDK themselves (through
+    # the Setup Configuration API and the registry), so unlike cl.exe and
+    # link.exe they need no vcvars environment, and a build runs from any
+    # shell. The target's own flags (--target, /machine) come from the
+    # toolchain's BUILD file, which knows the triple.
+    return [
+        DefaultInfo(),
+        CxxToolsInfo(
+            compiler = "clang-cl",
+            # As cl.exe: see compiler_type in toolchains//cxx:BUILD.
+            compiler_type = "windows",
+            cxx_compiler = "clang-cl",
+            # Through ml.py, which reads the response files llvm-ml does not.
+            asm_compiler = cmd_args(ctx.attrs._ml[RunInfo], "llvm-ml"),
+            asm_compiler_type = "windows_ml64",
+            rc_compiler = "llvm-rc",
+            cvtres_compiler = "llvm-cvtres",
+            archiver = "llvm-lib",
+            # Not "windows", which is lib.exe, with flags llvm-lib lacks.
+            archiver_type = "windows_clang",
+            linker = "lld-link",
+            linker_type = LinkerType("windows"),
+        ),
+    ]
+
+windows_clang_tools = rule(
+    impl = _windows_clang_tools_impl,
+    attrs = {
+        "_ml": attrs.default_only(attrs.exec_dep(providers = [RunInfo], default = "toolchains//cxx:ml")),
+    },
 )

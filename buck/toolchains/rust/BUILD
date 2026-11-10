@@ -99,11 +99,14 @@ instrumentation_rustc_flags = shims.select({
 rustc_flags = target_rustc_flags + shims.select({
     "mode//:build-mode[debug]": common_rustc_flags + [
         "-Cdebuginfo=2",
+        "-Coverflow-checks=true",
+    ] + shims.select({
+        # *-windows-msvc writes CodeView, not DWARF.
+        "config//os:windows": [],
         # The version clang writes: llvm-dwp packs split debug info (see
         # toolchains//cxx) of one version only, and rustc's default is 4.
-        "-Cdwarf-version=5",
-        "-Coverflow-checks=true",
-    ],
+        "DEFAULT": ["-Cdwarf-version=5"],
+    }),
     "mode//:build-mode[release]": common_rustc_flags + [
         "-Cdebuginfo=line-tables-only",
         "-Cdebug-assertions=false",

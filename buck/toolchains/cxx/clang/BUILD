@@ -2,10 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
-load("@toolchains//cxx:defs.bzl", "path_clang_tools")
+load("@toolchains//cxx:defs.bzl", "path_clang_tools", "windows_clang_tools")
 
 path_clang_tools(
     name = "path_clang_tools",
+    visibility = ["PUBLIC"],
+)
+
+windows_clang_tools(
+    name = "windows_clang_tools",
     visibility = ["PUBLIC"],
 )
 

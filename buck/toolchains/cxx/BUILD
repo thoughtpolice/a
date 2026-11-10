@@ -27,8 +27,11 @@ cxx_base_flags = shims.select({
             "-std=gnu++17",
             "-stdlib=libc++",
         ],
+        # /EHsc: C++ exceptions, which cl.exe and clang-cl leave off unless
+        # asked, and every other compiler here has on (CMake's default too).
         "config//os:windows": [
             "/std:c++17",
+            "/EHsc",
             "/Zc:__cplusplus",
             "/Zc:inline",
             "/Zc:wchar_t",
@@ -38,10 +41,27 @@ cxx_base_flags = shims.select({
     }),
 })
 
+# clang-cl on Windows: the target's triple, and the dynamic release CRT
+# (/MD), which is the one rustc links on every *-windows-msvc target in debug
+# builds as in release ones; objects built for another CRT would not link
+# beside Rust's.
+windows_flags = shims.select({
+    "toolchains//cfg/target:target[x86_64-pc-windows-msvc]": ["--target=x86_64-pc-windows-msvc"],
+    "toolchains//cfg/target:target[aarch64-pc-windows-msvc]": ["--target=aarch64-pc-windows-msvc"],
+    "DEFAULT": [],
+}) + [
+    "/MD",
+    # Flags of cl.exe's that clang-cl takes and ignores (/d2threads1, which
+    # the prelude passes for "windows" compilers), and says so of each time.
+    "-Wno-unused-command-line-argument",
+]
+
 opt_flags = shims.select({
     "mode//:build-mode[debug]": shims.select({
+        # /Z7 keeps CodeView in each object rather than a shared PDB, which
+        # concurrent compiles would contend for.
         "config//os:windows": [
-            "/Zi",
+            "/Z7",
             "/Od",
         ],
         # Split DWARF (see split_debug_mode below): the debug info stays in
@@ -116,9 +136,22 @@ instrumentation_compiler_flags = shims.select({
     "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_asan_compiler_flags,
 })
 
+# clang-cl is driven as cl.exe is ("windows"), not as "clang_cl": in cl
+# mode clang ends an option at the end of a response file's line, and the
+# prelude writes "clang_cl" flags that take a separate argument (-I DIR,
+# -Xclang -fdebug-compilation-dir -Xclang DIR) on two lines of its argsfiles,
+# which clang-cl then reads as an option missing its argument. cl.exe's
+# spellings (/IDIR, /external:IDIR, /Brepro) are clang-cl's too.
 compiler_type = shims.select({
     "config//os:windows": "windows",
     "DEFAULT": "clang",
+})
+
+# clang-cl reads -MD as /MD, the CRT, so it reports headers with
+# /showIncludes rather than writing a makefile.
+cpp_dep_tracking_mode = shims.select({
+    "config//os:windows": "show_includes",
+    "DEFAULT": "makefile",
 })
 
 linker = shims.select({
@@ -126,7 +159,7 @@ linker = shims.select({
     "toolchains//cfg/target:target[aarch64-unknown-uefi]": "lld",
     "toolchains//cfg/target:target[wasm32-unknown-unknown]": "lld",
     "DEFAULT": shims.select({
-        "config//os:windows": "link.exe",
+        "config//os:windows": "lld-link",
         "config//os:macos": "clang++",
         "DEFAULT": "clang++",
     }),
@@ -176,8 +209,23 @@ link_flags = shims.select({
         "aarch64-unknown-linux-gnu",
     ] + linux_common_ldflags,
     "DEFAULT": shims.select({
-        # on Windows, suffer
-        "config//os:windows": [
+        # lld-link, which finds the MSVC and Windows SDK libraries itself.
+        "config//os:windows": shims.select({
+            "toolchains//cfg/target:target[x86_64-pc-windows-msvc]": ["/machine:x64"],
+            "toolchains//cfg/target:target[aarch64-pc-windows-msvc]": ["/machine:arm64"],
+            "DEFAULT": [],
+        }) + shims.select({
+            "mode//:build-mode[debug]": ["/debug"],
+            "DEFAULT": [],
+        }) + [
+            # What Rust's standard library links on *-windows-msvc (rustc
+            # --print native-static-libs), which a link lld-link makes rather
+            # than rustc has to name itself: a Rust staticlib's, say.
+            "kernel32.lib",
+            "ntdll.lib",
+            "userenv.lib",
+            "ws2_32.lib",
+            "dbghelp.lib",
             "advapi32.lib",
             "winhttp.lib",
             "rpcrt4.lib",
@@ -235,13 +283,33 @@ system_cxx_toolchain(
         "toolchains//cfg/target:target[wasm32-unknown-unknown]": "llvm-ar",
         "DEFAULT": None,
     }),
-    c_flags = cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
+    # clang-cl assembling .S sources (on Windows, arm64's): the target, which
+    # it otherwise takes to be the host's.
+    as_flags = shims.select({
+        "toolchains//cfg/target:target[x86_64-pc-windows-msvc]": ["--target=x86_64-pc-windows-msvc"],
+        "toolchains//cfg/target:target[aarch64-pc-windows-msvc]": ["--target=aarch64-pc-windows-msvc"],
+        "DEFAULT": [],
+    }),
+    # llvm-ml, MASM's stand-in, assembles for 32-bit x86 unless told
+    # otherwise. It has no armasm64 mode: arm64 assembly is GNU syntax (.S).
+    asm_flags = shims.select({
+        "toolchains//cfg/target:target[x86_64-pc-windows-msvc]": ["-m64"],
+        "DEFAULT": [],
+    }),
+    c_flags = cxx_warn_flags + opt_flags + instrumentation_compiler_flags + shims.select({
+        "config//os:windows": windows_flags,
+        "DEFAULT": [],
+    }),
     compiler_type = compiler_type,
     compiler_wrapper = shims.select({
         "toolchains//cfg/target:target[wasm32-unknown-unknown]": "wasm-compiler.sh",
         "DEFAULT": None,
     }),
-    cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
+    cpp_dep_tracking_mode = cpp_dep_tracking_mode,
+    cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags + instrumentation_compiler_flags + shims.select({
+        "config//os:windows": windows_flags,
+        "DEFAULT": [],
+    }),
     dwp = shims.select({
         "config//os:linux": "llvm-dwp",
         "DEFAULT": None,
@@ -250,6 +318,14 @@ system_cxx_toolchain(
     linker = linker,
     linker_type = linker_type,
     split_debug_mode = split_debug_mode,
+)
+
+# llvm-ml, with the response files it does not read itself expanded
+# (windows_clang_tools).
+shims.python_bootstrap_binary(
+    name = "ml",
+    main = "ml.py",
+    visibility = ["toolchains//cxx/..."],
 )
 
 # Read by the toolchain rule, which the shims do not wrap.
