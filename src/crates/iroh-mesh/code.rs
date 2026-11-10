@@ -227,8 +227,11 @@ mod tests {
         let path = dir.path().join("mesh/join-code");
         let code = JoinCode::load_or_create(&path).unwrap();
         assert_eq!(JoinCode::load_or_create(&path).unwrap(), code);
-        use std::os::unix::fs::PermissionsExt as _;
-        let mode = std::fs::metadata(&path).unwrap().permissions().mode();
-        assert_eq!(mode & 0o777, 0o600);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
     }
 }

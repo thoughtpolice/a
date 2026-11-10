@@ -6,7 +6,6 @@
 
 use std::fmt;
 use std::io::{self, Write as _};
-use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -85,12 +84,14 @@ pub(crate) fn keep(path: &Path, new: impl FnOnce() -> String) -> io::Result<Stri
     // Written whole beside it, then linked into place, which fails if
     // someone else got there first: theirs it is, then.
     let partial = path.with_extension(format!("partial.{}", std::process::id()));
-    let mut file = std::fs::File::options()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&partial)?;
+    let mut options = std::fs::File::options();
+    options.write(true).create(true).truncate(true);
+    // Readable by its owner alone. On Windows the file takes its
+    // directory's access control list, which in a user's profile (where
+    // these are kept) admits the user, administrators and the system.
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let mut file = options.open(&partial)?;
     writeln!(file, "{}", new())?;
     file.sync_all()?;
     let linked = std::fs::hard_link(&partial, path);
@@ -119,12 +120,15 @@ mod tests {
             JoinKey::load_or_create(&dir.path().join("join")).unwrap(),
             join
         );
-        use std::os::unix::fs::PermissionsExt as _;
-        let mode = std::fs::metadata(dir.path().join("join"))
-            .unwrap()
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o777, 0o600);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(dir.path().join("join"))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
     }
 
     #[test]
