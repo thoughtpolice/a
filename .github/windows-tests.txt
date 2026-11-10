@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Tests the windows workflow runs once its targets build.
+tilde//aseipp/quad:test-text
+tilde//aseipp/quad:test-highlight
+tilde//aseipp/quad:test-themes
+tilde//aseipp/quad:test-anim
+tilde//aseipp/quad:test-graphemes
+tilde//aseipp/quad:test-selection
+tilde//aseipp/quad:test-editing
+tilde//aseipp/quad:test-keys
+tilde//aseipp/quad:test-terminal
+tilde//aseipp/quad:test-protocol
+tilde//aseipp/quad:test-clients
+tilde//aseipp/quad:test-native
+tilde//aseipp/quad:test-json
+tilde//aseipp/quad:test-tutor
+tilde//aseipp/quad:test-tutor-vim
+tilde//aseipp/quad:test-tutor-helix
+tilde//aseipp/quad:test-people
+tilde//aseipp/quad:test-gui
+tilde//aseipp/quad:test-scroll
+tilde//aseipp/quad:test-link
+tilde//aseipp/quad:test-image
+tilde//aseipp/quad:test-loop
+tilde//aseipp/quad:test-files
+tilde//aseipp/quad:test-regions
+tilde//aseipp/quad:test-panes
+tilde//aseipp/quad:test-widgets
+tilde//aseipp/quad:test-vim
+tilde//aseipp/quad:test-helix
+tilde//aseipp/quad:test-paths

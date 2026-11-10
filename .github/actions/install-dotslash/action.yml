@@ -17,10 +17,18 @@ runs:
         echo "$RUNNER_TEMP/dotslash" >> $GITHUB_PATH
 
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          C:\\msys64\\usr\\bin\\wget.exe https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/dotslash-windows.v$INPUT_VERSION.tar.gz
-          tar xf dotslash-windows.v$INPUT_VERSION.tar.gz dotslash.exe
+          # DotSlash picks the executable for the machine it was built for, so
+          # an arm64 runner needs arm64's (published from 0.5.9 on), not x64's
+          # under emulation.
+          if [[ "$RUNNER_ARCH" == "ARM64" ]]; then
+            asset=dotslash-windows-arm64.v$INPUT_VERSION.tar.gz
+          else
+            asset=dotslash-windows.v$INPUT_VERSION.tar.gz
+          fi
+          curl -fsSLO https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/$asset
+          tar xf $asset dotslash.exe
           mv dotslash.exe $RUNNER_TEMP/dotslash
-          rm dotslash-windows.v$INPUT_VERSION.tar.gz
+          rm $asset
         else
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             wget https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/dotslash-macos.v$INPUT_VERSION.tar.gz

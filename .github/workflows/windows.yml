@@ -1,0 +1,195 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Bring-up of native Windows builds: quad, with clang-cl and lld-link against
+# the runner's Windows SDK and MSVC CRT. Runs on pushes to the `windows`
+# branch, and on request.
+name: windows
+
+on:
+  push:
+    branches:
+      - windows
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Targets to build"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# A newer push makes the run before it moot.
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build (${{ matrix.os }}, ${{ matrix.abi }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            abi: x86_64-pc-windows-msvc
+            modifiers: ""
+          # arm64, natively: its own Chez Scheme compiles quad's Scheme for
+          # tarm64nt (cross-compiled on x86_64, the boot file would be x64's).
+          - os: windows-11-arm
+            abi: aarch64-pc-windows-msvc
+            modifiers: ""
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    env:
+      # Not TARGETS: Windows environment variables ignore case, and
+      # dtolnay/rust-toolchain passes its `targets` input in one.
+      BUILD_TARGETS: ${{ inputs.targets || matrix.targets }}
+      MODIFIERS: ${{ matrix.modifiers }}
+    steps:
+      - name: Enable long paths and symlinks
+        shell: pwsh
+        run: |
+          git config --global core.longpaths true
+          git config --global core.symlinks true
+          git config --global core.autocrlf false
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
+        with:
+          version: "0.7.12"
+          enable-cache: false
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
+        with:
+          toolchain: "nightly-2026-03-24"
+          targets: ${{ matrix.abi }}
+      # As the other runners have it: bindgen, from PATH, for BoringSSL's
+      # Rust bindings, with the runner's LLVM as its libclang.
+      - name: Install bindgen
+        shell: bash
+        run: |
+          echo "LIBCLANG_PATH=C:/Program Files/LLVM/bin" >> $GITHUB_ENV
+          cargo install bindgen-cli --version 0.72.1 --locked
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+        with:
+          version: "0.5.9"
+      - name: Set up environment
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/buck/bin" >> $GITHUB_PATH
+          echo "$GITHUB_WORKSPACE/buck/bin/extra" >> $GITHUB_PATH
+          echo "C:/Program Files/LLVM/bin" >> $GITHUB_PATH
+      - name: Show tools
+        shell: bash
+        run: |
+          set -x
+          which clang-cl lld-link llvm-lib clang rustc python python3 || true
+          clang-cl --version || true
+          rustc -vV
+          python --version || true
+      - name: Configure Buck2 for CI
+        shell: bash
+        run: |
+          printf '\n' >> .buckconfig.local
+          cat buck/ci.buckconfig >> .buckconfig.local
+      - name: Restore buck-out
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: buck-out/v2
+          key: windows-buck-out-v1-${{ runner.arch }}-${{ matrix.abi }}-${{ github.sha }}
+          restore-keys: windows-buck-out-v1-${{ runner.arch }}-${{ matrix.abi }}-
+      - name: Build
+        id: build
+        shell: bash
+        run: |
+          if [ -z "$BUILD_TARGETS" ]; then
+            BUILD_TARGETS="$(grep -v '^#' .github/windows-targets.txt)"
+          fi
+          buck2 build $MODIFIERS --keep-going --build-report=build-report.json $BUILD_TARGETS 2>&1 | tee build.log
+          exit ${PIPESTATUS[0]}
+      - name: Upload quad
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "$(buck2 build $MODIFIERS tilde//aseipp/quad:quad-exe --show-full-simple-output)" dist/quad.exe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quad-${{ matrix.abi }}
+          path: dist/quad.exe
+      - name: Smoke test
+        if: matrix.modifiers == ''
+        shell: bash
+        run: |
+          buck2 run tilde//aseipp/quad:quad -- --version
+      # The editor as a server and its clients, over a Unix socket: as
+      # test-remote does on Unix, in PowerShell rather than a POSIX shell.
+      - name: Daemon smoke test
+        if: matrix.modifiers == ''
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $quad = (buck2 build tilde//aseipp/quad:quad-exe --show-full-simple-output).Trim()
+          $dir = Join-Path $env:RUNNER_TEMP "quad-smoke"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $env:QUAD_SOCKET = Join-Path $dir "quad.sock"
+          Set-Content -Path (Join-Path $dir "file.txt") -Value "remote content"
+          $daemon = Start-Process -FilePath $quad -ArgumentList @("-q", "--daemon", (Join-Path $dir "file.txt")) `
+            -RedirectStandardOutput (Join-Path $dir "daemon.log") -RedirectStandardError (Join-Path $dir "daemon.err") `
+            -PassThru -NoNewWindow
+          for ($i = 0; $i -lt 200 -and -not (Test-Path $env:QUAD_SOCKET); $i++) { Start-Sleep -Milliseconds 50 }
+          if (-not (Test-Path $env:QUAD_SOCKET)) {
+            Get-Content (Join-Path $dir "daemon.log"), (Join-Path $dir "daemon.err") -ErrorAction SilentlyContinue
+            throw "the daemon did not listen"
+          }
+          $sum = & $quad --connect --eval "(+ 1 2)"
+          if ("$sum".Trim() -ne "3") { throw "eval over the socket gave '$sum'" }
+          $n = & $quad --connect --eval "(length (clients))"
+          if ("$n".Trim() -ne "1") { throw "clients: '$n'" }
+          & $quad -q --daemon *> (Join-Path $dir "second.log")
+          if ($LASTEXITCODE -eq 0) { throw "a second daemon on the same socket was not refused" }
+          & $quad --connect --eval "(editor-quit!)" | Out-Null
+          if (-not $daemon.WaitForExit(20000)) { throw "the daemon did not quit" }
+          if (Test-Path $env:QUAD_SOCKET) { throw "the socket was left behind" }
+          Get-Content (Join-Path $dir "daemon.log")
+      - name: Test
+        if: matrix.modifiers == ''
+        shell: bash
+        run: |
+          buck2 test --keep-going $(grep -v '^#' .github/windows-tests.txt) 2>&1 | tee test.log
+          exit ${PIPESTATUS[0]}
+      - name: Dump compiler argsfiles
+        if: failure()
+        shell: bash
+        run: |
+          for f in $(find buck-out/v2 -name 'compiler_type_args' 2>/dev/null | head -3) \
+                   $(find buck-out/v2 -name '*.toolchain_cxx_args' 2>/dev/null | head -2); do
+            echo "== $f"; od -c "$f" | head -20
+          done
+      - name: What failed
+        if: always()
+        shell: bash
+        run: |
+          buck2 log what-failed 2>&1 | tail -n 400 || true
+      - name: Save buck-out
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: buck-out/v2
+          key: windows-buck-out-v1-${{ runner.arch }}-${{ matrix.abi }}-${{ github.sha }}
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: logs-${{ matrix.abi }}
+          path: |
+            build.log
+            build-report.json
+            test.log
+          if-no-files-found: ignore
+
