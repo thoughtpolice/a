@@ -352,7 +352,7 @@ def generate_platforms(variants, constraints = []):
 default_platforms = [
     ("arm64", "linux"),
     ("arm64", "macos"),
-    #("arm64", "windows"),
+    ("arm64", "windows"),
     ("x86_64", "linux"),
     #("x86_64", "macos"),
     ("x86_64", "windows"),

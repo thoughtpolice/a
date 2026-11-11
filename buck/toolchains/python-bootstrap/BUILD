@@ -8,11 +8,15 @@ load(
     "standalone_python_bootstrap_toolchain",
     "standalone_python_download",
     "standalone_python_runtime",
+    "windows_python_download",
 )
 
 PYTHON_VERSION_TAG = "20250106"
 
 PYTHON_VERSION = "3.13.1+{PYTHON_VERSION_TAG}".format(PYTHON_VERSION_TAG = PYTHON_VERSION_TAG)
+
+# Windows's, from python.org (see windows_python_download).
+WINDOWS_PYTHON_VERSION = "3.15.2"
 
 standalone_python_bootstrap_toolchain(
     name = "python_bootstrap",
@@ -20,10 +24,11 @@ standalone_python_bootstrap_toolchain(
         "config//cpu:arm64": shims.select({
             "config//os:linux": "$(location :cpython-{PYTHON_VERSION}-aarch64-unknown-linux-gnu-runtime)/bin/python3".format(PYTHON_VERSION = PYTHON_VERSION),
             "config//os:macos": "$(location :cpython-{PYTHON_VERSION}-aarch64-apple-darwin.tar.gz[python/bin/python])".format(PYTHON_VERSION = PYTHON_VERSION),
+            "config//os:windows": "$(location :python-{WINDOWS_PYTHON_VERSION}-embed-arm64[python.exe])".format(WINDOWS_PYTHON_VERSION = WINDOWS_PYTHON_VERSION),
         }),
         "config//cpu:x86_64": shims.select({
             "config//os:linux": "$(location :cpython-{PYTHON_VERSION}-x86_64-unknown-linux-gnu-runtime)/bin/python3".format(PYTHON_VERSION = PYTHON_VERSION),
-            "config//os:windows": "$(location :cpython-{PYTHON_VERSION}-x86_64-pc-windows-msvc.tar.gz[python/python.exe])".format(PYTHON_VERSION = PYTHON_VERSION),
+            "config//os:windows": "$(location :python-{WINDOWS_PYTHON_VERSION}-embed-amd64[python.exe])".format(WINDOWS_PYTHON_VERSION = WINDOWS_PYTHON_VERSION),
         }),
     }),
 )
@@ -43,7 +48,6 @@ standalone_python_bootstrap_toolchain(
             }),
             "config//cpu:x86_64": shims.select({
                 "config//os:linux": ":smoltar-x86_64-unknown-linux-musl",
-                "config//os:windows": ":smoltar-x86_64-pc-windows-msvc.exe",
             }),
         }),
         url = "https://github.com/astral-sh/python-build-standalone/releases/download/{PYTHON_VERSION_TAG}/cpython-{PYTHON_VERSION}-{name}-{variant}.tar.gz".format(
@@ -60,7 +64,26 @@ standalone_python_bootstrap_toolchain(
         ("aarch64-unknown-linux-gnu", "install_only_stripped", "3c720649b2af9873262429074826ef0e35f98140e38df365b36a668573a86cf0", "python/bin/python"),
         ("aarch64-apple-darwin", "install_only", "bbfc96038d0b6922fd783f6eb2c9bf9abb648531d23d236bc1a0c16bdd061944", "python/bin/python"),
         ("x86_64-unknown-linux-gnu", "install_only_stripped", "726a608e2867c2867caa2cf3f668cb15018456070eee32375675f190946650bc", "python/bin/python"),
-        ("x86_64-pc-windows-msvc", "install_only", "e1f151612939a80ad0320244c3d404934e5e99e04d6fa382a8cd5606386b9a11", "python/python.exe"),
+    ]
+]
+
+[
+    windows_python_download(
+        name = "python-{WINDOWS_PYTHON_VERSION}-embed-{arch}".format(
+            WINDOWS_PYTHON_VERSION = WINDOWS_PYTHON_VERSION,
+            arch = arch,
+        ),
+        sha256 = sha256,
+        url = "https://www.python.org/ftp/python/{WINDOWS_PYTHON_VERSION}/python-{WINDOWS_PYTHON_VERSION}-embed-{arch}.zip".format(
+            WINDOWS_PYTHON_VERSION = WINDOWS_PYTHON_VERSION,
+            arch = arch,
+        ),
+        visibility = [],
+    )
+    # Hashes from the release's page, python.org/downloads/release/python-3152/.
+    for arch, sha256 in [
+        ("amd64", "d012f3aa29cf07436dae8aea1fec0fd195c2612a0b059b1f915ae0afb9ad1f62"),
+        ("arm64", "089eae5e8aba8284c2ce59df008c1dc915af46fd9e8b1227e3a7f315211567c9"),
     ]
 ]
 
@@ -115,7 +138,6 @@ standalone_python_bootstrap_toolchain(
         ("smoltar-aarch64-apple-darwin", "d8964e7bdc8516130012302ea06d18cb130cee13e85145446f8ae473679fc7d4"),
         ("smoltar-aarch64-unknown-linux-musl", "e1a0e2e4b102823c56fa96323d88fdef499ae855dca657d03582558cf48fc65f"),
         ("smoltar-x86_64-unknown-linux-musl", "3f727c5ada7a038f7e60afd003181779440fc11907cfece8a59c6be435ad3e67"),
-        ("smoltar-x86_64-pc-windows-msvc.exe", "9b4ea3d1f3414574f16c23c2434d26e4f3cf67804db9d07d50ef3a00d7963184"),
     ]
 ]
 

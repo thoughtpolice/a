@@ -39,6 +39,7 @@ def download_deno(version: str, hashes: list[(str, str)]):
             "config//cpu:arm64": select({
                 "config//os:linux": ":{version}-aarch64-unknown-linux-gnu".format(version = version),
                 "config//os:macos": ":{version}-aarch64-apple-darwin".format(version = version),
+                "config//os:windows": ":{version}-aarch64-pc-windows-msvc".format(version = version),
             }),
             "config//cpu:x86_64": select({
                 "config//os:linux": ":{version}-x86_64-unknown-linux-gnu".format(version = version),

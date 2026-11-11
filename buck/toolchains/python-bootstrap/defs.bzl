@@ -68,6 +68,63 @@ standalone_python_download = rule(
     },
 )
 
+def _windows_python_download(ctx):
+    archive = ctx.actions.declare_output("zip", ctx.label.name + ".zip")
+    ctx.actions.download_file(
+        archive.as_output(),
+        ctx.attrs.url,
+        sha256 = ctx.attrs.sha256,
+    )
+
+    # Windows' own bsdtar reads zip files, and its cmd's mkdir makes the
+    # directory and its parents. The embeddable package's ._pth file is left
+    # out: while it is there, Python runs isolated, without the script's own
+    # directory on sys.path, where a bootstrap binary's modules are, and
+    # ignoring PYTHONPATH. Without it, the interpreter finds its standard
+    # library in the zip beside it, and its extension modules beside that.
+    out_dir = ctx.actions.declare_output("dir", ctx.label.name, dir = True)
+    ctx.actions.run(
+        cmd_args(
+            "cmd.exe",
+            "/c",
+            "mkdir",
+            out_dir.as_output(),
+            "&&",
+            "%SystemRoot%\\System32\\tar.exe",
+            "-x",
+            "-f",
+            archive,
+            "-C",
+            out_dir.as_output(),
+            "--exclude",
+            "*._pth",
+        ),
+        category = "unzip_python",
+    )
+
+    python = out_dir.project("python.exe")
+    return [
+        DefaultInfo(
+            default_output = out_dir,
+            sub_targets = {
+                "python.exe": [DefaultInfo(default_output = python)],
+            },
+        ),
+        RunInfo(args = cmd_args(python, hidden = out_dir)),
+    ]
+
+# The embeddable package of a python.org release for Windows: a zip of the
+# interpreter, its DLLs and extension modules, and its standard library,
+# compiled and zipped again. python-build-standalone has no Windows arm64
+# build of the release the other platforms use; python.org has both.
+windows_python_download = rule(
+    impl = _windows_python_download,
+    attrs = {
+        "url": attrs.string(),
+        "sha256": attrs.string(),
+    },
+)
+
 def _standalone_python_runtime(ctx: AnalysisContext) -> list[Provider]:
     install = ctx.attrs.python[DefaultInfo].default_outputs[0].project("python")
     out = ctx.actions.declare_output("runtime", dir = True)
