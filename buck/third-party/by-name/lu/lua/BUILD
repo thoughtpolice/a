@@ -83,8 +83,11 @@ shims.http_archive(
     strip_prefix = "lua-{}".format(VERSION),
     sub_targets = ["src/{}".format(f) for f in LIBRARY_SOURCES + PUBLIC_HEADERS + PRIVATE_HEADERS + ["lua.c"]],
     type = "tar.gz",
+    # PUC-Rio's own copy of www.lua.org/ftp, byte for byte. http_archive takes
+    # only one URL, and lua.org itself times out from GitHub's x86_64 Windows
+    # runners while this mirror, on another network, does not.
     urls = [
-        "https://www.lua.org/ftp/lua-{}.tar.gz".format(VERSION),
+        "https://www.tecgraf.puc-rio.br/lua/ftp/lua-{}.tar.gz".format(VERSION),
     ],
 )
 
